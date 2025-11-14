@@ -31,7 +31,7 @@ project-root/
 4. Set required environment variables in `~/.bashrc` or `~/.bash_profile`:
    ```bash
    export ANTHROPIC_API_KEY="your-api-key"
-   export PROMPT_PREFIX="$HOME/OneDrive/Admin/Prompts"  # Path to system prompts
+   export WORKFLOW_PROMPT_PREFIX="$HOME/OneDrive/Admin/Prompts"  # Path to system prompts
    ```
 
 ## Commands
@@ -106,8 +106,8 @@ Project-wide defaults sourced by all workflows:
 
 ```bash
 # System prompts to concatenate (in order)
-# Each name maps to $PROMPT_PREFIX/System/{name}.xml
-SYSTEM_PROMPTS=(Root NeuroAI)
+# Each name maps to $WORKFLOW_PROMPT_PREFIX/System/{name}.xml
+SYSTEM_PROMPTS=(Root)
 
 # API defaults
 MODEL="claude-sonnet-4-5"
@@ -161,7 +161,7 @@ Settings are applied in order (later overrides earlier):
 ## System Prompts
 
 System prompts are XML files concatenated in the specified order:
-- Located at `$PROMPT_PREFIX/System/{name}.xml`
+- Located at `$WORKFLOW_PROMPT_PREFIX/System/{name}.xml`
 - `Root` prompt typically included first (baseline instructions)
 - Additional prompts add domain-specific context
 - Concatenated into `.workflow/prompts/system.txt`
@@ -343,7 +343,7 @@ Use `--dry-run` to estimate without making API request.
 
 ### Environment Variables
 - `ANTHROPIC_API_KEY` - Anthropic API access
-- `PROMPT_PREFIX` - Base path to system prompt directory
+- `WORKFLOW_PROMPT_PREFIX` - Base path to system prompt directory
 
 ### Optional
 - `mdformat` - Markdown formatting
@@ -408,8 +408,8 @@ workflow run 00-workshop-context --dry-run
 - Use `workflow new NAME` to create
 - Check workflow exists: `ls .workflow/`
 
-### "PROMPT_PREFIX not set"
-- Set in `~/.bashrc`: `export PROMPT_PREFIX="path/to/prompts"`
+### "WORKFLOW_PROMPT_PREFIX not set"
+- Set in `~/.bashrc`: `export WORKFLOW_PROMPT_PREFIX="path/to/prompts"`
 - Reload shell: `source ~/.bashrc`
 
 ### Context files not found

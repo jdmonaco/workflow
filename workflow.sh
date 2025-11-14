@@ -509,13 +509,13 @@ if [[ ! -f "$TASK_PROMPT_FILE" ]]; then
 fi
 
 # Create system prompt if needed
-if [[ -z "$PROMPT_PREFIX" ]]; then
-    echo "Error: PROMPT_PREFIX environment variable is not set"
-    echo "Set PROMPT_PREFIX to the directory containing your System/*.xml prompt files"
+if [[ -z "$WORKFLOW_PROMPT_PREFIX" ]]; then
+    echo "Error: WORKFLOW_PROMPT_PREFIX environment variable is not set"
+    echo "Set WORKFLOW_PROMPT_PREFIX to the directory containing your System/*.xml prompt files"
     exit 1
 fi
 
-PROMPTDIR="$PROMPT_PREFIX/System"
+PROMPTDIR="$WORKFLOW_PROMPT_PREFIX/System"
 if [[ ! -f "$SYSTEM_PROMPT_FILE" ]]; then
     if [[ ! -d "$PROMPTDIR" ]]; then
         echo "Error: System prompt directory not found: $PROMPTDIR"

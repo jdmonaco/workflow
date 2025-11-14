@@ -22,7 +22,7 @@ chmod +x ~/bin/workflow
 
 # Set up environment
 export ANTHROPIC_API_KEY="your-key"
-export PROMPT_PREFIX="$HOME/path/to/prompts"
+export WORKFLOW_PROMPT_PREFIX="$HOME/path/to/prompts"
 
 # Initialize project
 cd my-manuscript
@@ -61,7 +61,7 @@ Add to `~/.bashrc` or `~/.bash_profile`:
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
-export PROMPT_PREFIX="$HOME/prompts"  # Path to your system prompt directory
+export WORKFLOW_PROMPT_PREFIX="$HOME/prompts"  # Path to your system prompt directory
 ```
 
 ## Usage
@@ -115,7 +115,7 @@ Project-wide defaults:
 
 ```bash
 # System prompts to concatenate
-SYSTEM_PROMPTS=(Root NeuroAI)
+SYSTEM_PROMPTS=(Root)
 
 # API defaults
 MODEL="claude-sonnet-4-5"
@@ -275,10 +275,10 @@ my-manuscript/
 
 ## System Prompts
 
-System prompts are XML files at `$PROMPT_PREFIX/System/{name}.xml`:
+System prompts are XML files at `$WORKFLOW_PROMPT_PREFIX/System/{name}.xml`:
 
 ```
-$PROMPT_PREFIX/
+$WORKFLOW_PROMPT_PREFIX/
 └── System/
     ├── Root.xml        # Base prompt (always included first)
     ├── NeuroAI.xml     # Domain-specific
@@ -420,10 +420,10 @@ Run `workflow init` or navigate to a directory containing `.workflow/`.
 
 Create with `workflow new NAME`. Check existing: `ls .workflow/`.
 
-### "PROMPT_PREFIX not set"
+### "WORKFLOW_PROMPT_PREFIX not set"
 
 ```bash
-export PROMPT_PREFIX="$HOME/path/to/prompts"
+export WORKFLOW_PROMPT_PREFIX="$HOME/path/to/prompts"
 ```
 
 Add to `~/.bashrc` to persist.
