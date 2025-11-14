@@ -92,6 +92,7 @@ Executes a workflow by:
 - `--temperature TEMP` - Override temperature
 - `--max-tokens NUM` - Override max tokens
 - `--system-prompts LIST` - Override system prompts (comma-separated)
+- `--output-format EXT` - Override output format/extension (md, txt, json, html, etc.)
 
 ## Configuration
 
@@ -108,6 +109,9 @@ SYSTEM_PROMPTS=(Root NeuroAI)
 MODEL="claude-sonnet-4-5"
 TEMPERATURE=1.0
 MAX_TOKENS=4096
+
+# Output format (extension without dot)
+OUTPUT_FORMAT="md"
 ```
 
 ### Workflow Configuration (`.workflow/WORKFLOW_NAME/config`)
@@ -137,6 +141,9 @@ MODEL="claude-sonnet-4-5"
 TEMPERATURE=1.0
 MAX_TOKENS=8192
 SYSTEM_PROMPTS="Root,NeuroAI,DataScience"
+
+# Output format override
+OUTPUT_FORMAT="json"
 ```
 
 ### Configuration Priority
@@ -155,6 +162,37 @@ System prompts are XML files concatenated in the specified order:
 - Additional prompts add domain-specific context
 - Concatenated into `.workflow/prompts/system.txt`
 - Rebuilt only when missing (delete to regenerate)
+
+## Output Formats
+
+Workflows can generate output in any text-based format:
+- Specify via `OUTPUT_FORMAT` in config (extension without dot)
+- Default: `md` (Markdown)
+- Common formats: `txt`, `json`, `html`, `xml`, `csv`, etc.
+- Output files: `.workflow/NAME/output.{format}`
+- Hardlinks: `.workflow/output/NAME.{format}`
+
+### Format Hint in User Prompt
+
+For non-markdown formats, the tool automatically appends an XML tag to guide the LLM:
+- **Markdown** (`md`): No tag added (default behavior)
+- **Other formats**: Appends `<output-format>{format}</output-format>` to user prompt
+- Example: If `OUTPUT_FORMAT="json"`, prompt includes `<output-format>json</output-format>`
+- Helps ensure LLM generates output in the requested format
+
+### Format-Specific Post-Processing
+
+The tool automatically applies format-specific formatting when available:
+- **Markdown** (`md`): Runs `mdformat` if installed
+- **JSON** (`json`): Runs `jq` for pretty-printing if installed
+- **Other formats**: No automatic formatting (raw output)
+
+### Cross-Format Dependencies
+
+Dependencies can use different output formats:
+- Dependency resolution uses glob pattern (`.workflow/output/NAME.*`)
+- Allows mixing formats (e.g., JSON data + Markdown text)
+- All formats concatenated into context using `filecat` XML tags
 
 ## Context Aggregation
 

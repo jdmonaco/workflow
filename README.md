@@ -103,6 +103,7 @@ workflow run WORKFLOW_NAME [options]
 - `--depends-on OTHER_WORKFLOW` - Add dependency
 - `--max-tokens NUM` - Override max tokens
 - `--system-prompts "Root,Custom"` - Override system prompts
+- `--output-format EXT` - Output file extension (md, txt, json, html, etc.)
 
 ## Configuration
 
@@ -118,6 +119,9 @@ SYSTEM_PROMPTS=(Root NeuroAI)
 MODEL="claude-sonnet-4-5"
 TEMPERATURE=1.0
 MAX_TOKENS=4096
+
+# Output format
+OUTPUT_FORMAT="md"
 ```
 
 ### Workflow Config (`.workflow/WORKFLOW_NAME/config`)
@@ -142,6 +146,9 @@ DEPENDS_ON=(
 
 # API overrides
 MAX_TOKENS=8192
+
+# Output format override
+OUTPUT_FORMAT="txt"
 ```
 
 ### Configuration Priority
@@ -214,6 +221,23 @@ workflow run revise-section \
   --stream
 ```
 
+### Different Output Formats
+
+```bash
+# Generate JSON structured data
+workflow new extract-data
+# In config: OUTPUT_FORMAT="json"
+workflow run extract-data
+
+# Generate plain text summary
+workflow run summarize-findings --output-format txt
+
+# Mix formats in dependencies (markdown outline, JSON data, text summary)
+workflow new final-report
+# In config: DEPENDS_ON=("01-outline" "extract-data" "summarize-findings")
+workflow run final-report
+```
+
 ## Project Structure
 
 ```
@@ -270,6 +294,32 @@ Or override from command line:
 ```bash
 workflow run my-workflow --system-prompts "Root,DataScience"
 ```
+
+## Output Formats
+
+Workflows support any text-based output format (default: `md`):
+
+**Configure in workflow config:**
+```bash
+OUTPUT_FORMAT="json"  # or txt, html, xml, csv, etc.
+```
+
+**Override from command line:**
+```bash
+workflow run extract-data --output-format json
+```
+
+**Automatic format hints:**
+- For non-markdown formats, `<output-format>{format}</output-format>` is appended to the user prompt
+- Guides the LLM to generate output in the requested format
+
+**Format-specific post-processing:**
+- **Markdown** (`md`): Auto-formatted with `mdformat` if available
+- **JSON** (`json`): Pretty-printed with `jq` if available
+
+**Cross-format dependencies:**
+- Dependencies work regardless of format
+- Mix JSON data + Markdown text + plain text in the same workflow
 
 ## Advanced Features
 

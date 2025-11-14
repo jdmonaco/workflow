@@ -128,6 +128,7 @@ RUN OPTIONS:
     --temperature TEMP      Override temperature
     --max-tokens NUM        Override max tokens
     --system-prompts LIST   Comma-separated prompt names (overrides config)
+    --output-format EXT     Output format/extension (default: md)
 
 OTHER:
     --help, -h, help        Show this help message
@@ -183,6 +184,9 @@ SYSTEM_PROMPTS=(Root NeuroAI)
 MODEL="claude-sonnet-4-5"
 TEMPERATURE=1.0
 MAX_TOKENS=4096
+
+# Output format (extension without dot: md, txt, json, html, etc.)
+OUTPUT_FORMAT="md"
 CONFIG_EOF
 
     echo "Initialized workflow project: $target_dir/.workflow/"
@@ -256,6 +260,10 @@ new_workflow() {
 # TEMPERATURE=1.0
 # MAX_TOKENS=4096
 # SYSTEM_PROMPTS="Root,NeuroAI,DataScience"
+
+# Output format override (optional)
+# OUTPUT_FORMAT="txt"
+# OUTPUT_FORMAT="json"
 WORKFLOW_CONFIG_EOF
 
     echo "Created workflow: $workflow_name"
@@ -389,6 +397,7 @@ SYSTEM_PROMPTS=(Root)
 MODEL="$DEFAULT_MODEL"
 TEMPERATURE="$DEFAULT_TEMPERATURE"
 MAX_TOKENS="$DEFAULT_MAX_TOKENS"
+OUTPUT_FORMAT="md"
 CONTEXT_FILES=()
 CONTEXT_PATTERN=""
 DEPENDS_ON=()
@@ -453,6 +462,10 @@ while [[ $# -gt 0 ]]; do
             SYSTEM_PROMPTS_OVERRIDE="$2"
             shift 2
             ;;
+        --output-format|--format)
+            OUTPUT_FORMAT="$2"
+            shift 2
+            ;;
         *)
             echo "Error: Unknown option: $1"
             echo "Use --help for usage information"
@@ -473,8 +486,8 @@ fi
 # File paths (all relative to PROJECT_ROOT/.workflow/)
 TASK_PROMPT_FILE="$WORKFLOW_DIR/task.txt"
 CONTEXT_PROMPT_FILE="$WORKFLOW_DIR/context.txt"
-OUTPUT_FILE="$WORKFLOW_DIR/output.md"
-OUTPUT_LINK="$PROJECT_ROOT/.workflow/output/${WORKFLOW_NAME}.md"
+OUTPUT_FILE="$WORKFLOW_DIR/output.${OUTPUT_FORMAT}"
+OUTPUT_LINK="$PROJECT_ROOT/.workflow/output/${WORKFLOW_NAME}.${OUTPUT_FORMAT}"
 SYSTEM_PROMPT_FILE="$PROJECT_ROOT/.workflow/prompts/system.txt"
 
 # Validate task file exists
@@ -527,13 +540,15 @@ echo "Building context..."
 if [[ ${#DEPENDS_ON[@]} -gt 0 ]]; then
     echo "  Adding dependencies..."
     for dep in "${DEPENDS_ON[@]}"; do
-        dep_file="$PROJECT_ROOT/.workflow/output/${dep}.md"
-        if [[ ! -f "$dep_file" ]]; then
-            echo "Error: Dependency output not found: $dep_file"
+        # Find dependency output with any extension using glob
+        dep_file=$(ls "$PROJECT_ROOT/.workflow/output/${dep}".* 2>/dev/null | head -1)
+        if [[ -z "$dep_file" ]]; then
+            echo "Error: Dependency output not found for workflow: $dep"
+            echo "Expected file matching: $PROJECT_ROOT/.workflow/output/${dep}.*"
             echo "Ensure workflow '$dep' has been executed successfully"
             exit 1
         fi
-        echo "    - $dep"
+        echo "    - $dep ($(basename "$dep_file"))"
         filecat "$dep_file" >> "$CONTEXT_PROMPT_FILE"
     done
 fi
@@ -613,6 +628,11 @@ if [[ -s "$CONTEXT_PROMPT_FILE" ]]; then
     USER_PROMPT="$(filecat "$CONTEXT_PROMPT_FILE" "$TASK_PROMPT_FILE")"
 else
     USER_PROMPT=$(<"$TASK_PROMPT_FILE")
+fi
+
+# Add output format hint for non-markdown formats
+if [[ "$OUTPUT_FORMAT" != "md" ]]; then
+    USER_PROMPT="${USER_PROMPT}"$'\n'"<output-format>${OUTPUT_FORMAT}</output-format>"
 fi
 
 # Escape JSON strings
@@ -745,10 +765,23 @@ fi
 ln "$OUTPUT_FILE" "$OUTPUT_LINK"
 echo "Hardlink created: $OUTPUT_LINK"
 
-# Format Markdown output files
-if [[ -f "$OUTPUT_FILE" && "$OUTPUT_FILE" == *.md ]] && command -v mdformat &>/dev/null; then
-    echo "Formatting output with mdformat..."
-    mdformat --no-validate "$OUTPUT_FILE"
+# Format-specific post-processing
+if [[ -f "$OUTPUT_FILE" ]]; then
+    case "$OUTPUT_FORMAT" in
+        md|markdown)
+            if command -v mdformat &>/dev/null; then
+                echo "Formatting output with mdformat..."
+                mdformat --no-validate "$OUTPUT_FILE"
+            fi
+            ;;
+        json)
+            if command -v jq &>/dev/null; then
+                echo "Formatting output with jq..."
+                jq . "$OUTPUT_FILE" > "${OUTPUT_FILE}.tmp" && mv "${OUTPUT_FILE}.tmp" "$OUTPUT_FILE"
+            fi
+            ;;
+        # txt, html, etc. - no formatting needed
+    esac
 fi
 
 echo ""
