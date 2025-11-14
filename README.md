@@ -275,15 +275,15 @@ my-manuscript/
 
 ## System Prompts
 
-System prompts are XML files at `$WORKFLOW_PROMPT_PREFIX/System/{name}.xml`:
+System prompts are XML-formatted text files at `$WORKFLOW_PROMPT_PREFIX/System/{name}.txt`:
 
 ```
 $WORKFLOW_PROMPT_PREFIX/
 └── System/
-    ├── Root.xml        # Base prompt (always included first)
-    ├── NeuroAI.xml     # Domain-specific
-    ├── DataScience.xml
-    └── Writing.xml
+    ├── Root.txt        # Base prompt (always included first)
+    ├── NeuroAI.txt     # Domain-specific
+    ├── DataScience.txt
+    └── Writing.txt
 ```
 
 Configure in project or workflow config:
@@ -297,6 +297,8 @@ Or override from command line:
 ```bash
 workflow run my-workflow --system-prompts "Root,DataScience"
 ```
+
+**Note:** System prompts are rebuilt on every workflow run to ensure current configuration is used. The concatenated result is cached at `.workflow/prompts/system.txt` for debugging and as a fallback if rebuild fails.
 
 ### Project Description
 

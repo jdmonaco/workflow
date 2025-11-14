@@ -160,12 +160,13 @@ Settings are applied in order (later overrides earlier):
 
 ## System Prompts
 
-System prompts are XML files concatenated in the specified order:
-- Located at `$WORKFLOW_PROMPT_PREFIX/System/{name}.xml`
+System prompts are XML-formatted text files concatenated in the specified order:
+- Located at `$WORKFLOW_PROMPT_PREFIX/System/{name}.txt`
 - `Root` prompt typically included first (baseline instructions)
 - Additional prompts add domain-specific context
 - Concatenated into `.workflow/prompts/system.txt`
-- Rebuilt only when missing (delete to regenerate)
+- **Rebuilt on every workflow run** to ensure current configuration is used
+- Cached version used as fallback if rebuild fails
 
 ### Project Description
 

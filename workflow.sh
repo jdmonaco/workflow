@@ -179,7 +179,7 @@ init_project() {
 
 # System prompts to concatenate (in order, space-separated)
 # Note: Each name must map to a prompt file with the corresponding path:
-#       \$WORKFLOW_PROMPT_PREFIX/System/{name}.xml
+#       \$WORKFLOW_PROMPT_PREFIX/System/{name}.txt
 SYSTEM_PROMPTS=(Root)
 
 # API defaults
@@ -509,34 +509,52 @@ if [[ ! -f "$TASK_PROMPT_FILE" ]]; then
     exit 1
 fi
 
-# Create system prompt if needed
+# Build system prompt from current configuration
 if [[ -z "$WORKFLOW_PROMPT_PREFIX" ]]; then
     echo "Error: WORKFLOW_PROMPT_PREFIX environment variable is not set"
-    echo "Set WORKFLOW_PROMPT_PREFIX to the directory containing your System/*.xml prompt files"
+    echo "Set WORKFLOW_PROMPT_PREFIX to the directory containing your System/*.txt prompt files"
     exit 1
 fi
 
 PROMPTDIR="$WORKFLOW_PROMPT_PREFIX/System"
-if [[ ! -f "$SYSTEM_PROMPT_FILE" ]]; then
-    if [[ ! -d "$PROMPTDIR" ]]; then
-        echo "Error: System prompt directory not found: $PROMPTDIR"
+if [[ ! -d "$PROMPTDIR" ]]; then
+    echo "Error: System prompt directory not found: $PROMPTDIR"
+    exit 1
+fi
+
+echo "Building system prompt from: ${SYSTEM_PROMPTS[*]}"
+
+# Ensure prompts directory exists
+mkdir -p "$(dirname "$SYSTEM_PROMPT_FILE")"
+
+# Try to build system prompt to temp file
+TEMP_SYSTEM_PROMPT=$(mktemp)
+BUILD_SUCCESS=true
+
+for prompt_name in "${SYSTEM_PROMPTS[@]}"; do
+    prompt_file="$PROMPTDIR/${prompt_name}.txt"
+    if [[ ! -f "$prompt_file" ]]; then
+        echo "Error: System prompt file not found: $prompt_file"
+        BUILD_SUCCESS=false
+        break
+    fi
+    cat "$prompt_file" >> "$TEMP_SYSTEM_PROMPT"
+done
+
+if [[ "$BUILD_SUCCESS" == true ]]; then
+    # Build succeeded - update cache
+    mv "$TEMP_SYSTEM_PROMPT" "$SYSTEM_PROMPT_FILE"
+    echo "System prompt built successfully"
+else
+    # Build failed - try fallback to cached version
+    rm -f "$TEMP_SYSTEM_PROMPT"
+
+    if [[ -f "$SYSTEM_PROMPT_FILE" ]]; then
+        echo "Warning: Using cached system prompt (rebuild failed)"
+    else
+        echo "Error: Cannot build system prompt and no cached version available"
         exit 1
     fi
-
-    mkdir -p "$(dirname "$SYSTEM_PROMPT_FILE")"
-
-    # Build system prompt from SYSTEM_PROMPTS array
-    > "$SYSTEM_PROMPT_FILE"
-    for prompt_name in "${SYSTEM_PROMPTS[@]}"; do
-        prompt_file="$PROMPTDIR/${prompt_name}.xml"
-        if [[ ! -f "$prompt_file" ]]; then
-            echo "Error: System prompt file not found: $prompt_file"
-            exit 1
-        fi
-        cat "$prompt_file" >> "$SYSTEM_PROMPT_FILE"
-    done
-
-    echo "Created system prompt: $SYSTEM_PROMPT_FILE (from: ${SYSTEM_PROMPTS[*]})"
 fi
 
 # =============================================================================
