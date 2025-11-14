@@ -17,19 +17,73 @@ set -e
 #   ./workflow.sh --workflow WORKFLOW_NAME [options]  # 'run' is implicit
 # =============================================================================
 
-# Import bash functions (for filecat)
-if [[ -f ~/.bash_functions ]]; then
-    source ~/.bash_functions
-else
-    echo "Error: ~/.bash_functions not found"
-    exit 1
-fi
+# =============================================================================
+# File Processing Functions
+# =============================================================================
 
-# Check for required filecat function
-if ! command -v filecat &>/dev/null; then
-    echo "Error: filecat function not found in ~/.bash_functions"
-    exit 1
-fi
+# Filename sanitization for XML-like identifiers
+sanitize() {
+    local filename="$1"
+    local sanitized
+
+    # Strip any parent path elements first
+    sanitized="$(basename "$filename")"
+
+    # Strip file extension
+    sanitized="${sanitized%.*}"
+
+    # Convert to lowercase
+    sanitized="${sanitized,,}"
+
+    # Replace spaces and common punctuation with dashes
+    sanitized="${sanitized//[[:space:]]/-}"
+
+    # Remove or replace characters not valid in XML names
+    # Keep only alphanumeric, dash, and period
+    sanitized="${sanitized//[^a-z0-9.-]/}"
+
+    # Ensure it doesn't start with a number, dash, or period
+    # (XML names must start with a letter or underscore)
+    if [[ "$sanitized" =~ ^[0-9.-] ]]; then
+        sanitized="_${sanitized}"
+    fi
+
+    # Remove consecutive dashes
+    sanitized="${sanitized//--/-}"
+
+    # Trim leading/trailing dashes
+    sanitized="${sanitized#-}"
+    sanitized="${sanitized%-}"
+
+    echo "$sanitized"
+}
+
+# File concatenation with XML-like tag encapsulation
+filecat() {
+    # Input files are required
+    if [ $# -eq 0 ]; then
+        echo "Usage: filecat file1 [file2 ...]" >&2
+        return 1;
+    fi
+
+    local sanitized
+    for file in "$@"; do
+        if [[ -f "$file" ]]; then
+            # Opening tag, with sanitized identifier based on the filename
+            sanitized="$(sanitize "$file")"
+            printf "<%s>\n" "$sanitized"
+
+            # Add the file contents
+            cat "$file"
+
+            # Ensure newline before closing tag if file doesn't end with one
+            [[ -n $(tail -c 1 "$file") ]] && printf "\n"
+
+            # Closing tag
+            printf "</%s>\n" "$sanitized"
+        fi
+    done
+}
 
 # =============================================================================
 # Project Root Discovery

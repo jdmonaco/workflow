@@ -40,7 +40,6 @@ workflow run 00-context-analysis --stream
 
 - `bash` 4.0+
 - `curl`, `jq` (for API interaction)
-- `filecat` function in `~/.bash_functions` ([see below](#filecat-function))
 - Anthropic API key
 
 ### Install Script
@@ -63,28 +62,6 @@ Add to `~/.bashrc` or `~/.bash_profile`:
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
 export PROMPT_PREFIX="$HOME/prompts"  # Path to your system prompt directory
-```
-
-### filecat Function
-
-The `filecat` function concatenates files with visual separators. Add to `~/.bash_functions`:
-
-```bash
-filecat() {
-    for file in "$@"; do
-        echo "═══════════════════════════════════════════"
-        echo "File: $file"
-        echo "═══════════════════════════════════════════"
-        cat "$file"
-        echo ""
-    done
-}
-```
-
-Then source in `~/.bashrc`:
-
-```bash
-[[ -f ~/.bash_functions ]] && source ~/.bash_functions
 ```
 
 ## Usage

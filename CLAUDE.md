@@ -32,7 +32,6 @@ project-root/
    export ANTHROPIC_API_KEY="your-api-key"
    export PROMPT_PREFIX="$HOME/OneDrive/Admin/Prompts"  # Path to system prompts
    ```
-5. Ensure `filecat` function is available in `~/.bash_functions`
 
 ## Commands
 
@@ -274,7 +273,6 @@ Use `--dry-run` to estimate without making API request.
 - `bash` 4.0+
 - `curl` - API requests
 - `jq` - JSON processing
-- `filecat` - File concatenation with separators (from `~/.bash_functions`)
 
 ### Environment Variables
 - `ANTHROPIC_API_KEY` - Anthropic API access
