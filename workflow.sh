@@ -116,7 +116,7 @@ Usage: workflow SUBCOMMAND [OPTIONS]
 SUBCOMMANDS:
     init [dir]              Initialize workflow project (default: current dir)
     new NAME                Create new workflow in current project
-    edit NAME               Edit existing workflow (opens task.txt and config)
+    edit [NAME]             Edit workflow or project (if NAME omitted)
     run NAME [OPTIONS]      Execute workflow
 
 RUN OPTIONS:
@@ -140,6 +140,9 @@ EXAMPLES:
 
     # Create new workflow
     workflow new 01-outline-draft
+
+    # Edit project configuration
+    workflow edit
 
     # Edit existing workflow
     workflow edit 01-outline-draft
@@ -294,12 +297,6 @@ WORKFLOW_CONFIG_EOF
 edit_workflow() {
     local workflow_name="$1"
 
-    if [[ -z "$workflow_name" ]]; then
-        echo "Error: Workflow name required"
-        echo "Usage: workflow edit NAME"
-        exit 1
-    fi
-
     # Find project root
     PROJECT_ROOT=$(find_project_root) || {
         echo "Error: Not in workflow project (no .workflow/ directory found)"
@@ -307,19 +304,27 @@ edit_workflow() {
         exit 1
     }
 
+    # If no workflow name provided, edit project files
+    if [[ -z "$workflow_name" ]]; then
+        echo "Editing project configuration..."
+        ${EDITOR:-vim -O} "$PROJECT_ROOT/.workflow/project.txt" "$PROJECT_ROOT/.workflow/config"
+        return 0
+    fi
+
+    # Otherwise, edit workflow files
     WORKFLOW_DIR="$PROJECT_ROOT/.workflow/$workflow_name"
 
     # Check if workflow exists
     if [[ ! -d "$WORKFLOW_DIR" ]]; then
         echo "Error: Workflow '$workflow_name' not found"
         echo "Available workflows:"
-        ls -1 "$PROJECT_ROOT/.workflow" | grep -v '^config$\|^prompts$\|^output$' || echo "  (none)"
+        ls -1 "$PROJECT_ROOT/.workflow" | grep -v '^config$\|^prompts$\|^output$\|^project.txt$' || echo "  (none)"
         echo ""
         echo "Create new workflow with: workflow new $workflow_name"
         exit 1
     fi
 
-    # Open both files in vim with vertical split
+    echo "Editing workflow: $workflow_name"
     ${EDITOR:-vim -O} "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
 }
 

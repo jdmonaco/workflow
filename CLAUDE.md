@@ -63,15 +63,17 @@ Creates a new workflow in the current project:
 
 **Requirements:** Must be run within an initialized project (will search upward for `.workflow/`).
 
-### Edit Workflow
+### Edit Workflow or Project
 
 ```bash
-workflow edit WORKFLOW_NAME
+workflow edit [WORKFLOW_NAME]
 ```
 
-Opens an existing workflow's `task.txt` and `config` files in vim for editing.
+**Without workflow name:** Opens project-level `project.txt` and `config` files for editing.
 
-**Requirements:** Workflow must already exist in the current project.
+**With workflow name:** Opens workflow-specific `task.txt` and `config` files for editing.
+
+**Requirements:** Must be run within an initialized project.
 
 ### Execute Workflow
 

@@ -84,13 +84,15 @@ workflow new WORKFLOW_NAME
 
 Creates workflow directory with `task.txt` and `config` files. Opens both in vim for editing.
 
-### Edit Workflow
+### Edit Workflow or Project
 
 ```bash
-workflow edit WORKFLOW_NAME
+workflow edit [WORKFLOW_NAME]
 ```
 
-Opens existing workflow's `task.txt` and `config` files in vim for editing.
+Opens files in vim for editing:
+- **Without name:** Edits project-level `project.txt` and `config`
+- **With name:** Edits workflow-specific `task.txt` and `config`
 
 ### Execute Workflow
 
@@ -168,6 +170,10 @@ OUTPUT_FORMAT="txt"
 # Initialize
 cd my-project
 workflow init .
+# Edit opens automatically - configure project.txt and config
+
+# Edit project configuration later if needed
+workflow edit
 
 # Create workflow
 workflow new analyze-data
