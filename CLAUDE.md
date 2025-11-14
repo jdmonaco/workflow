@@ -59,6 +59,16 @@ Creates a new workflow in the current project:
 
 **Requirements:** Must be run within an initialized project (will search upward for `.workflow/`).
 
+### Edit Workflow
+
+```bash
+workflow edit WORKFLOW_NAME
+```
+
+Opens an existing workflow's `task.txt` and `config` files in vim for editing.
+
+**Requirements:** Workflow must already exist in the current project.
+
 ### Execute Workflow
 
 ```bash
@@ -344,10 +354,6 @@ workflow run 00-workshop-context --dry-run
 ### "PROMPT_PREFIX not set"
 - Set in `~/.bashrc`: `export PROMPT_PREFIX="path/to/prompts"`
 - Reload shell: `source ~/.bashrc`
-
-### "filecat not found"
-- Ensure `~/.bash_functions` exists and is sourced
-- Define `filecat` function or source from dotfiles
 
 ### Context files not found
 - Paths in config are relative to project root

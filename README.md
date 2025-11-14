@@ -82,6 +82,14 @@ workflow new WORKFLOW_NAME
 
 Creates workflow directory with `task.txt` and `config` files. Opens both in vim for editing.
 
+### Edit Workflow
+
+```bash
+workflow edit WORKFLOW_NAME
+```
+
+Opens existing workflow's `task.txt` and `config` files in vim for editing.
+
 ### Execute Workflow
 
 ```bash
@@ -348,10 +356,6 @@ export PROMPT_PREFIX="$HOME/path/to/prompts"
 ```
 
 Add to `~/.bashrc` to persist.
-
-### "filecat not found"
-
-Add function to `~/.bash_functions` (see [Installation](#filecat-function)).
 
 ### Context files not aggregating
 

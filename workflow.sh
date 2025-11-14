@@ -115,6 +115,7 @@ Usage: workflow SUBCOMMAND [OPTIONS]
 SUBCOMMANDS:
     init [dir]              Initialize workflow project (default: current dir)
     new NAME                Create new workflow in current project
+    edit NAME               Edit existing workflow (opens task.txt and config)
     run NAME [OPTIONS]      Execute workflow
 
 RUN OPTIONS:
@@ -137,6 +138,9 @@ EXAMPLES:
 
     # Create new workflow
     workflow new 01-outline-draft
+
+    # Edit existing workflow
+    workflow edit 01-outline-draft
 
     # Execute workflow (uses .workflow/01-outline-draft/config)
     workflow run 01-outline-draft
@@ -265,6 +269,41 @@ WORKFLOW_CONFIG_EOF
 }
 
 # =============================================================================
+# Edit Subcommand - Edit Existing Workflow
+# =============================================================================
+edit_workflow() {
+    local workflow_name="$1"
+
+    if [[ -z "$workflow_name" ]]; then
+        echo "Error: Workflow name required"
+        echo "Usage: workflow edit NAME"
+        exit 1
+    fi
+
+    # Find project root
+    PROJECT_ROOT=$(find_project_root) || {
+        echo "Error: Not in workflow project (no .workflow/ directory found)"
+        echo "Run 'workflow init' to initialize a project first"
+        exit 1
+    }
+
+    WORKFLOW_DIR="$PROJECT_ROOT/.workflow/$workflow_name"
+
+    # Check if workflow exists
+    if [[ ! -d "$WORKFLOW_DIR" ]]; then
+        echo "Error: Workflow '$workflow_name' not found"
+        echo "Available workflows:"
+        ls -1 "$PROJECT_ROOT/.workflow" | grep -v '^config$\|^prompts$\|^output$' || echo "  (none)"
+        echo ""
+        echo "Create new workflow with: workflow new $workflow_name"
+        exit 1
+    fi
+
+    # Open both files in vim with vertical split
+    ${EDITOR:-vim} -O "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
+}
+
+# =============================================================================
 # Parse Subcommand
 # =============================================================================
 
@@ -289,6 +328,15 @@ case "$1" in
         new_workflow "$2"
         exit 0
         ;;
+    edit)
+        if [[ -z "$2" ]]; then
+            echo "Error: Workflow name required"
+            echo "Usage: workflow edit NAME"
+            exit 1
+        fi
+        edit_workflow "$2"
+        exit 0
+        ;;
     run)
         shift  # Remove 'run' from args
         if [[ -z "$1" ]]; then
@@ -306,7 +354,7 @@ case "$1" in
         ;;
     *)
         echo "Error: Unknown subcommand: $1"
-        echo "Valid subcommands: init, new, run"
+        echo "Valid subcommands: init, new, edit, run"
         echo ""
         show_help
         exit 1
