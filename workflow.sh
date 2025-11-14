@@ -176,24 +176,35 @@ init_project() {
     cat > "$target_dir/.workflow/config" <<'CONFIG_EOF'
 # Project-level configuration
 
-# System prompts to concatenate (in order)
-# Each name maps to $PROMPT_PREFIX/System/{name}.xml
-SYSTEM_PROMPTS=(Root NeuroAI)
+# System prompts to concatenate (in order, space-separated)
+# Note: Each name must map to a prompt file with the corresponding path:
+#       \$WORKFLOW_PROMPT_PREFIX/System/{name}.xml
+SYSTEM_PROMPTS=(Root)
 
 # API defaults
-MODEL="claude-sonnet-4-5"
-TEMPERATURE=1.0
-MAX_TOKENS=4096
+MODEL="$DEFAULT_MODEL"
+TEMPERATURE=$DEFAULT_TEMPERATURE
+MAX_TOKENS=$DEFAULT_MAX_TOKENS
 
 # Output format (extension without dot: md, txt, json, html, etc.)
-OUTPUT_FORMAT="md"
+OUTPUT_FORMAT="$DEFAULT_OUTPUT_FORMAT"
 CONFIG_EOF
+
+    # Create empty project description file
+    touch "$target_dir/.workflow/project.txt"
 
     echo "Initialized workflow project: $target_dir/.workflow/"
     echo "Created:"
     echo "  $target_dir/.workflow/config"
+    echo "  $target_dir/.workflow/project.txt"
     echo "  $target_dir/.workflow/prompts/"
     echo "  $target_dir/.workflow/output/"
+    echo ""
+    echo "Opening project description and config in editor..."
+
+    # Open both files in vim with vertical split
+    ${EDITOR:-vim -O} "$target_dir/.workflow/project.txt" "$target_dir/.workflow/config"
+
     echo ""
     echo "Next steps:"
     echo "  1. cd $target_dir"
@@ -273,7 +284,7 @@ WORKFLOW_CONFIG_EOF
     echo "Opening task and config files in editor..."
 
     # Open both files in vim with vertical split
-    ${EDITOR:-vim} -O "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
+    ${EDITOR:-vim -O} "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
 }
 
 # =============================================================================
@@ -308,7 +319,7 @@ edit_workflow() {
     fi
 
     # Open both files in vim with vertical split
-    ${EDITOR:-vim} -O "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
+    ${EDITOR:-vim -O} "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
 }
 
 # =============================================================================
@@ -622,6 +633,14 @@ fi
 
 # Read prompt files
 SYSTEM_PROMPT=$(<"$SYSTEM_PROMPT_FILE")
+
+# Append project description if exists and non-empty
+PROJECT_DESC_FILE="$PROJECT_ROOT/.workflow/project.txt"
+if [[ -f "$PROJECT_DESC_FILE" && -s "$PROJECT_DESC_FILE" ]]; then
+    # Use filecat to add with XML tags
+    PROJECT_DESC=$(filecat "$PROJECT_DESC_FILE")
+    SYSTEM_PROMPT="${SYSTEM_PROMPT}"$'\n'"${PROJECT_DESC}"
+fi
 
 # Combine context and task for user prompt
 if [[ -s "$CONTEXT_PROMPT_FILE" ]]; then

@@ -72,7 +72,9 @@ export PROMPT_PREFIX="$HOME/prompts"  # Path to your system prompt directory
 workflow init [directory]
 ```
 
-Creates `.workflow/` structure with config and output directories.
+Creates `.workflow/` structure with config and output directories. Opens `project.txt` and `config` in vim for editing.
+
+The optional `project.txt` file lets you describe project goals, folder structure, and conventions. If non-empty, it's automatically appended to the system prompt for all workflows.
 
 ### Create Workflow
 
@@ -244,6 +246,7 @@ workflow run final-report
 my-manuscript/
 ├── .workflow/
 │   ├── config                      # Project configuration
+│   ├── project.txt                 # Project description (optional)
 │   ├── prompts/
 │   │   └── system.txt             # Generated system prompt
 │   ├── output/
@@ -293,6 +296,24 @@ Or override from command line:
 
 ```bash
 workflow run my-workflow --system-prompts "Root,DataScience"
+```
+
+### Project Description
+
+Add project-specific context via `.workflow/project.txt`:
+
+- Created during `workflow init` (opened in vim for editing)
+- Describe project goals, folder structure, conventions, etc.
+- If non-empty, automatically appended to system prompt for all workflows
+- Wrapped in XML tags: `<project>...</project>`
+- Leave empty if not needed
+
+**Example project.txt:**
+```
+This manuscript project develops a brief commentary for submission to the
+Journal of Neural Engineering. The References/ folder contains background 
+materials and Templates/ contains LaTeX templates provided by the journal.
+All drafts should emphasize high-level opportunities and challenges.
 ```
 
 ## Output Formats

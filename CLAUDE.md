@@ -10,6 +10,7 @@ This directory contains `workflow.sh`, a portable CLI tool for managing AI-assis
 project-root/
 ├── .workflow/                   # Git-like workflow directory
 │   ├── config                   # Project-level configuration
+│   ├── project.txt              # Project description (appended to system prompt)
 │   ├── prompts/
 │   │   └── system.txt          # Generated system prompt
 │   ├── output/                  # Hardlinks to workflow outputs
@@ -43,8 +44,11 @@ workflow init [directory]
 
 Creates `.workflow/` structure in the specified directory (default: current directory):
 - `.workflow/config` - Project-level configuration
+- `.workflow/project.txt` - Project description (optional, appended to system prompts)
 - `.workflow/prompts/` - For generated system prompts
 - `.workflow/output/` - For workflow output hardlinks
+
+Opens `project.txt` and `config` in vim for editing, allowing you to describe the project context, goals, and file structure.
 
 ### Create Workflow
 
@@ -162,6 +166,21 @@ System prompts are XML files concatenated in the specified order:
 - Additional prompts add domain-specific context
 - Concatenated into `.workflow/prompts/system.txt`
 - Rebuilt only when missing (delete to regenerate)
+
+### Project Description
+
+Optional `.workflow/project.txt` file provides project-specific context:
+- Created during `workflow init` and opened in vim for editing
+- If non-empty, automatically appended to system prompt for all workflows
+- Wrapped in XML tags via `filecat` (e.g., `<project>...</project>`)
+- Useful for describing codebase structure, project goals, conventions, etc.
+- Leave empty if not needed (no impact on system prompt)
+
+**Example use cases:**
+- Describe manuscript goals and target journal
+- Document folder structure and file organization
+- Specify writing style or formatting requirements
+- Provide background on collaborators or stakeholders
 
 ## Output Formats
 
