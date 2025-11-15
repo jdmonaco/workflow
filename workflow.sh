@@ -26,6 +26,7 @@ set -e
 # Source function libraries
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "$SCRIPT_DIR/lib/utils.sh"
+source "$SCRIPT_DIR/lib/config.sh"
 source "$SCRIPT_DIR/lib/core.sh"
 source "$SCRIPT_DIR/lib/api.sh"
 

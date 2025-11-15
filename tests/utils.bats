@@ -6,9 +6,10 @@ load test_helper/bats-file/load
 load test_helper/common
 
 setup() {
-    # Source utility functions before each test
+    # Source utility and config functions before each test
     WORKFLOW_LIB_DIR="$(cd "$(dirname "$BATS_TEST_DIRNAME")"; pwd)/lib"
     source "$WORKFLOW_LIB_DIR/utils.sh"
+    source "$WORKFLOW_LIB_DIR/config.sh"
 
     # Setup test environment
     setup_test_env

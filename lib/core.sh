@@ -8,10 +8,13 @@
 # Dependencies: lib/utils.sh (must be sourced first)
 # =============================================================================
 
-# Source utility functions if not already loaded
+# Source utility and config functions if not already loaded
 SCRIPT_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
 if ! declare -f sanitize > /dev/null; then
     source "$SCRIPT_LIB_DIR/utils.sh"
+fi
+if ! declare -f load_global_config > /dev/null; then
+    source "$SCRIPT_LIB_DIR/config.sh"
 fi
 
 # =============================================================================
