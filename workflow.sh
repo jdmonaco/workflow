@@ -106,6 +106,30 @@ find_project_root() {
     return 1
 }
 
+# List workflows in a project (excludes special files/directories)
+list_workflows() {
+    local project_root="${1:-$PROJECT_ROOT}"
+
+    # Validate project root
+    if [[ -z "$project_root" || ! -d "$project_root/.workflow" ]]; then
+        echo "Error: Invalid project root or .workflow directory not found" >&2
+        return 1
+    fi
+
+    # List entries, excluding special files/directories
+    local workflows
+    workflows=$(ls -1 "$project_root/.workflow" 2>/dev/null | \
+                grep -v '^config$\|^prompts$\|^output$\|^project.txt$')
+
+    # Return workflows if found, otherwise return 1
+    if [[ -n "$workflows" ]]; then
+        echo "$workflows"
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Extract inheritable config values from parent project
 extract_parent_config() {
     local parent_config="$1"
@@ -136,17 +160,18 @@ DEFAULT_OUTPUT_FORMAT="md"
 # =============================================================================
 show_help() {
     cat <<EOF
-Usage: workflow SUBCOMMAND [OPTIONS]
+Usage: $(basename ${0}) SUBCOMMAND [OPTIONS]
 
 SUBCOMMANDS:
     init [dir]              Initialize workflow project (default: current dir)
     new NAME                Create new workflow in current project
     edit [NAME]             Edit workflow or project (if NAME omitted)
+    list                    List all workflows in current project
     run NAME [OPTIONS]      Execute workflow
 
 RUN OPTIONS:
     --stream                Use streaming API mode (default: single-batch)
-    --dry-run              Estimate tokens only, don't make API call
+    --dry-run               Estimate tokens only, don't make API call
     --context-pattern GLOB  Glob pattern for context files
     --context-file FILE     Add specific file (repeatable)
     --depends-on WORKFLOW   Include output from another workflow
@@ -161,25 +186,25 @@ OTHER:
 
 EXAMPLES:
     # Initialize project
-    workflow init .
+    $(basename ${0}) init .
 
     # Create new workflow
-    workflow new 01-outline-draft
+    $(basename ${0}) new 01-outline-draft
 
     # Edit project configuration
-    workflow edit
+    $(basename ${0}) edit
 
     # Edit existing workflow
-    workflow edit 01-outline-draft
+    $(basename ${0}) edit 01-outline-draft
 
     # Execute workflow (uses .workflow/01-outline-draft/config)
-    workflow run 01-outline-draft
+    $(basename ${0}) run 01-outline-draft
 
     # Execute with streaming
-    workflow run 01-outline-draft --stream
+    $(basename ${0}) run 01-outline-draft --stream
 
     # Execute with overrides
-    workflow run 02-intro --depends-on 01-outline-draft --max-tokens 8192
+    $(basename ${0}) run 02-intro --depends-on 01-outline-draft --max-tokens 8192
 
 EOF
 }
@@ -259,8 +284,7 @@ init_project() {
 # Project-level workflow configuration
 
 # System prompts to concatenate (in order, space-separated)
-# Note: Each name must map to a prompt file with the corresponding path:
-#       \$WORKFLOW_PROMPT_PREFIX/System/{name}.txt
+# Names must map to \$WORKFLOW_PROMPT_PREFIX/System/{name}.txt
 SYSTEM_PROMPTS=($INHERITED_SYSTEM_PROMPTS)
 
 # API defaults
@@ -285,7 +309,7 @@ CONFIG_EOF
     echo "Opening project description and config in editor..."
 
     # Open both files in vim with vertical split
-    ${EDITOR:-vim -O} "$target_dir/.workflow/project.txt" "$target_dir/.workflow/config"
+    ${EDITOR:-vim} -O "$target_dir/.workflow/project.txt" "$target_dir/.workflow/config"
 
     echo ""
     echo "Next steps:"
@@ -368,7 +392,7 @@ WORKFLOW_CONFIG_EOF
     echo "Opening task and config files in editor..."
 
     # Open both files in vim with vertical split
-    ${EDITOR:-vim -O} "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
+    ${EDITOR:-vim} -O "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
 }
 
 # =============================================================================
@@ -387,7 +411,7 @@ edit_workflow() {
     # If no workflow name provided, edit project files
     if [[ -z "$workflow_name" ]]; then
         echo "Editing project configuration..."
-        ${EDITOR:-vim -O} "$PROJECT_ROOT/.workflow/project.txt" "$PROJECT_ROOT/.workflow/config"
+        ${EDITOR:-vim} -O "$PROJECT_ROOT/.workflow/project.txt" "$PROJECT_ROOT/.workflow/config"
         return 0
     fi
 
@@ -398,14 +422,65 @@ edit_workflow() {
     if [[ ! -d "$WORKFLOW_DIR" ]]; then
         echo "Error: Workflow '$workflow_name' not found"
         echo "Available workflows:"
-        ls -1 "$PROJECT_ROOT/.workflow" | grep -v '^config$\|^prompts$\|^output$\|^project.txt$' || echo "  (none)"
+        if list_workflows; then
+            list_workflows | sed 's/^/  /'
+        else
+            echo "  (none)"
+        fi
         echo ""
         echo "Create new workflow with: workflow new $workflow_name"
         exit 1
     fi
 
     echo "Editing workflow: $workflow_name"
-    ${EDITOR:-vim -O} "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
+    ${EDITOR:-vim} -O "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
+}
+
+# =============================================================================
+# List Subcommand - List All Workflows
+# =============================================================================
+list_workflows_cmd() {
+    # Find project root
+    PROJECT_ROOT=$(find_project_root) || {
+        echo "Error: Not in workflow project (no .workflow/ directory found)"
+        echo "Run 'workflow init' to initialize a project first"
+        exit 1
+    }
+
+    echo "Workflows in $PROJECT_ROOT:"
+    echo ""
+
+    if list_workflows; then
+        list_workflows | while read -r workflow; do
+            # Check if workflow has required files
+            local status=""
+            if [[ ! -f "$PROJECT_ROOT/.workflow/$workflow/task.txt" ]]; then
+                status=" [incomplete - missing task.txt]"
+            elif [[ ! -f "$PROJECT_ROOT/.workflow/$workflow/config" ]]; then
+                status=" [incomplete - missing config]"
+            else
+                # Check for output file
+                local output_file=$(ls "$PROJECT_ROOT/.workflow/output/$workflow".* 2>/dev/null | head -1)
+                if [[ -n "$output_file" ]]; then
+                    # Get modification time (cross-platform)
+                    local output_time
+                    if [[ "$(uname)" == "Darwin" ]]; then
+                        output_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$output_file" 2>/dev/null)
+                    else
+                        output_time=$(stat -c "%y" "$output_file" 2>/dev/null | cut -d'.' -f1)
+                    fi
+                    [[ -n "$output_time" ]] && status=" [last run: $output_time]"
+                fi
+            fi
+            echo "  $workflow$status"
+        done
+    else
+        echo "  (no workflows found)"
+        echo ""
+        echo "Create a new workflow with: workflow new NAME"
+    fi
+
+    echo ""
 }
 
 # =============================================================================
@@ -442,6 +517,10 @@ case "$1" in
         edit_workflow "$2"
         exit 0
         ;;
+    list|ls)
+        list_workflows_cmd
+        exit 0
+        ;;
     run)
         shift  # Remove 'run' from args
         if [[ -z "$1" ]]; then
@@ -459,7 +538,7 @@ case "$1" in
         ;;
     *)
         echo "Error: Unknown subcommand: $1"
-        echo "Valid subcommands: init, new, edit, run"
+        echo "Valid subcommands: init, new, edit, list, run"
         echo ""
         show_help
         exit 1
@@ -483,7 +562,11 @@ WORKFLOW_DIR="$PROJECT_ROOT/.workflow/$WORKFLOW_NAME"
 if [[ ! -d "$WORKFLOW_DIR" ]]; then
     echo "Error: Workflow '$WORKFLOW_NAME' not found"
     echo "Available workflows:"
-    ls -1 "$PROJECT_ROOT/.workflow" | grep -v '^config$\|^prompts$\|^output$|^project.txt$' || echo "  (none)"
+    if list_workflows; then
+        list_workflows | sed 's/^/  /'
+    else
+        echo "  (none)"
+    fi
     echo ""
     echo "Create new workflow with: workflow new $WORKFLOW_NAME"
     exit 1
