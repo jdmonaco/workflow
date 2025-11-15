@@ -764,13 +764,13 @@ fi
 # Add files from config CONTEXT_PATTERN (relative to PROJECT_ROOT)
 if [[ -n "$CONTEXT_PATTERN" ]]; then
     echo "  Adding files from config pattern: $CONTEXT_PATTERN"
-    (cd "$PROJECT_ROOT" && filecat $CONTEXT_PATTERN) >> "$CONTEXT_PROMPT_FILE"
+    (cd "$PROJECT_ROOT" && eval "filecat $CONTEXT_PATTERN") >> "$CONTEXT_PROMPT_FILE"
 fi
 
 # Add files from CLI --context-pattern (relative to PWD)
 if [[ -n "$CLI_CONTEXT_PATTERN" ]]; then
     echo "  Adding files from CLI pattern: $CLI_CONTEXT_PATTERN"
-    filecat $CLI_CONTEXT_PATTERN >> "$CONTEXT_PROMPT_FILE"
+    eval "filecat $CLI_CONTEXT_PATTERN" >> "$CONTEXT_PROMPT_FILE"
 fi
 
 # Add explicit files from config CONTEXT_FILES (relative to PROJECT_ROOT)
