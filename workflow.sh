@@ -2,19 +2,25 @@
 set -e
 
 # =============================================================================
-# Unified Workflow Script for AI-Assisted Manuscript Development
+# Workflow - AI-Assisted Research and Project Development Tool
 # =============================================================================
-# This script provides a unified interface for creating and executing AI
-# workflows using the Anthropic Messages API.
+# A portable CLI tool for managing AI workflows using the Anthropic Messages
+# API. Features git-like project structure, flexible configuration cascading,
+# context aggregation, and workflow chaining.
 #
 # Subcommands:
-#   init NAME    Create new workflow structure with interactive setup
-#   run          Execute a workflow (can be implicit)
+#   init [dir]       Initialize workflow project structure
+#   new NAME         Create new workflow with task and config files
+#   edit [NAME]      Edit workflow or project files (NAME optional)
+#   run NAME [opts]  Execute workflow with context aggregation
 #
 # Usage:
-#   ./workflow.sh init WORKFLOW_NAME
-#   ./workflow.sh run --workflow WORKFLOW_NAME [options]
-#   ./workflow.sh --workflow WORKFLOW_NAME [options]  # 'run' is implicit
+#   workflow init .
+#   workflow new 01-analysis
+#   workflow edit 01-analysis
+#   workflow run 01-analysis --stream
+#
+# See --help for complete documentation
 # =============================================================================
 
 # =============================================================================
