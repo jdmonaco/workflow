@@ -126,14 +126,16 @@ Workflow-specific settings that override project defaults:
 
 ```bash
 # Context aggregation methods
+# Note: Paths are relative to project root
 
-# Method 1: Glob pattern
-CONTEXT_PATTERN="../References/*.md"
+# Method 1: Glob pattern (single pattern, supports brace expansion)
+CONTEXT_PATTERN="References/*.md"
+CONTEXT_PATTERN="References/{Topic1,Topic2}/*.md"
 
 # Method 2: Explicit file list
 CONTEXT_FILES=(
-    "../References/doc1.md"
-    "../References/doc2.md"
+    "References/doc1.md"
+    "References/doc2.md"
 )
 
 # Method 3: Workflow dependencies
@@ -146,7 +148,7 @@ DEPENDS_ON=(
 MODEL="claude-sonnet-4-5"
 TEMPERATURE=1.0
 MAX_TOKENS=8192
-SYSTEM_PROMPTS="Root,NeuroAI,DataScience"
+SYSTEM_PROMPTS=(Root NeuroAI DataScience)
 
 # Output format override
 OUTPUT_FORMAT="json"
@@ -159,6 +161,90 @@ Settings are applied in order (later overrides earlier):
 2. Project config (`.workflow/config`)
 3. Workflow config (`.workflow/WORKFLOW_NAME/config`)
 4. Command-line flags (highest priority)
+
+### Path Resolution
+
+The workflow tool distinguishes between paths specified in configuration files versus command-line flags to enable the "work from anywhere" feature.
+
+#### Config File Paths
+
+**Context**: Paths in `CONTEXT_PATTERN` and `CONTEXT_FILES` within config files (`.workflow/config` or `.workflow/WORKFLOW_NAME/config`) are resolved **relative to the project root** (`PROJECT_ROOT`).
+
+**Implementation**:
+- `CONTEXT_PATTERN`: Executed in subshell with `cd "$PROJECT_ROOT"` before glob expansion
+- `CONTEXT_FILES`: Each path prepended with `$PROJECT_ROOT/` before validation
+
+**Benefits**:
+- Workflows can be executed from any subdirectory within the project
+- Config files remain location-independent
+- Consistent with git-like project structure
+
+**Example**:
+```bash
+# In .workflow/my-workflow/config
+CONTEXT_PATTERN="References/*.md"
+CONTEXT_FILES=("data/results.md")
+
+# Works identically from:
+# - /project/
+# - /project/subdir/
+# - /project/.workflow/my-workflow/
+```
+
+#### Command-Line Paths
+
+**Context**: Paths provided via `--context-file` and `--context-pattern` flags are resolved **relative to the current working directory** (PWD where the command is executed).
+
+**Implementation**:
+- Stored separately in `CLI_CONTEXT_FILES` and `CLI_CONTEXT_PATTERN`
+- Processed without path modification (standard shell behavior)
+
+**Benefits**:
+- Standard CLI tool behavior (matches git, ls, cat, etc.)
+- Enables ad-hoc context inclusion from anywhere
+- Flexible for one-off workflow runs
+
+**Example**:
+```bash
+# From /project/subdir/
+workflow run NAME --context-file ./local.md
+# Resolves to: /project/subdir/local.md
+
+workflow run NAME --context-file ../data/external.md
+# Resolves to: /project/data/external.md
+```
+
+#### Glob Pattern Features
+
+**Brace Expansion**: `CONTEXT_PATTERN` supports bash brace expansion for multiple directories:
+```bash
+CONTEXT_PATTERN="References/{Topic1,Topic2,Topic3}/*.md"
+# Expands to: References/Topic1/*.md References/Topic2/*.md References/Topic3/*.md
+```
+
+**Spaces in Directory Names**: Escape with backslash:
+```bash
+CONTEXT_PATTERN="References/{Modeling\ Topic,Testing\ Topic}/*.md"
+```
+
+**Single Pattern Only**: `CONTEXT_PATTERN` accepts one glob pattern (with brace expansion). For multiple independent patterns or complex selection, use `CONTEXT_FILES` array.
+
+#### Technical Details
+
+**Processing Order**:
+1. Config-sourced `CONTEXT_PATTERN` (relative to `PROJECT_ROOT`)
+2. CLI-provided `CLI_CONTEXT_PATTERN` (relative to PWD)
+3. Config-sourced `CONTEXT_FILES` array (relative to `PROJECT_ROOT`)
+4. CLI-provided `CLI_CONTEXT_FILES` array (relative to PWD)
+
+**Error Handling**:
+- Config paths: Error message includes both user-provided path and resolved absolute path
+- CLI paths: Error message shows path as provided (user knows their PWD)
+- Missing files halt execution immediately
+
+**Performance**:
+- Paths validated in loop, then single `filecat` call per array (efficient)
+- Glob expansion happens once in appropriate directory context
 
 ## System Prompts
 
@@ -223,21 +309,21 @@ Three methods for building workflow context (can be combined):
 ### 1. Glob Patterns
 
 ```bash
-CONTEXT_PATTERN="../References/*.md"
+CONTEXT_PATTERN="References/*.md"
 ```
 
-Uses `filecat` to concatenate all matching files with visual separators.
+Uses `filecat` to concatenate all matching files with visual separators. Paths are relative to project root.
 
 ### 2. Explicit Files
 
 ```bash
 CONTEXT_FILES=(
-    "../data/results.md"
-    "../notes/analysis.md"
+    "data/results.md"
+    "notes/analysis.md"
 )
 ```
 
-Maintains exact ordering of specified files.
+Maintains exact ordering of specified files. Paths are relative to project root.
 
 ### 3. Workflow Dependencies
 
@@ -285,7 +371,7 @@ workflow run 01-outline --depends-on 00-context-analysis --max-tokens 8192
 ```bash
 # Workflow 1: Analyze workshop materials
 workflow new 00-workshop-context
-# In config: CONTEXT_PATTERN="../Workshops/*.md"
+# In config: CONTEXT_PATTERN="Workshops/*.md"
 workflow run 00-workshop-context
 
 # Workflow 2: Draft outline using workshop analysis

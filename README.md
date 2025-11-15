@@ -133,13 +133,13 @@ OUTPUT_FORMAT="md"
 Workflow-specific overrides:
 
 ```bash
-# Context from glob pattern
-CONTEXT_PATTERN="../References/*.md"
+# Context from glob pattern (relative to project root)
+CONTEXT_PATTERN="References/*.md"
 
-# Or explicit files
+# Or explicit files (relative to project root)
 CONTEXT_FILES=(
-    "../data/results.md"
-    "../notes/analysis.md"
+    "data/results.md"
+    "notes/analysis.md"
 )
 
 # Or workflow dependencies
@@ -161,6 +161,34 @@ OUTPUT_FORMAT="txt"
 2. Project config (`.workflow/config`)
 3. Workflow config (`.workflow/NAME/config`)
 4. Command-line flags ← highest priority
+
+### Path Resolution
+
+**Config File Paths** (in `.workflow/config` or `.workflow/NAME/config`):
+- `CONTEXT_PATTERN` and `CONTEXT_FILES` are **relative to project root**
+- Allows workflow to run from any subdirectory
+- Example: `CONTEXT_PATTERN="References/*.md"` always finds `<project-root>/References/*.md`
+
+**Command-Line Paths** (from `--context-file` or `--context-pattern`):
+- Paths are **relative to your current working directory** (PWD)
+- Standard CLI behavior
+- Example: Running from `project/subdir/` with `--context-file notes.md` finds `project/subdir/notes.md`
+
+**Glob Pattern Features**:
+- Supports brace expansion: `References/{Topic1,Topic2}/*.md`
+- Single pattern only (use `CONTEXT_FILES` array for multiple explicit files)
+- Spaces in directory names: escape with backslash `{Name\ One,Name\ Two}`
+
+**Examples**:
+```bash
+# In config file (relative to project root):
+CONTEXT_PATTERN="References/*.md"
+CONTEXT_FILES=("data/results.md" "notes/analysis.md")
+
+# From command line (relative to current directory):
+cd project/subdir
+workflow run NAME --context-file ./local.md  # Finds project/subdir/local.md
+```
 
 ## Examples
 
@@ -186,7 +214,7 @@ Analyze the experimental results and summarize key findings.
 
 Edit **config**:
 ```bash
-CONTEXT_PATTERN="../data/*.md"
+CONTEXT_PATTERN="data/*.md"
 ```
 
 ```bash
@@ -199,7 +227,7 @@ workflow run analyze-data
 ```bash
 # Step 1: Gather context
 workflow new 00-gather-context
-# config: CONTEXT_PATTERN="../references/*.md"
+# config: CONTEXT_PATTERN="references/*.md"
 workflow run 00-gather-context
 
 # Step 2: Create outline
@@ -357,9 +385,9 @@ workflow run extract-data --output-format json
 Combine multiple methods in a single workflow:
 
 ```bash
-# In .workflow/my-workflow/config
-CONTEXT_PATTERN="../references/*.md"      # Glob pattern
-CONTEXT_FILES=("../data/specific.md")     # Explicit files
+# In .workflow/my-workflow/config (paths relative to project root)
+CONTEXT_PATTERN="references/*.md"         # Glob pattern
+CONTEXT_FILES=("data/specific.md")        # Explicit files
 DEPENDS_ON=("previous-workflow")          # Workflow output
 ```
 
@@ -394,8 +422,8 @@ Before each API call:
 ```
 Building context...
   Adding dependencies...
-    - 00-gather-context
-  Adding files from pattern: ../references/*.md
+    - 00-gather-context (00-gather-context.md)
+  Adding files from config pattern: references/*.md
 Estimated system tokens: 6633
 Estimated task tokens: 4294
 Estimated context tokens: 12450

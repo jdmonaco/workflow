@@ -254,14 +254,16 @@ new_workflow() {
 # These values override project defaults from .workflow/config
 
 # Context aggregation methods (uncomment and configure as needed):
+# Note: Paths in CONTEXT_PATTERN and CONTEXT_FILES are relative to project root
 
-# Method 1: Glob pattern
-# CONTEXT_PATTERN="../References/*.md"
+# Method 1: Glob pattern (single pattern, supports brace expansion)
+# CONTEXT_PATTERN="References/*.md"
+# CONTEXT_PATTERN="References/{Topic1,Topic2}/*.md"
 
 # Method 2: Explicit file list
 # CONTEXT_FILES=(
-#     "../References/doc1.md"
-#     "../References/doc2.md"
+#     "References/doc1.md"
+#     "References/doc2.md"
 # )
 
 # Method 3: Workflow dependencies
@@ -271,10 +273,10 @@ new_workflow() {
 # )
 
 # API overrides (optional)
-# MODEL="DEFAULT_MODEL"
-# TEMPERATURE=DEFAULT_TEMPERATURE
-# MAX_TOKENS=DEFAULT_MAX_TOKENS
-# SYSTEM_PROMPTS="Root,DataScience"
+# MODEL="$DEFAULT_MODEL"
+# TEMPERATURE=$DEFAULT_TEMPERATURE
+# MAX_TOKENS=$DEFAULT_MAX_TOKENS
+# SYSTEM_PROMPTS=(Root DataScience)
 
 # Output format override (extension without dot: md, txt, json, html, etc.)
 # OUTPUT_FORMAT="txt"
@@ -403,7 +405,7 @@ WORKFLOW_DIR="$PROJECT_ROOT/.workflow/$WORKFLOW_NAME"
 if [[ ! -d "$WORKFLOW_DIR" ]]; then
     echo "Error: Workflow '$WORKFLOW_NAME' not found"
     echo "Available workflows:"
-    ls -1 "$PROJECT_ROOT/.workflow" | grep -v '^config$\|^prompts$\|^output$' || echo "  (none)"
+    ls -1 "$PROJECT_ROOT/.workflow" | grep -v '^config$\|^prompts$\|^output$|^project.txt' || echo "  (none)"
     echo ""
     echo "Create new workflow with: workflow new $WORKFLOW_NAME"
     exit 1
@@ -436,6 +438,10 @@ STREAM_MODE=false
 DRY_RUN=false
 SYSTEM_PROMPTS_OVERRIDE=""
 
+# Separate storage for CLI-provided paths (relative to PWD)
+CLI_CONTEXT_FILES=()
+CLI_CONTEXT_PATTERN=""
+
 # Parse arguments (command-line overrides)
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -452,11 +458,11 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --context-file)
-            CONTEXT_FILES+=("$2")
+            CLI_CONTEXT_FILES+=("$2")  # Store CLI paths separately
             shift 2
             ;;
         --context-pattern)
-            CONTEXT_PATTERN="$2"  # Override config
+            CLI_CONTEXT_PATTERN="$2"  # Store CLI pattern separately
             shift 2
             ;;
         --depends-on)
@@ -574,6 +580,7 @@ echo "Building context..."
 # Add files from --depends-on (from output/ directory)
 if [[ ${#DEPENDS_ON[@]} -gt 0 ]]; then
     echo "  Adding dependencies..."
+    dep_files=()
     for dep in "${DEPENDS_ON[@]}"; do
         # Find dependency output with any extension using glob
         dep_file=$(ls "$PROJECT_ROOT/.workflow/output/${dep}".* 2>/dev/null | head -1)
@@ -583,28 +590,51 @@ if [[ ${#DEPENDS_ON[@]} -gt 0 ]]; then
             echo "Ensure workflow '$dep' has been executed successfully"
             exit 1
         fi
-        echo "    - $dep ($(basename "$dep_file"))"
-        filecat "$dep_file" >> "$CONTEXT_PROMPT_FILE"
+        echo "    - $dep_file"
+        dep_files+=("$dep_file")
     done
+    filecat "${dep_files[@]}" >> "$CONTEXT_PROMPT_FILE"
 fi
 
-# Add files from --context-pattern
+# Add files from config CONTEXT_PATTERN (relative to PROJECT_ROOT)
 if [[ -n "$CONTEXT_PATTERN" ]]; then
-    echo "  Adding files from pattern: $CONTEXT_PATTERN"
-    eval "filecat $CONTEXT_PATTERN" >> "$CONTEXT_PROMPT_FILE"
+    echo "  Adding files from config pattern: $CONTEXT_PATTERN"
+    (cd "$PROJECT_ROOT" && filecat $CONTEXT_PATTERN) >> "$CONTEXT_PROMPT_FILE"
 fi
 
-# Add explicit files from --context-file
+# Add files from CLI --context-pattern (relative to PWD)
+if [[ -n "$CLI_CONTEXT_PATTERN" ]]; then
+    echo "  Adding files from CLI pattern: $CLI_CONTEXT_PATTERN"
+    filecat $CLI_CONTEXT_PATTERN >> "$CONTEXT_PROMPT_FILE"
+fi
+
+# Add explicit files from config CONTEXT_FILES (relative to PROJECT_ROOT)
 if [[ ${#CONTEXT_FILES[@]} -gt 0 ]]; then
-    echo "  Adding explicit files..."
+    echo "  Adding explicit files from config..."
+    resolved_files=()
     for file in "${CONTEXT_FILES[@]}"; do
+        resolved_file="$PROJECT_ROOT/$file"
+        if [[ ! -f "$resolved_file" ]]; then
+            echo "Error: Context file not found: $file (resolved: $resolved_file)"
+            exit 1
+        fi
+        resolved_files+=("$resolved_file")
+    done
+    filecat "${resolved_files[@]}" >> "$CONTEXT_PROMPT_FILE"
+fi
+
+# Add explicit files from CLI --context-file (relative to PWD)
+if [[ ${#CLI_CONTEXT_FILES[@]} -gt 0 ]]; then
+    echo "  Adding explicit files from CLI..."
+    validated_files=()
+    for file in "${CLI_CONTEXT_FILES[@]}"; do
         if [[ ! -f "$file" ]]; then
             echo "Error: Context file not found: $file"
             exit 1
         fi
-        echo "    - $file"
-        filecat "$file" >> "$CONTEXT_PROMPT_FILE"
+        validated_files+=("$file")
     done
+    filecat "${validated_files[@]}" >> "$CONTEXT_PROMPT_FILE"
 fi
 
 # Check if any context was provided
