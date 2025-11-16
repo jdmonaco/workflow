@@ -1,907 +1,771 @@
-# AI-Driven Workflow Framework
+# Workflow - Developer Guide
 
-## Project Overview
+Technical reference for developers working on the Workflow codebase.
 
-This directory contains `workflow.sh`, a portable CLI tool for managing AI-assisted manuscript development workflows using the Anthropic Messages API. The tool uses a git-like project structure with `.workflow/` directories and supports flexible configuration cascading, context aggregation, and workflow chaining.
+**For user documentation, see `docs/` directory and README.md.**
 
-### Architecture
+## Architecture
 
-The tool is implemented as a modular bash application:
+### Overview
 
-- **`workflow.sh`** - Main entry point and argument parsing
-- **`lib/`** - Modular library components:
-  - `lib/core.sh` - Core subcommand implementations (init, new, edit, list, config, run)
-  - `lib/config.sh` - Configuration management and cascade
-  - `lib/help.sh` - Help system and documentation
-  - `lib/task.sh` - Task mode (lightweight execution)
-  - `lib/edit.sh` - Cross-platform editor selection
-  - `lib/utils.sh` - Utility functions (file processing, project discovery)
-  - `lib/api.sh` - Anthropic API interaction
-- **`tests/`** - Bats test suite with 190+ tests
+Workflow is a modular bash application for AI-assisted project development using the Anthropic Messages API.
 
-## Directory Structure
+**Design Principles:**
+- Git-like project discovery (walk up directory tree for `.workflow/`)
+- Configuration cascade with transparent pass-through inheritance
+- Modular library structure for maintainability
+- Safe execution (backups, atomic writes, cleanup traps)
+
+### Module Structure
+
+```
+workflow.sh              # Main entry point, argument parsing, subcommand dispatch
+lib/
+├── core.sh             # Subcommand implementations (init, new, edit, list, config, run)
+├── config.sh           # Configuration loading and cascade logic
+├── help.sh             # Help text for all subcommands
+├── task.sh             # Task mode (lightweight execution without workflow dirs)
+├── edit.sh             # Cross-platform editor selection
+├── utils.sh            # Utilities (file processing, project discovery, sanitization)
+└── api.sh              # Anthropic API interaction (streaming and batch)
+tests/
+├── test_helper/        # Bats support libraries (git submodules)
+├── *.bats             # Test files (190+ tests)
+└── common.sh          # Shared test utilities
+```
+
+### Project Structure
+
+User projects contain a `.workflow/` directory:
 
 ```
 project-root/
-├── .workflow/                   # Git-like workflow directory
-│   ├── config                   # Project-level configuration
-│   ├── project.txt              # Project description (appended to system prompt)
-│   ├── prompts/
-│   │   └── system.txt          # Generated system prompt
-│   ├── output/                  # Hardlinks to workflow outputs
-│   │   └── WORKFLOW.md         # Hardlink to WORKFLOW/output.md
-│   └── WORKFLOW_NAME/           # Individual workflow directory
-│       ├── config              # Workflow-specific configuration
-│       ├── task.txt            # Task description
-│       ├── context.txt         # Generated context
-│       └── output.md           # API response
+├── .workflow/
+│   ├── config                    # Project-level configuration
+│   ├── project.txt               # Optional project description
+│   ├── prompts/system.txt        # Cached system prompt
+│   ├── output/                   # Hardlinks to workflow outputs
+│   │   └── <name>.<format>       # → ../<name>/output/response.<format>
+│   └── <workflow-name>/          # Individual workflows
+│       ├── config                # Workflow configuration
+│       ├── task.txt              # Task prompt
+│       ├── context/              # Optional context files
+│       └── output/
+│           ├── response.<format>
+│           └── response.<format>.backup.TIMESTAMP
 └── (project files...)
 ```
 
-## Installation
+## Core Implementations
 
-1. Copy `workflow.sh` to a directory on your PATH (e.g., `~/bin/` or `/usr/local/bin/`)
-2. Rename to `workflow`: `mv workflow.sh workflow`
-3. Ensure it's executable: `chmod +x workflow`
-4. Set required environment variables in `~/.bashrc` or `~/.bash_profile`:
-   ```bash
-   export ANTHROPIC_API_KEY="your-api-key"
-   export WORKFLOW_PROMPT_PREFIX="$HOME/OneDrive/Admin/Prompts"  # Path to system prompts
-   ```
+### Configuration Cascade
 
-## Commands
+**Four-tier cascade with pass-through:**
 
-### Initialize Project
+1. Global defaults (hardcoded in `lib/config.sh`)
+2. Global config (`~/.config/workflow/config`, auto-created on first use)
+3. Project config (`.workflow/config`)
+4. Workflow config (`.workflow/<name>/config`)
+5. CLI flags (highest priority)
 
-```bash
-workflow init [directory]
-```
+**Pass-Through Mechanism:**
 
-Creates `.workflow/` structure in the specified directory (default: current directory):
-- `.workflow/config` - Project-level configuration
-- `.workflow/project.txt` - Project description (optional, appended to system prompts)
-- `.workflow/prompts/` - For generated system prompts
-- `.workflow/output/` - For workflow output hardlinks
+- Empty value (`MODEL=`) → Inherit from parent tier
+- Explicit value (`MODEL="claude-opus-4"`) → Override parent, decoupled from changes
 
-Opens `project.txt` and `config` in vim for editing, allowing you to describe the project context, goals, and file structure.
-
-#### Config Inheritance
-
-When initializing a project inside an existing workflow project, the tool automatically detects the parent and offers config inheritance:
-
-**Detection:**
-- Uses `find_project_root()` from target directory to search upward for parent `.workflow/`
-- Stops at HOME or root directory (same boundaries as normal project discovery)
-
-**Inheritance Process:**
-1. Detects parent project and warns about nested namespace
-2. Asks user for confirmation
-3. If confirmed, extracts inheritable config values from parent:
-   - `extract_parent_config()`: Sources parent config in isolated subshell
-   - Extracts: MODEL, TEMPERATURE, MAX_TOKENS, SYSTEM_PROMPTS, OUTPUT_FORMAT
-   - Does NOT inherit: project.txt, workflows, context settings
-4. Displays inherited values to user
-5. Creates new project config with inherited defaults
-
-**Benefits:**
-- Multi-project workflows maintain consistent configuration
-- Related subprojects automatically use parent settings
-- User can still edit config afterward to customize
-- Safe: Subshell isolation prevents side effects
-
-**Example:**
-```bash
-# In /research/neuroai-project with custom config
-cd subprojects/experiment-1
-workflow init .
-# Prompts user, inherits MODEL, SYSTEM_PROMPTS, etc.
-```
-
-### Create Workflow
+**Implementation:**
 
 ```bash
-workflow new WORKFLOW_NAME
-```
-
-Creates a new workflow in the current project:
-- Creates `.workflow/WORKFLOW_NAME/` directory
-- Creates empty `task.txt` and template `config` files
-- Opens both files in vim for editing
-
-**Requirements:** Must be run within an initialized project (will search upward for `.workflow/`).
-
-### Edit Workflow or Project
-
-```bash
-workflow edit [WORKFLOW_NAME]
-```
-
-**Without workflow name:** Opens project-level `project.txt` and `config` files for editing.
-
-**With workflow name:** Opens workflow-specific `task.txt` and `config` files for editing.
-
-**Requirements:** Must be run within an initialized project.
-
-### View Configuration
-
-```bash
-workflow config [WORKFLOW_NAME]
-```
-
-Display current configuration with source tracking and option to edit.
-
-**Without workflow name (project config):**
-- Shows effective project configuration (defaults + project overrides)
-- Lists all workflows with last-run timestamps
-- Indicates source for each parameter: (default) or (project)
-- Interactive prompt to edit project.txt and config
-
-**With workflow name (workflow config):**
-- Shows full configuration cascade (default → project → workflow)
-- Indicates source for each parameter: (default), (project), or (workflow)
-- Shows workflow-specific settings (CONTEXT_PATTERN, CONTEXT_FILES, DEPENDS_ON)
-- Interactive prompt to edit workflow task.txt and config
-
-**Source indicators:**
-- `(default)` - Using global DEFAULT_* constant (transparent pass-through)
-- `(project)` - Set explicitly in `.workflow/config`
-- `(workflow)` - Set explicitly in `.workflow/WORKFLOW_NAME/config`
-
-**Requirements:** Must be run within an initialized project.
-
-### Execute Workflow
-
-```bash
-workflow run WORKFLOW_NAME [options]
-```
-
-Executes a workflow by:
-1. Finding project root (searches upward for `.workflow/`)
-2. Loading configuration (3-tier cascade)
-3. Building context from configured sources
-4. Making API request (single-batch or streaming)
-5. Saving output with hardlink in `.workflow/output/`
-
-**Options:**
-- `--stream` - Use streaming mode (real-time output)
-- `--dry-run` - Estimate tokens without API call
-- `--context-pattern GLOB` - Override context pattern
-- `--context-file FILE` - Add additional context file (repeatable)
-- `--depends-on WORKFLOW` - Add workflow dependency
-- `--model MODEL` - Override model
-- `--temperature TEMP` - Override temperature
-- `--max-tokens NUM` - Override max tokens
-- `--system-prompts LIST` - Override system prompts (comma-separated)
-- `--output-format EXT` - Override output format/extension (md, txt, json, html, etc.)
-
-### Execute Task (Lightweight Mode)
-
-```bash
-workflow task NAME [options]
-workflow task --inline TEXT [options]
-workflow task -i TEXT [options]
-```
-
-Execute one-off tasks without creating workflow directories. Designed for quick, temporary requests that don't need to be persisted.
-
-**Task Mode Execution Flow:**
-1. Optional project discovery (non-fatal if not found)
-2. Load config: global → project (if found) → CLI overrides
-3. Load task from file or inline specification
-4. Build system prompt (same as run mode, uses project cache if available)
-5. Aggregate context from CLI flags only (temporary file)
-6. Estimate tokens
-7. Execute API request (streaming by default)
-8. Optional: Save to file if `--output-file` specified
-
-**Task Specification:**
-- **Named tasks:** Load from `$WORKFLOW_TASK_PREFIX/<NAME>.txt` file
-  - Requires `WORKFLOW_TASK_PREFIX` environment variable
-  - Useful for frequently-used task templates
-- **Inline tasks:** Specify directly with `--inline` or `-i` flag
-  - No environment setup required
-  - Ideal for one-time requests
-
-**Key Differences from Run Mode:**
-
-| Aspect | Run Mode | Task Mode |
-|--------|----------|-----------|
-| **Project required** | Yes | No (optional) |
-| **Workflow directory** | Required | Not used |
-| **Task source** | `.workflow/NAME/task.txt` | `$WORKFLOW_TASK_PREFIX/<NAME>.txt` or inline |
-| **Config tiers** | Global → Project → Workflow | Global → Project only |
-| **Context sources** | Config + CLI (5 sources) | CLI only (2 sources) |
-| **Default output** | File in workflow dir | Stream to stdout |
-| **Output file** | Always created | Optional via `--output-file` |
-| **Streaming** | Opt-in via `--stream` | Default (opt-out via `--no-stream`) |
-| **Dependencies** | Supported | Not supported |
-
-**Options:**
-- `--inline TEXT`, `-i TEXT` - Inline task (alternative to NAME)
-- `--output-file PATH` - Save output to file (optional)
-- `--stream` - Stream output (default: true)
-- `--no-stream` - Use single-batch mode
-- `--context-file FILE` - Add context file (repeatable, relative to PWD)
-- `--context-pattern GLOB` - Add files matching pattern (relative to PWD)
-- `--model MODEL` - Override model
-- `--temperature TEMP` - Override temperature
-- `--max-tokens NUM` - Override max tokens
-- `--system-prompts LIST` - Override system prompts (comma-separated)
-- `--output-format EXT` - Output format (md, txt, json, etc.)
-- `--dry-run` - Estimate tokens without API call
-
-**Implementation Details:**
-- Located in `lib/task.sh`, sourced when `TASK_MODE=true`
-- Uses temporary files for context and output (unless `--output-file` specified)
-- Reuses all core functionality: system prompt building, token estimation, API execution
-- Gracefully handles missing project (uses global config only)
-- Cleans up temp files via trap on exit
-
-## Help System
-
-The workflow tool provides comprehensive help documentation via the `help` subcommand and `-h` flags.
-
-### Help Access Methods
-
-**1. Main help (all subcommands):**
-```bash
-workflow help
-workflow --help
-workflow -h
-```
-
-**2. Subcommand-specific help:**
-```bash
-workflow help <subcommand>    # Detailed help
-workflow <subcommand> -h      # Quick help (same output)
-```
-
-### Implementation
-
-**Location:** `lib/help.sh`
-
-**Functions:**
-- `show_help()` - Main help listing all subcommands
-- `show_help_init()` - Initialize project help
-- `show_help_new()` - Create workflow help
-- `show_help_edit()` - Edit files help
-- `show_help_list()` - List workflows help
-- `show_help_config()` - Configuration help
-- `show_help_run()` - Execute workflow help (detailed options)
-- `show_help_task()` - Execute task help (detailed options)
-
-**Integration:**
-- `workflow.sh` handles `help` subcommand (lines 162-187)
-- Each subcommand checks for `-h`/`--help` before processing
-- `lib/help.sh` sourced early in workflow.sh (line 30)
-
-**Style:**
-Follows git-style help format:
-- Concise usage line
-- Arguments and options with descriptions
-- Grouped options (Context, API, Output, etc.)
-- Examples for common use cases
-- Cross-references to related subcommands
-
-**Testing:**
-- `tests/help.bats` - 18 tests covering main help, subcommand help, and -h flags
-
-## Editor Selection
-
-The workflow tool provides cross-platform, user-preference-aware editor selection for interactive file editing.
-
-### Editor Selection Priority
-
-**Location:** `lib/edit.sh`
-
-The `edit_files()` function selects an editor using this priority order:
-
-1. **`$VISUAL`** - User's preferred visual editor (highest priority)
-2. **`$EDITOR`** - User's preferred command-line editor
-3. **Platform-specific defaults:**
-   - macOS: `vim`, `nano`, `vi`
-   - Linux: `vim`, `nano`, `vi`
-   - Windows/WSL: `vim`, `nano`, `code`, `vi`
-4. **Common editor detection:** Checks for available editors:
-   - `vim`, `nvim`, `emacs`, `nano`, `code`, `subl`, `atom`, `vi`
-5. **Safe fallback:** `vi` (POSIX standard, universally available)
-
-### Usage
-
-```bash
-edit_files file1 [file2 ...]
-```
-
-**Examples:**
-```bash
-# Edit project files
-edit_files .workflow/project.txt .workflow/config
-
-# Edit workflow files
-edit_files .workflow/analyze-data/task.txt .workflow/analyze-data/config
-```
-
-### Integration
-
-Used by these subcommands:
-- `workflow init` - Opens `project.txt` and `config` after initialization
-- `workflow new` - Opens `task.txt` and `config` after workflow creation
-- `workflow edit` - Opens project or workflow files for editing
-
-### Cross-Platform Compatibility
-
-**macOS:**
-- Prefers `vim` if available (common in developer environments)
-- Falls back to `nano` (more user-friendly for non-vim users)
-
-**Linux:**
-- Similar to macOS: `vim` → `nano` → `vi`
-
-**Windows/WSL:**
-- Additionally checks for VS Code (`code`)
-- Accommodates Windows-based editors
-
-### User Customization
-
-Users can override default behavior via environment variables:
-
-```bash
-# In ~/.bashrc or ~/.zshrc
-export VISUAL=code        # Use VS Code for all edits
-export EDITOR=emacs       # Use Emacs as fallback
-```
-
-**No configuration needed:** The function automatically detects available editors and makes intelligent choices.
-
-## Configuration
-
-### Global User Configuration
-
-The workflow tool automatically creates a global configuration directory at `~/.config/workflow/` on first use:
-
-**Auto-created files:**
-- `config` - Global defaults for API settings
-- `prompts/base.txt` - Default system prompt
-
-This makes the tool self-contained and immediately usable without requiring environment variable setup.
-
-**Location:** `~/.config/workflow/config`
-
-**Default contents:**
-```bash
-# Global Workflow Configuration
-MODEL="claude-sonnet-4-5"
-TEMPERATURE=1.0
-MAX_TOKENS=4096
-OUTPUT_FORMAT="md"
-SYSTEM_PROMPTS=(base)
-
-# System prompt directory - points to included prompts
-WORKFLOW_PROMPT_PREFIX="$HOME/.config/workflow/prompts"
-
-# Optional: API key (env var preferred for security)
-# ANTHROPIC_API_KEY=""
+# In load_global_config(), load_project_config(), etc.
+if [[ -z "$MODEL" && -n "$value" ]]; then
+    MODEL="$value"  # Only set if currently empty
+fi
 ```
 
 **Benefits:**
-- Change global config once to affect all uncustomized projects
-- Tool works out-of-the-box without environment variable setup
-- Clear distinction between inherited and customized values
-- Easy reset: set to empty to restore pass-through
-- View effective config with source tracking via `workflow config`
+- Change global default → affects all empty configs
+- Explicit values stay independent
+- Easy to reset: set to empty to restore pass-through
 
-### Configuration Pass-Through
+**Nested Project Inheritance:**
 
-The tool uses **transparent pass-through** for configuration parameters. Empty values inherit from parent tier, while explicit values "own" the parameter.
-
-**The Rule:**
-- **Empty value** (`MODEL=`): Passes through to parent tier (transparent)
-- **Explicit value** (`MODEL="claude-opus-4"`): Owns parameter (decoupled from parent changes)
-
-**Example:**
-```bash
-# Global ~/.config/workflow/config:
-MODEL="claude-sonnet-4-5"
-
-# Project .workflow/config (empty = pass-through):
-MODEL=
-
-# Workflow config (empty = pass-through):
-MODEL=
-
-# Result: Uses claude-sonnet-4-5
-# Change global config → all empty configs update automatically
-```
-
-### Project Configuration (`.workflow/config`)
-
-Project-wide settings (empty values pass through to global defaults):
-
-```bash
-# Leave empty to use global defaults (recommended):
-MODEL=
-TEMPERATURE=
-MAX_TOKENS=
-SYSTEM_PROMPTS=()
-OUTPUT_FORMAT=
-
-# Or set explicit values to override globally:
-# MODEL="claude-opus-4"
-# TEMPERATURE=0.7
-# MAX_TOKENS=8192
-# SYSTEM_PROMPTS=(Root NeuroAI)
-# OUTPUT_FORMAT="json"
-```
-
-**Note:** Project configs do NOT have CONTEXT_PATTERN, CONTEXT_FILES, or DEPENDS_ON (those are workflow-specific).
-
-### Workflow Configuration (`.workflow/WORKFLOW_NAME/config`)
-
-Workflow-specific settings:
-
-```bash
-# Context sources (workflow-specific, not inherited from project)
-# Paths are relative to project root
-CONTEXT_PATTERN="References/*.md"
-CONTEXT_PATTERN="References/{Topic1,Topic2}/*.md"
-CONTEXT_FILES=("References/doc1.md" "References/doc2.md")
-DEPENDS_ON=("00-workshop-context" "01-outline-draft")
-
-# API parameters (leave empty to inherit from project/global defaults)
-# MODEL="claude-opus-4"
-# TEMPERATURE=0.7
-# MAX_TOKENS=8192
-# SYSTEM_PROMPTS=(Root NeuroAI)
-# OUTPUT_FORMAT="json"
-```
-
-### Configuration Priority
-
-Settings cascade through four tiers (empty values pass through, non-empty override):
-1. Global config (`~/.config/workflow/config`) - User defaults, with fallback to hard-coded defaults
-2. Project config (`.workflow/config`) - Inherits from #1 if empty
-3. Workflow config (`.workflow/WORKFLOW_NAME/config`) - Inherits from #2 if empty
-4. Command-line flags - Always override (highest priority)
-
-**Graceful degradation:** If global config is unavailable (permissions issues, etc.), the tool falls back to hard-coded defaults and continues to function.
+When initializing inside an existing project:
+- `find_project_root()` from target directory searches for parent
+- `extract_parent_config()` sources parent config in isolated subshell
+- Displays inherited values, writes to new project config
+- Creates separate workflow namespace
 
 ### Path Resolution
 
-The workflow tool distinguishes between paths specified in configuration files versus command-line flags to enable the "work from anywhere" feature.
+**Design:** Config paths relative to project root, CLI paths relative to PWD
 
-#### Config File Paths
+**Implementation:**
 
-**Context**: Paths in `CONTEXT_PATTERN` and `CONTEXT_FILES` within config files (`.workflow/config` or `.workflow/WORKFLOW_NAME/config`) are resolved **relative to the project root** (`PROJECT_ROOT`).
-
-**Implementation**:
-- `CONTEXT_PATTERN`: Executed in subshell with `cd "$PROJECT_ROOT"` before glob expansion
-- `CONTEXT_FILES`: Each path prepended with `$PROJECT_ROOT/` before validation
-
-**Benefits**:
-- Workflows can be executed from any subdirectory within the project
-- Config files remain location-independent
-- Consistent with git-like project structure
-
-**Example**:
+**Config paths** (`CONTEXT_PATTERN`, `CONTEXT_FILES`):
 ```bash
-# In .workflow/my-workflow/config
-CONTEXT_PATTERN="References/*.md"
-CONTEXT_FILES=("data/results.md")
+# Glob expansion in subshell
+(cd "$PROJECT_ROOT" && eval echo "$CONTEXT_PATTERN")
 
-# Works identically from:
-# - /project/
-# - /project/subdir/
-# - /project/.workflow/my-workflow/
+# File paths prepended
+for file in "${CONTEXT_FILES[@]}"; do
+    full_path="$PROJECT_ROOT/$file"
+done
 ```
 
-#### Command-Line Paths
-
-**Context**: Paths provided via `--context-file` and `--context-pattern` flags are resolved **relative to the current working directory** (PWD where the command is executed).
-
-**Implementation**:
-- Stored separately in `CLI_CONTEXT_FILES` and `CLI_CONTEXT_PATTERN`
-- Processed without path modification (standard shell behavior)
-
-**Benefits**:
-- Standard CLI tool behavior (matches git, ls, cat, etc.)
-- Enables ad-hoc context inclusion from anywhere
-- Flexible for one-off workflow runs
-
-**Example**:
+**CLI paths** (`--context-file`, `--context-pattern`):
 ```bash
-# From /project/subdir/
-workflow run NAME --context-file ./local.md
-# Resolves to: /project/subdir/local.md
-
-workflow run NAME --context-file ../data/external.md
-# Resolves to: /project/data/external.md
+# Stored separately, used as-is
+CLI_CONTEXT_FILES+=("$file")  # Relative to PWD
 ```
 
-#### Glob Pattern Features
+**Processing order:**
+1. Config CONTEXT_PATTERN (project-relative)
+2. CLI --context-pattern (PWD-relative)
+3. Config CONTEXT_FILES (project-relative)
+4. CLI --context-file (PWD-relative)
 
-**Brace Expansion**: `CONTEXT_PATTERN` supports bash brace expansion for multiple directories:
+### Context Aggregation
+
+**Three methods (combined):**
+
+1. **Glob patterns:** Bash glob expansion, multiple files
+2. **Explicit files:** Array of specific paths
+3. **Workflow dependencies:** Include outputs via hardlinks
+
+**File processing:**
+
 ```bash
-CONTEXT_PATTERN="References/{Topic1,Topic2,Topic3}/*.md"
-# Expands to: References/Topic1/*.md References/Topic2/*.md References/Topic3/*.md
+filecat() {
+    # Wraps file in XML tags with path and type metadata
+    # Handles binary detection, encoding issues
+    # Adds visual separators
+}
 ```
 
-**Spaces in Directory Names**: Escape with backslash:
+**Dependency resolution:**
+
 ```bash
-CONTEXT_PATTERN="References/{Modeling\ Topic,Testing\ Topic}/*.md"
+# Reads from .workflow/output/ hardlinks
+for dep in "${DEPENDS_ON[@]}"; do
+    dep_file=$(ls "$PROJECT_ROOT/.workflow/output/$dep".* 2>/dev/null)
+done
 ```
 
-**Single Pattern Only**: `CONTEXT_PATTERN` accepts one glob pattern (with brace expansion). For multiple independent patterns or complex selection, use `CONTEXT_FILES` array.
+### System Prompt Composition
 
-#### Technical Details
+**Build process (every run):**
 
-**Processing Order**:
-1. Config-sourced `CONTEXT_PATTERN` (relative to `PROJECT_ROOT`)
-2. CLI-provided `CLI_CONTEXT_PATTERN` (relative to PWD)
-3. Config-sourced `CONTEXT_FILES` array (relative to `PROJECT_ROOT`)
-4. CLI-provided `CLI_CONTEXT_FILES` array (relative to PWD)
+1. Load prompts from `$WORKFLOW_PROMPT_PREFIX/{name}.txt`
+2. Concatenate in order specified by `SYSTEM_PROMPTS` array
+3. Append `project.txt` if non-empty (wrapped in `<project>` tags)
+4. Write to `.workflow/prompts/system.txt`
+5. Use cached version as fallback if rebuild fails
 
-**Error Handling**:
-- Config paths: Error message includes both user-provided path and resolved absolute path
-- CLI paths: Error message shows path as provided (user knows their PWD)
-- Missing files halt execution immediately
+**Rationale:** Rebuild ensures configuration changes take effect immediately.
 
-**Performance**:
-- Paths validated in loop, then single `filecat` call per array (efficient)
-- Glob expansion happens once in appropriate directory context
+### API Interaction
 
-## System Prompts
+**Location:** `lib/api.sh`
 
-System prompts are XML-formatted text files concatenated in the specified order:
-- Located at `$WORKFLOW_PROMPT_PREFIX/{name}.txt`
-- `base` prompt typically included first (baseline instructions)
-- Additional prompts add domain-specific context
-- Concatenated into `.workflow/prompts/system.txt`
-- **Rebuilt on every workflow run** to ensure current configuration is used
-- Cached version used as fallback if rebuild fails
+**Streaming mode:**
+- Uses `curl` with chunked transfer encoding
+- Parses SSE (Server-Sent Events) format
+- Writes incrementally to output file
+- Real-time terminal display
 
-### Project Description
+**Batch mode:**
+- Single request, buffers entire response
+- Atomic file write
+- Opens in pager when complete
 
-Optional `.workflow/project.txt` file provides project-specific context:
-- Created during `workflow init` and opened in vim for editing
-- If non-empty, automatically appended to system prompt for all workflows
-- Wrapped in XML tags via `filecat` (e.g., `<project>...</project>`)
-- Useful for describing codebase structure, project goals, conventions, etc.
-- Leave empty if not needed (no impact on system prompt)
-
-**Example use cases:**
-- Describe manuscript goals and target journal
-- Document folder structure and file organization
-- Specify writing style or formatting requirements
-- Provide background on collaborators or stakeholders
-
-## Output Formats
-
-Workflows can generate output in any text-based format:
-- Specify via `OUTPUT_FORMAT` in config (extension without dot)
-- Default: `md` (Markdown)
-- Common formats: `txt`, `json`, `html`, `xml`, `csv`, etc.
-- Output files: `.workflow/NAME/output.{format}`
-- Hardlinks: `.workflow/output/NAME.{format}`
-
-### Format Hint in User Prompt
-
-For non-markdown formats, the tool automatically appends an XML tag to guide the LLM:
-- **Markdown** (`md`): No tag added (default behavior)
-- **Other formats**: Appends `<output-format>{format}</output-format>` to user prompt
-- Example: If `OUTPUT_FORMAT="json"`, prompt includes `<output-format>json</output-format>`
-- Helps ensure LLM generates output in the requested format
-
-### Format-Specific Post-Processing
-
-The tool automatically applies format-specific formatting when available:
-- **Markdown** (`md`): Runs `mdformat` if installed
-- **JSON** (`json`): Runs `jq` for pretty-printing if installed
-- **Other formats**: No automatic formatting (raw output)
-
-### Cross-Format Dependencies
-
-Dependencies can use different output formats:
-- Dependency resolution uses glob pattern (`.workflow/output/NAME.*`)
-- Allows mixing formats (e.g., JSON data + Markdown text)
-- All formats concatenated into context using `filecat` XML tags
-
-## Context Aggregation
-
-Three methods for building workflow context (can be combined):
-
-### 1. Glob Patterns
-
+**Request construction:**
 ```bash
-CONTEXT_PATTERN="References/*.md"
+# Build JSON payload
+jq -n --arg model "$MODEL" \
+      --arg prompt "$combined_prompt" \
+      --argjson max_tokens "$MAX_TOKENS" \
+      --argjson temp "$TEMPERATURE" \
+      --argjson stream "$stream_flag" \
+      '{model: $model, messages: [{role: "user", content: $prompt}], ...}'
 ```
 
-Uses `filecat` to concatenate all matching files with visual separators. Paths are relative to project root.
+### Token Estimation
 
-### 2. Explicit Files
+**Formula:**
 
 ```bash
-CONTEXT_FILES=(
-    "data/results.md"
-    "notes/analysis.md"
+token_count=$(( char_count / 4 ))
+```
+
+Simple character-based approximation (reasonable for English text).
+
+**Display:**
+- System prompts tokens
+- Task tokens
+- Project description tokens
+- Context tokens (per-file breakdown)
+- Total and estimated cost
+
+### Output Management
+
+**Hardlink creation:**
+
+```bash
+# Primary location
+output_file=".workflow/$workflow_name/output/response.$format"
+
+# Create hardlink
+ln "$output_file" ".workflow/output/$workflow_name.$format"
+```
+
+**Why hardlinks:**
+- Visible in file browsers (unlike symlinks)
+- Single data storage (not duplication)
+- Atomic updates
+
+**Backup strategy:**
+
+```bash
+# Before overwriting
+if [[ -f "$output_file" ]]; then
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    mv "$output_file" "$output_file.backup.$timestamp"
+fi
+```
+
+**Format-specific post-processing:**
+- Markdown: `mdformat` if available
+- JSON: `jq '.'` for pretty-printing if available
+- Others: No processing
+
+### Editor Selection
+
+**Algorithm** (`lib/edit.sh`):
+
+1. Check `$VISUAL` (highest priority)
+2. Check `$EDITOR`
+3. Platform-specific defaults (`uname -s`):
+   - Darwin (macOS): `vim` → `nano` → `vi`
+   - Linux: `vim` → `nano` → `vi`
+   - Windows/WSL: `vim` → `nano` → `code` → `vi`
+4. Common editor detection: `command -v vim nvim emacs nano code subl atom vi`
+5. Fallback: `vi` (POSIX standard)
+
+**Integration:**
+- `workflow init` - Opens `project.txt` and `config`
+- `workflow new` - Opens `task.txt` and `config`
+- `workflow edit` - Opens project or workflow files (includes output if exists)
+
+## Module Reference
+
+### lib/core.sh
+
+**Subcommand implementations:**
+
+- `init_project()` - Create `.workflow/` structure, handle nested projects
+- `new_workflow()` - Create workflow directory and files
+- `edit_workflow()` - Open files in editor (includes output if available)
+- `list_workflows()` - List workflow directories (excludes config, prompts, output)
+- `show_config()` - Display configuration with source tracking
+- `run_workflow()` - Execute workflow with full context aggregation
+
+**Key patterns:**
+- Project root discovery via `find_project_root()`
+- Subshell isolation for config extraction
+- Interactive prompts with validation
+
+### lib/config.sh
+
+**Configuration management:**
+
+- `ensure_global_config()` - Create `~/.config/workflow/` on first use
+- `create_default_global_config()` - Write default config and base.txt
+- `load_global_config()` - Load with pass-through logic
+- `extract_config()` - Parse config files (bash variable assignments)
+
+**Pass-through implementation:**
+
+```bash
+# Only set if currently empty
+if [[ -z "$MODEL" && -n "$value" ]]; then
+    MODEL="$value"
+fi
+```
+
+### lib/help.sh
+
+**Help system:**
+
+- One function per subcommand: `show_help_<subcommand>()`
+- Git-style format: usage line, options, description, examples
+- Sourced early, integrated via `help` subcommand and `-h` flags
+
+### lib/task.sh
+
+**Task mode execution:**
+
+- Simplified config loading (global → project → CLI only)
+- Temporary file management with trap cleanup
+- Stdout default (vs file for run mode)
+- No workflow dependencies or workflow config
+
+**Key difference:**
+
+```bash
+# SYSTEM_PROMPTS_OVERRIDE applied AFTER config loading
+# (Not before, or it gets overwritten)
+if [[ -n "$SYSTEM_PROMPTS_OVERRIDE" ]]; then
+    IFS=',' read -ra SYSTEM_PROMPTS <<< "$SYSTEM_PROMPTS_OVERRIDE"
+fi
+```
+
+### lib/edit.sh
+
+**Editor selection:**
+
+- Checks `$VISUAL`, `$EDITOR`, platform defaults, common editors
+- Falls back to `vi` (always available)
+- Multi-file support: `edit_files file1 [file2 ...]`
+
+### lib/utils.sh
+
+**Utility functions:**
+
+- `sanitize()` - Filename to XML tag conversion
+- `filecat()` - File concatenation with XML wrappers and metadata
+- `find_project_root()` - Walk up directory tree for `.workflow/`
+- `list_workflows()` - List workflow directories
+- `escape_json()` - JSON string escaping for API payloads
+
+**Project discovery:**
+
+```bash
+find_project_root() {
+    local dir="$PWD"
+    while [[ "$dir" != "$HOME" && "$dir" != "/" ]]; do
+        if [[ -d "$dir/.workflow" ]]; then
+            echo "$dir"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    return 1
+}
+```
+
+Stops at `$HOME` or `/` to avoid escaping user space.
+
+### lib/api.sh
+
+**API interaction:**
+
+- Request construction with `jq`
+- Streaming via SSE parsing
+- Batch mode with single response
+- Error handling and validation
+
+**Key implementation:**
+- Uses `curl` with Anthropic Messages API
+- Handles both streaming and non-streaming modes
+- Displays actual token counts from response
+
+## Development Workflows
+
+### Testing
+
+**Framework:** Bats (Bash Automated Testing System)
+
+**Running tests:**
+
+```bash
+# All tests
+bats tests/
+
+# Specific file
+bats tests/config.bats
+
+# Verbose output
+bats -t tests/
+```
+
+**Test organization:**
+- One file per major feature (init, config, run, task, help, etc.)
+- Mock global config via `setup_test_env()` in `tests/test_helper/common.sh`
+- 190+ tests covering all subcommands and features
+
+**Coverage expectations:**
+- All subcommands have basic tests
+- Configuration cascade tested
+- Path resolution tested
+- Error conditions tested
+- Edge cases covered
+
+### Documentation Update Protocol
+
+When making interface changes (new features, behavior changes):
+
+**Required updates:**
+
+1. Code implementation and tests
+2. `lib/help.sh` - CLI help text
+3. `docs/` - User-facing documentation
+4. README.md and docs/index.md - Keep synchronized
+5. CLAUDE.md - Technical implementation details
+6. Code comments and library headers
+
+**Checklist:**
+
+- [ ] Implement feature with tests
+- [ ] Update help text
+- [ ] Update relevant docs pages
+- [ ] Update README.md if user-facing
+- [ ] Update CLAUDE.md with technical details
+- [ ] Update code comments
+- [ ] Verify README.md ↔ docs/index.md sync
+- [ ] Test with `mkdocs serve` (no warnings)
+
+**Style guidelines:** See Documentation Style Guidelines section below
+
+### Making Changes
+
+**Adding a subcommand:**
+
+1. Add case to `workflow.sh` subcommand dispatcher
+2. Implement in `lib/core.sh` (or new lib file if complex)
+3. Add help function to `lib/help.sh`
+4. Add `-h` check to subcommand case
+5. Add test file `tests/<subcommand>.bats`
+6. Document in `docs/reference/cli-reference.md`
+
+**Modifying configuration:**
+
+1. Update loading logic in `lib/config.sh`
+2. Update display in `show_config()` in `lib/core.sh`
+3. Document in `docs/user-guide/configuration.md`
+4. Add tests in `tests/config.bats`
+
+**Changing API interaction:**
+
+1. Modify `lib/api.sh`
+2. Test both streaming and batch modes
+3. Update token estimation if request structure changes
+
+## Technical Details
+
+### Configuration Sourcing Safety
+
+**Subshell isolation for config extraction:**
+
+```bash
+extract_parent_config() {
+    # Source in subshell to avoid polluting current environment
+    (
+        source "$parent_config"
+        echo "MODEL=${MODEL:-}"
+        echo "TEMPERATURE=${TEMPERATURE:-}"
+        # ...
+    )
+}
+```
+
+Prevents parent config from affecting current shell.
+
+### Glob Expansion Timing
+
+**Config patterns:**
+
+```bash
+# Expansion in project root context
+local files
+files=$(cd "$PROJECT_ROOT" && eval echo "$CONTEXT_PATTERN")
+```
+
+**Why:** Ensures patterns resolve relative to project root regardless of PWD.
+
+### Hardlink Behavior
+
+**Creation:**
+
+```bash
+ln "$source" "$hardlink"  # Not ln -s (symlink)
+```
+
+**Properties:**
+- Both paths point to same inode
+- Deleting one doesn't affect the other
+- Visible in file browsers
+- Works within same filesystem only
+
+**Limitation:** Fails across filesystem boundaries (rare in practice).
+
+### Temporary File Cleanup
+
+**Task mode pattern:**
+
+```bash
+temp_file=$(mktemp)
+trap 'rm -f "$temp_file"' EXIT
+
+# Use temp_file
+# Automatically cleaned on exit (success or failure)
+```
+
+### Bash Version Requirements
+
+**Minimum: Bash 4.0**
+
+**Required features:**
+- Associative arrays (4.0+)
+- `[[ ]]` conditional expressions
+- Process substitution
+- `read -a` array reading
+
+**Compatibility tested on:**
+- macOS (bash 3.2 via system, 5.x via Homebrew)
+- Linux (bash 4.x, 5.x)
+- WSL (bash 4.x, 5.x)
+
+### API Request Construction
+
+**Implementation** (`lib/api.sh`):
+
+```bash
+# Build JSON payload with jq
+payload=$(jq -n \
+    --arg model "$MODEL" \
+    --arg content "$combined_prompt" \
+    --argjson max_tokens "$MAX_TOKENS" \
+    --argjson temperature "$TEMPERATURE" \
+    --argjson stream "$stream_bool" \
+    '{
+        model: $model,
+        max_tokens: $max_tokens,
+        temperature: $temperature,
+        stream: $stream,
+        messages: [{role: "user", content: $content}]
+    }'
 )
 ```
 
-Maintains exact ordering of specified files. Paths are relative to project root.
+**Streaming vs batch:**
+- Streaming: `stream: true`, parse SSE events
+- Batch: `stream: false`, single JSON response
 
-### 3. Workflow Dependencies
+### System Prompt Caching
 
-```bash
-DEPENDS_ON=(
-    "01-outline-draft"
-    "02-intro"
-)
-```
+**Build process:**
 
-Includes outputs from previously executed workflows. Reads from `.workflow/output/` hardlinks.
+1. Concatenate prompts: `cat "$WORKFLOW_PROMPT_PREFIX/"{base,custom}.txt`
+2. Append project.txt if non-empty
+3. Write to `.workflow/prompts/system.txt`
+4. Use cached version on failure
 
-## Usage Examples
+**Rebuild timing:** Every run, not cached across runs
 
-### Initialize and Create First Workflow
+**Why:** Ensures config changes apply immediately
 
-```bash
-# Navigate to project directory
-cd ~/projects/my-manuscript
+### Output Format Hints
 
-# Initialize workflow project
-workflow init .
-
-# Create first workflow
-workflow new 00-context-analysis
-
-# Edit opens automatically - configure context sources and task
-```
-
-### Execute Workflows
+**For non-markdown formats:**
 
 ```bash
-# Execute with default settings (from config)
-workflow run 00-context-analysis
-
-# Execute with streaming output
-workflow run 00-context-analysis --stream
-
-# Execute with overrides
-workflow run 01-outline --depends-on 00-context-analysis --max-tokens 8192
+if [[ "$OUTPUT_FORMAT" != "md" && "$OUTPUT_FORMAT" != "markdown" ]]; then
+    task_content="${task_content}\n\n<output-format>${OUTPUT_FORMAT}</output-format>"
+fi
 ```
 
-### Chain Workflows
+Guides LLM to generate in requested format.
+
+### Token Estimation Algorithm
+
+**Formula:**
 
 ```bash
-# Workflow 1: Analyze workshop materials
-workflow new 00-workshop-context
-# In config: CONTEXT_PATTERN="Workshops/*.md"
-workflow run 00-workshop-context
-
-# Workflow 2: Draft outline using workshop analysis
-workflow new 01-outline-draft
-# In config: DEPENDS_ON=("00-workshop-context")
-workflow run 01-outline-draft
-
-# Workflow 3: Draft introduction using both
-workflow new 02-intro-draft
-# In config: DEPENDS_ON=("00-workshop-context" "01-outline-draft")
-workflow run 02-intro-draft
+char_count=$(wc -c < "$file")
+token_count=$((char_count / 4))
 ```
 
-### Work from Anywhere
+Simple approximation: ~4 chars per token (reasonable for English).
 
-```bash
-# Can run from project root
-cd ~/projects/my-manuscript
-workflow run 01-outline
-
-# Or from subdirectory - finds .workflow/ automatically
-cd ~/projects/my-manuscript/drafts
-workflow run 01-outline
-
-# Or from workflow directory
-cd ~/projects/my-manuscript/.workflow/01-outline
-workflow run 01-outline
-```
-
-## Token Estimation
-
-Estimates displayed before each API call:
-```
-Estimated system tokens: 6633
-Estimated task tokens: 4294
-Estimated context tokens: 12450
-Estimated total input tokens: 23377
-```
-
-Formula: `(word_count * 1.3) + 4096`
-
-Use `--dry-run` to estimate without making API request.
-
-## Output Management
-
-- Workflow output saved to `.workflow/WORKFLOW_NAME/output.md`
-- Hardlink created at `.workflow/output/WORKFLOW_NAME.md`
-- Hardlinks visible in Finder/Obsidian (unlike symlinks)
-- Previous outputs backed up with timestamps (YYYYMMDDHHMMSS)
-- Optional `mdformat` post-processing if available
-
-## Dependencies
-
-### Required
-- `bash` 4.0+
-- `curl` - API requests
-- `jq` - JSON processing
-
-### Environment Variables
-- `ANTHROPIC_API_KEY` - Anthropic API access
-- `WORKFLOW_PROMPT_PREFIX` - Base path to system prompt directory
-
-### Optional
-- `mdformat` - Markdown formatting
-- `EDITOR` - Text editor (default: `vim`)
-
-## Key Features
-
-### Portable
-- Single script, can be on PATH
-- Works from any directory within project
-- Project root auto-discovery (like git)
-
-### Flexible Configuration
-- Three-tier configuration cascade
-- Command-line overrides
-- Per-workflow customization
-
-### Workflow Chaining
-- Depends-on mechanism
-- Hardlinked outputs
-- DAG-style dependencies
-
-### Context Management
-- Multiple aggregation methods
-- Glob patterns with `filecat`
-- Explicit file lists
-- Workflow output dependencies
-
-### User Experience
-- Streaming or batch API modes
-- Token estimation before calls
-- Automatic output backup
-- Helpful error messages
-
-## Migration from Previous Version
-
-If you have an existing project with the old structure:
-
-```bash
-# In your Work/ directory:
-mkdir .workflow
-mv config prompts output .workflow/
-mv 00-workshop-context .workflow/
-
-# Convert run.sh to config
-cd .workflow/00-workshop-context
-# Extract config variables from run.sh into config file
-# Delete run.sh
-
-# Test
-cd ../..
-workflow run 00-workshop-context --dry-run
-```
-
-## Troubleshooting
-
-### "Not in workflow project"
-- Run `workflow init` to initialize
-- Or navigate to directory containing `.workflow/`
-
-### "Workflow not found"
-- Use `workflow new NAME` to create
-- Check workflow exists: `ls .workflow/`
-
-### "WORKFLOW_PROMPT_PREFIX not set"
-- Set in `~/.bashrc`: `export WORKFLOW_PROMPT_PREFIX="path/to/prompts"`
-- Reload shell: `source ~/.bashrc`
-
-### Context files not found
-- Paths in config are relative to project root
-- Use `--dry-run` to test without API call
-- Check glob patterns expand correctly
-
-## Notes
-
-- System prompts use XML formatting for structured instructions
-- The `filecat()` function adds visual separators between files
-- Workflow configs are bash scripts - can include shell logic
-- Command-line context options augment (not replace) config
-- Hardlinks updated atomically for safe concurrent access
+**Display breakdown:**
+- System prompts
+- Task
+- Project description
+- Each context source
+- Total and cost estimate
 
 ## Development Guidelines
 
 ### Documentation Update Protocol
 
-When making API-level or interface changes (new features, major enhancements, behavior changes), ensure updates are reflected in **all** relevant locations:
+**When to update:**
+- New features or subcommands
+- Changed behavior or options
+- Bug fixes affecting usage
+- Performance improvements
 
-**Required Updates:**
+**Required updates:**
 
-1. **README.md** - Brief mention of new features or changes to quick start
-2. **CLAUDE.md** - Technical implementation details and architecture changes
-3. **docs/**/*.md** - User-facing documentation:
-   - `docs/index.md` - Update features list if applicable
-   - `docs/getting-started/` - Update if affects installation or quick start
-   - `docs/user-guide/` - Update relevant usage guides
-   - `docs/reference/` - Update CLI reference and technical specs
-4. **lib/help.sh** - Update help text for affected subcommands
-5. **Code comments** - Update in `workflow.sh` and `lib/*.sh`
-6. **Library headers** - Update file headers in `lib/*.sh` if module changes
-7. **Tests** - Add/update tests in `tests/*.bats`
+1. **README.md:** Brief feature mention, update quick start if needed
+2. **CLAUDE.md:** Technical details, architecture changes
+3. **docs/:** User-facing documentation (see hierarchy below)
+4. **lib/help.sh:** CLI help text for affected subcommands
+5. **Code comments:** Update in workflow.sh and lib/*.sh
+6. **Library headers:** Update file docstrings in lib/*.sh
+7. **Tests:** Add/update in tests/*.bats
 
-**Critical Synchronization:**
-
-- **README.md ↔ docs/index.md**: Keep features, quick start, and core concepts synchronized
-  - Not identical, but should not contradict
-  - README is briefer, index.md can be more detailed
-  - Both should accurately reflect current capabilities
-
-**Documentation Hierarchy:**
+**Documentation hierarchy:**
 
 ```
-README.md          → Brief overview, link to full docs
-docs/index.md      → Landing page, feature overview
-docs/getting-started/ → Installation, tutorials
-docs/user-guide/   → Comprehensive usage
-docs/reference/    → Complete technical reference
-lib/help.sh        → CLI help text
-CLAUDE.md          → Implementation details, architecture
-Code comments      → Inline documentation
+README.md               → Brief overview, link to docs
+docs/index.md           → Landing page, features
+docs/getting-started/   → Installation, tutorials
+docs/user-guide/        → Complete usage guide
+docs/reference/         → CLI and technical reference
+lib/help.sh             → CLI help text
+CLAUDE.md               → Developer/technical guide
+Code comments           → Inline documentation
 ```
 
-**Update Checklist for New Features:**
-
-- [ ] Implement feature in code
-- [ ] Add tests in `tests/*.bats`
-- [ ] Update help text in `lib/help.sh`
-- [ ] Update relevant docs in `docs/`
-- [ ] Update README.md if user-facing
-- [ ] Update CLAUDE.md with technical details
-- [ ] Update code comments and headers
-- [ ] Verify README.md and docs/index.md are synchronized
-- [ ] Test with `mkdocs serve` (no warnings)
+**Critical sync:** README.md ↔ docs/index.md
+- Features list must match
+- Quick start must be consistent
+- Both must reflect current capabilities
+- README briefer, index.md more detailed
 
 ### Documentation Style Guidelines
 
-**Bullet List Formatting:**
-
 **Key Features (README.md and docs/index.md only):**
-```markdown
-- 🎯 **Feature Name:** Description text on same line, can be longer and more detailed.
-```
-- Emoji first, bold heading with colon, description follows
-- Descriptions can be 1-2 sentences
-- Only location where emojis are used
 
-**Other Bullet Lists:**
+```markdown
+- 🎯 **Feature Name:** Description text on same line, can be 1-2 sentences providing detail.
+```
+
+**Other bullet lists:**
+
 ```markdown
 // Short descriptions (< 10 words):
 - **Item:** Brief description
 
-// Longer descriptions (> 10 words):
+// Longer descriptions:
 - **Item:**
-  Longer description on next line with proper indentation
+  Longer description on next line
 ```
-- Use colon immediately after bold heading (no dash separator)
-- Move longer descriptions to next line for readability
-- No emojis outside of Key Features lists
-
-**Navigation/Link Lists:**
-```markdown
-- **[Link Text](path):** Description of the linked content
-```
-- Consistent colon format
-- Brief, informative descriptions
 
 **Avoid:**
-- `- **Heading** - Description` (old dash style)
-- Emojis outside Key Features sections
-- Inconsistent punctuation after headings
+- `**Heading** - Description` (old dash style)
+- Emojis outside Key Features
+- Inconsistent punctuation
+
+### Testing Strategy
+
+**Test file organization:**
+- `tests/<subcommand>.bats` - One file per subcommand
+- `tests/test_helper/common.sh` - Shared utilities
+- Mock `$HOME`, `$XDG_CONFIG_HOME`, global config dir
+
+**Common patterns:**
+
+```bash
+setup() {
+    setup_test_env  # Mock HOME, create temp dirs
+}
+
+teardown() {
+    cleanup_test_env  # Remove temp dirs
+}
+
+@test "feature: specific behavior" {
+    run bash "$WORKFLOW_SCRIPT" subcommand args
+    assert_success
+    assert_output --partial "expected text"
+}
+```
+
+**Mock API calls:**
+- Tests should not make real API calls
+- Use `--dry-run` where possible
+- Mock `lib/api.sh` functions for integration tests
+
+### Git Commit Guidelines
+
+**Format:**
+
+```
+<type>: <subject>
+
+<body>
+
+🤖 Generated with Claude Code
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Types:** feat, fix, docs, test, refactor, style, chore
+
+**Subject:** Max 72 chars, imperative mood
+
+## Technical Gotchas
+
+### Subshell Isolation
+
+Use subshells for config extraction to avoid polluting environment:
+
+```bash
+(source "$config_file"; echo "VAR=$VAR")  # Good - isolated
+source "$config_file"  # Bad - affects current shell
+```
+
+### Array Handling in Config
+
+**Correct:**
+
+```bash
+SYSTEM_PROMPTS=(base custom)
+CONTEXT_FILES=("file1.md" "file2.txt")
+```
+
+**Incorrect:**
+
+```bash
+SYSTEM_PROMPTS="base,custom"  # String, not array
+CONTEXT_FILES=["file1.md", "file2.txt"]  # JSON syntax, not bash
+```
+
+### Glob Expansion Context
+
+Patterns must expand in correct directory:
+
+```bash
+# Good - explicit context
+(cd "$PROJECT_ROOT" && echo $PATTERN)
+
+# Bad - expands in current directory
+echo $PATTERN
+```
+
+### Hardlink Filesystem Limitations
+
+Hardlinks fail across filesystem boundaries:
+
+```bash
+ln "$source" "$target" || {
+    # Fallback: copy instead of hardlink
+    cp "$source" "$target"
+}
+```
+
+### Streaming Interruption
+
+Ctrl+C during streaming:
+- Partial output preserved in file
+- Trap ensures cleanup
+- User sees partial results
+
+## Notes
+
+- System prompts use XML formatting for structured instructions
+- `filecat()` adds visual separators and metadata
+- Config files are sourced bash scripts (can include logic)
+- CLI context augments (not replaces) config context
+- Hardlinks updated atomically for safe concurrent access
+- Token estimation is approximate (actual may vary ±5%)
