@@ -27,10 +27,18 @@ cd workflow
 
 # Add to PATH (example using ~/.local/bin)
 ln -s "$(pwd)/workflow.sh" ~/.local/bin/workflow
+```
 
+For Anthropic requests, ensure your API key is set in your shell environment:
+
+```bash
 # Set up environment
 export ANTHROPIC_API_KEY="your-key"
+```
 
+Try out initializing `workflow` in any folder containing a project or files you want to process:
+
+```bash
 # Initialize project
 cd ~/my-manuscript
 workflow init .
@@ -39,6 +47,8 @@ workflow init .
 workflow new 00-context-analysis
 workflow run 00-context-analysis --stream
 ```
+
+Your project files and folders are treated as read-only. All `workflow` files are maintained in a `.workflow/` subfolder.
 
 ## What You Can Do
 

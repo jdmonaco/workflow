@@ -46,12 +46,14 @@ workflow init .
 # Create workflow
 workflow new analyze-data
 
-# Edit task (opens in $EDITOR)
+# Edit workflow config
 workflow edit analyze-data
 
 # Run with context
 workflow run analyze-data --context-file data.csv --stream
 ```
+
+Your project files and folders are treated as read-only. All `workflow` files are maintained in a `.workflow/` subfolder.
 
 ## Documentation
 
