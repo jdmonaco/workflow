@@ -159,6 +159,69 @@ Executes a workflow by:
 - `--system-prompts LIST` - Override system prompts (comma-separated)
 - `--output-format EXT` - Override output format/extension (md, txt, json, html, etc.)
 
+### Execute Task (Lightweight Mode)
+
+```bash
+workflow task NAME [options]
+workflow task --inline TEXT [options]
+workflow task -i TEXT [options]
+```
+
+Execute one-off tasks without creating workflow directories. Designed for quick, temporary requests that don't need to be persisted.
+
+**Task Mode Execution Flow:**
+1. Optional project discovery (non-fatal if not found)
+2. Load config: global → project (if found) → CLI overrides
+3. Load task from file or inline specification
+4. Build system prompt (same as run mode, uses project cache if available)
+5. Aggregate context from CLI flags only (temporary file)
+6. Estimate tokens
+7. Execute API request (streaming by default)
+8. Optional: Save to file if `--output-file` specified
+
+**Task Specification:**
+- **Named tasks:** Load from `$WORKFLOW_TASK_PREFIX/<NAME>.txt` file
+  - Requires `WORKFLOW_TASK_PREFIX` environment variable
+  - Useful for frequently-used task templates
+- **Inline tasks:** Specify directly with `--inline` or `-i` flag
+  - No environment setup required
+  - Ideal for one-time requests
+
+**Key Differences from Run Mode:**
+
+| Aspect | Run Mode | Task Mode |
+|--------|----------|-----------|
+| **Project required** | Yes | No (optional) |
+| **Workflow directory** | Required | Not used |
+| **Task source** | `.workflow/NAME/task.txt` | `$WORKFLOW_TASK_PREFIX/<NAME>.txt` or inline |
+| **Config tiers** | Global → Project → Workflow | Global → Project only |
+| **Context sources** | Config + CLI (5 sources) | CLI only (2 sources) |
+| **Default output** | File in workflow dir | Stream to stdout |
+| **Output file** | Always created | Optional via `--output-file` |
+| **Streaming** | Opt-in via `--stream` | Default (opt-out via `--no-stream`) |
+| **Dependencies** | Supported | Not supported |
+
+**Options:**
+- `--inline TEXT`, `-i TEXT` - Inline task (alternative to NAME)
+- `--output-file PATH` - Save output to file (optional)
+- `--stream` - Stream output (default: true)
+- `--no-stream` - Use single-batch mode
+- `--context-file FILE` - Add context file (repeatable, relative to PWD)
+- `--context-pattern GLOB` - Add files matching pattern (relative to PWD)
+- `--model MODEL` - Override model
+- `--temperature TEMP` - Override temperature
+- `--max-tokens NUM` - Override max tokens
+- `--system-prompts LIST` - Override system prompts (comma-separated)
+- `--output-format EXT` - Output format (md, txt, json, etc.)
+- `--dry-run` - Estimate tokens without API call
+
+**Implementation Details:**
+- Located in `lib/task_mode.sh`, sourced when `TASK_MODE=true`
+- Uses temporary files for context and output (unless `--output-file` specified)
+- Reuses all core functionality: system prompt building, token estimation, API execution
+- Gracefully handles missing project (uses global config only)
+- Cleans up temp files via trap on exit
+
 ## Configuration
 
 ### Global User Configuration

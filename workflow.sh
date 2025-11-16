@@ -125,6 +125,12 @@ case "$1" in
         shift  # Remove workflow name from args
         # Continue to run mode with remaining args
         ;;
+    task)
+        shift  # Remove 'task' from args
+        # Parse task name or --inline flag
+        # Continue to task mode with remaining args
+        TASK_MODE=true
+        ;;
     --help|-h|help)
         show_help
         exit 0
@@ -137,6 +143,16 @@ case "$1" in
         exit 1
         ;;
 esac
+
+# =============================================================================
+# Task Mode vs Run Mode Dispatch
+# =============================================================================
+
+if [[ "${TASK_MODE:-false}" == "true" ]]; then
+    # Jump to task mode implementation
+    source "$SCRIPT_DIR/lib/task_mode.sh"
+    exit 0
+fi
 
 # =============================================================================
 # Run Mode - Find Project and Load Configuration

@@ -31,6 +31,8 @@ SUBCOMMANDS:
     list                    List all workflows in current project
     config [NAME]           Show configuration (project or workflow)
     run NAME [OPTIONS]      Execute workflow
+    task NAME [OPTIONS]     Execute named task (from WORKFLOW_TASK_PREFIX)
+    task -i TEXT [OPTIONS]  Execute inline task
 
 RUN OPTIONS:
     --stream                Use streaming API mode (default: single-batch)
@@ -43,6 +45,13 @@ RUN OPTIONS:
     --max-tokens NUM        Override max tokens
     --system-prompts LIST   Comma-separated prompt names (overrides config)
     --output-format EXT     Output format/extension (default: md)
+
+TASK OPTIONS:
+    --inline TEXT, -i TEXT  Inline task specification
+    --output-file PATH      Save output to file (default: stream to stdout)
+    --stream                Stream output (default: true in task mode)
+    --no-stream             Disable streaming, use single-batch mode
+    [All run options except --depends-on are supported]
 
 OTHER:
     --help, -h, help        Show this help message
@@ -74,6 +83,15 @@ EXAMPLES:
 
     # Execute with overrides
     $(basename ${0}) run 02-intro --depends-on 01-outline-draft --max-tokens 8192
+
+    # Execute named task (from WORKFLOW_TASK_PREFIX)
+    $(basename ${0}) task summarize --context-file notes.md
+
+    # Execute inline task
+    $(basename ${0}) task -i "Extract action items from the meeting notes" --context-file meeting.md
+
+    # Execute task and save output
+    $(basename ${0}) task -i "Analyze trends in the data" --context-pattern "data/*.csv" --output-file analysis.md
 
 EOF
 }

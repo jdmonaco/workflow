@@ -132,8 +132,53 @@ workflow run WORKFLOW_NAME [options]
 - `--context-pattern "pattern"` - Override context glob pattern
 - `--depends-on OTHER_WORKFLOW` - Add dependency
 - `--max-tokens NUM` - Override max tokens
-- `--system-prompts "Root,Custom"` - Override system prompts
+- `--system-prompts "base,Custom"` - Override system prompts
 - `--output-format EXT` - Output file extension (md, txt, json, html, etc.)
+
+### Execute Task (Lightweight Mode)
+
+```bash
+workflow task NAME [options]
+workflow task --inline TEXT [options]
+workflow task -i TEXT [options]
+```
+
+Execute one-off tasks without creating workflow directories. Task mode is designed for quick, temporary requests.
+
+**Task specification (mutually exclusive):**
+- **Named task:** `task NAME` loads from `$WORKFLOW_TASK_PREFIX/<NAME>.txt`
+- **Inline task:** `task --inline "text"` or `task -i "text"` uses provided text directly
+
+**Behavior:**
+- Streams to stdout by default (no files created)
+- Optional `--output-file PATH` to save response
+- Uses project context if run from within a project (optional)
+- Only supports CLI-provided context (`--context-file`, `--context-pattern`)
+- No workflow dependencies, no workflow config
+
+**Options:**
+- `--inline TEXT`, `-i TEXT` - Inline task specification
+- `--output-file PATH` - Save output to file
+- `--no-stream` - Use single-batch mode instead of streaming
+- All run mode options except `--depends-on`
+
+**Examples:**
+```bash
+# Named task with context
+workflow task summarize --context-file notes.md
+
+# Inline task with pattern matching
+workflow task -i "Extract action items" --context-pattern "meetings/*.md"
+
+# Save output to file
+workflow task -i "Analyze data" --context-file data.csv --output-file analysis.md
+
+# Override model
+workflow task summarize --model claude-opus-4 --context-file report.md
+```
+
+**Environment:**
+- `WORKFLOW_TASK_PREFIX` - Directory containing named task .txt files (optional, only needed for named tasks)
 
 ## Configuration
 

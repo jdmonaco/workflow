@@ -176,6 +176,15 @@ SYSTEM_PROMPTS=(base)
 WORKFLOW_PROMPT_PREFIX="$HOME/.config/workflow/prompts"
 
 # =============================================================================
+# Task Files
+# =============================================================================
+
+# Task file directory (contains named task .txt files)
+# Used by 'workflow task NAME' subcommand
+# Leave commented to require explicit setting or use --inline flag
+# WORKFLOW_TASK_PREFIX="$HOME/.config/workflow/tasks"
+
+# =============================================================================
 # Optional: API Credentials
 # =============================================================================
 
@@ -231,6 +240,12 @@ load_global_config() {
                     # Only use config value if env var not already set
                     if [[ -z "$WORKFLOW_PROMPT_PREFIX" && -n "$value" ]]; then
                         WORKFLOW_PROMPT_PREFIX="$value"
+                    fi
+                    ;;
+                WORKFLOW_TASK_PREFIX)
+                    # Only use config value if env var not already set
+                    if [[ -z "$WORKFLOW_TASK_PREFIX" && -n "$value" ]]; then
+                        WORKFLOW_TASK_PREFIX="$value"
                     fi
                     ;;
             esac
