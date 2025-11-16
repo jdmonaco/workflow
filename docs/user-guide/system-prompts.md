@@ -557,7 +557,7 @@ Now that you understand system prompts:
 
 - **[See examples](examples.md)** of complete workflow configurations
 - **[Learn about output formats](../reference/output-formats.md)** for different output types
-- **[Explore technical details](../technical/system-prompts.md)** of prompt implementation
+- **[Review configuration options](configuration.md)** for managing prompts
 
 ---
 

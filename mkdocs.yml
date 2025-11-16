@@ -53,16 +53,6 @@ nav:
     - Token Estimation: reference/token-estimation.md
     - Streaming Modes: reference/streaming.md
 
-  - Technical Documentation:
-    - Architecture: technical/architecture.md
-    - Configuration Cascade: technical/configuration-cascade.md
-    - Path Resolution: technical/path-resolution.md
-    - Task Mode: technical/task-mode.md
-    - Help System: technical/help-system.md
-    - System Prompts: technical/system-prompts.md
-    - Output Management: technical/output-management.md
-    - Context Aggregation: technical/context-aggregation-impl.md
-
   - Troubleshooting: troubleshooting.md
   - Migration Guide: migration.md
   - Contributing: contributing.md

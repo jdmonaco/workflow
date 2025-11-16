@@ -59,7 +59,6 @@ workflow/
 │   └── help.bats        # Help tests
 ├── docs/                # Documentation (MkDocs)
 ├── README.md            # Project readme
-├── CLAUDE.md            # Technical documentation
 └── mkdocs.yml           # Documentation configuration
 ```
 
@@ -249,10 +248,10 @@ cat $file_path
 
 **Technical Documentation:**
 
-- Document implementation details in CLAUDE.md
-- Explain design decisions
+- Document implementation details in code comments
+- Explain design decisions in docstrings
 - Note any gotchas or edge cases
-- Keep updated with code changes
+- Keep documentation updated with code changes
 
 **Documentation Structure:**
 
@@ -353,13 +352,13 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 - Open a discussion on GitHub
 - Ask in pull request comments
-- Check CLAUDE.md for technical details
+- Check the documentation for details
 
 ## See Also
 
-- [CLAUDE.md](CLAUDE.md) - Technical documentation
-- [README.md](README.md) - Project overview
-- [GitHub Issues](https://github.com/username/workflow/issues) - Bug tracker
+- [User Guide](user-guide/initialization.md) - Complete usage documentation
+- [Reference](reference/cli-reference.md) - Technical reference
+- [GitHub Issues](https://github.com/jdmonaco/workflow/issues) - Bug tracker
 
 ---
 

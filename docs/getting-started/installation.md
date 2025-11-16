@@ -136,7 +136,7 @@ WORKFLOW_PROMPT_PREFIX=$HOME/custom/prompts
 
 ### Optional: Task Prefix Directory
 
-If you plan to use named tasks (see [Execution Guide](../user-guide/execution.md#task-mode)), set a directory for task templates:
+If you plan to use named tasks (see [Execution Guide](../user-guide/execution.md#task-mode-task)), set a directory for task templates:
 
 ```bash
 export WORKFLOW_TASK_PREFIX="$HOME/.config/workflow/tasks"

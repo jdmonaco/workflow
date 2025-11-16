@@ -73,9 +73,9 @@ workflow run 02-analysis --depends-on 01-context --stream
 - **[Getting Started](getting-started/installation.md)** - Installation, quick start, and your first workflow
 - **[User Guide](user-guide/initialization.md)** - Complete guide to using workflow effectively
 - **[Reference](reference/cli-reference.md)** - Comprehensive CLI and feature reference
-- **[Technical Documentation](technical/architecture.md)** - Implementation details and internals
 - **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
 - **[Migration Guide](migration.md)** - Upgrading from previous versions
+- **[Contributing](contributing.md)** - Contribution guidelines
 
 ## Requirements
 
