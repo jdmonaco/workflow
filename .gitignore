@@ -1,1 +1,11 @@
 chats/
+venv/
+
+# MkDocs build output
+site/
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

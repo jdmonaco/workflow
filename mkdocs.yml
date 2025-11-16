@@ -1,0 +1,97 @@
+site_name: Workflow - AI-Assisted Development Tool
+site_description: A CLI tool for managing AI-assisted research and development workflows
+site_author: Joseph Monaco
+repo_url: https://forge.joemona.co/joe/workflow
+repo_name: workflow
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - First Workflow: getting-started/first-workflow.md
+
+  - User Guide:
+    - Initialization: user-guide/initialization.md
+    - Creating Workflows: user-guide/workflows.md
+    - Execution: user-guide/execution.md
+    - Configuration: user-guide/configuration.md
+    - System Prompts: user-guide/system-prompts.md
+    - Examples: user-guide/examples.md
+
+  - Reference:
+    - CLI Reference: reference/cli-reference.md
+    - Project Structure: reference/project-structure.md
+    - Output Formats: reference/output-formats.md
+    - Context Aggregation: reference/context-aggregation.md
+    - Token Estimation: reference/token-estimation.md
+    - Streaming Modes: reference/streaming.md
+
+  - Technical Documentation:
+    - Architecture: technical/architecture.md
+    - Configuration Cascade: technical/configuration-cascade.md
+    - Path Resolution: technical/path-resolution.md
+    - Task Mode: technical/task-mode.md
+    - Help System: technical/help-system.md
+    - System Prompts: technical/system-prompts.md
+    - Output Management: technical/output-management.md
+    - Context Aggregation: technical/context-aggregation-impl.md
+
+  - Troubleshooting: troubleshooting.md
+  - Migration Guide: migration.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.details
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - attr_list
+  - md_in_html
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search
+  - autorefs
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/jdmonaco
