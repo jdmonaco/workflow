@@ -73,6 +73,25 @@ export WORKFLOW_PROMPT_PREFIX="$HOME/custom/prompts"
 
 ## Usage
 
+### Getting Help
+
+```bash
+# Show main help
+workflow help
+workflow --help
+workflow -h
+
+# Show subcommand-specific help
+workflow help <subcommand>
+workflow <subcommand> -h
+```
+
+Examples:
+```bash
+workflow help run      # Detailed help for 'run' subcommand
+workflow task -h       # Quick help for 'task' subcommand
+```
+
 ### Initialize Project
 
 ```bash

@@ -27,6 +27,7 @@ set -e
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "$SCRIPT_DIR/lib/utils.sh"
 source "$SCRIPT_DIR/lib/config.sh"
+source "$SCRIPT_DIR/lib/help.sh"
 source "$SCRIPT_DIR/lib/core.sh"
 source "$SCRIPT_DIR/lib/api.sh"
 
@@ -58,10 +59,18 @@ fi
 # Parse subcommand
 case "$1" in
     init)
+        if [[ "$2" == "-h" || "$2" == "--help" ]]; then
+            show_help_init
+            exit 0
+        fi
         init_project "$2"
         exit 0
         ;;
     new)
+        if [[ "$2" == "-h" || "$2" == "--help" ]]; then
+            show_help_new
+            exit 0
+        fi
         if [[ -z "$2" ]]; then
             echo "Error: Workflow name required"
             echo "Usage: workflow new NAME"
@@ -71,6 +80,10 @@ case "$1" in
         exit 0
         ;;
     edit)
+        if [[ "$2" == "-h" || "$2" == "--help" ]]; then
+            show_help_edit
+            exit 0
+        fi
         if [[ -z "$2" ]]; then
             echo "Error: Workflow name required"
             echo "Usage: workflow edit NAME"
@@ -80,6 +93,10 @@ case "$1" in
         exit 0
         ;;
     list|ls)
+        if [[ "$2" == "-h" || "$2" == "--help" ]]; then
+            show_help_list
+            exit 0
+        fi
         list_workflows_cmd
         exit 0
         ;;
@@ -92,6 +109,10 @@ case "$1" in
 
         while [[ $# -gt 0 ]]; do
             case "$1" in
+                -h|--help)
+                    show_help_config
+                    exit 0
+                    ;;
                 --no-edit)
                     NO_EDIT=true
                     shift
@@ -116,6 +137,10 @@ case "$1" in
         ;;
     run)
         shift  # Remove 'run' from args
+        if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+            show_help_run
+            exit 0
+        fi
         if [[ -z "$1" ]]; then
             echo "Error: Workflow name required"
             echo "Usage: workflow run NAME [options]"
@@ -127,11 +152,41 @@ case "$1" in
         ;;
     task)
         shift  # Remove 'task' from args
+        if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+            show_help_task
+            exit 0
+        fi
         # Parse task name or --inline flag
         # Continue to task mode with remaining args
         TASK_MODE=true
         ;;
-    --help|-h|help)
+    help)
+        shift  # Remove 'help' from args
+        if [[ -n "$1" ]]; then
+            # Subcommand-specific help
+            case "$1" in
+                init) show_help_init ;;
+                new) show_help_new ;;
+                edit) show_help_edit ;;
+                list|ls) show_help_list ;;
+                config) show_help_config ;;
+                run) show_help_run ;;
+                task) show_help_task ;;
+                *)
+                    echo "Error: Unknown subcommand: $1"
+                    echo "Use 'workflow help' to see all available subcommands"
+                    echo ""
+                    show_help
+                    exit 1
+                    ;;
+            esac
+        else
+            # Main help
+            show_help
+        fi
+        exit 0
+        ;;
+    --help|-h)
         show_help
         exit 0
         ;;
@@ -150,7 +205,7 @@ esac
 
 if [[ "${TASK_MODE:-false}" == "true" ]]; then
     # Jump to task mode implementation
-    source "$SCRIPT_DIR/lib/task_mode.sh"
+    source "$SCRIPT_DIR/lib/task.sh"
     exit 0
 fi
 

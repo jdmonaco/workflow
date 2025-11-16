@@ -216,11 +216,60 @@ Execute one-off tasks without creating workflow directories. Designed for quick,
 - `--dry-run` - Estimate tokens without API call
 
 **Implementation Details:**
-- Located in `lib/task_mode.sh`, sourced when `TASK_MODE=true`
+- Located in `lib/task.sh`, sourced when `TASK_MODE=true`
 - Uses temporary files for context and output (unless `--output-file` specified)
 - Reuses all core functionality: system prompt building, token estimation, API execution
 - Gracefully handles missing project (uses global config only)
 - Cleans up temp files via trap on exit
+
+## Help System
+
+The workflow tool provides comprehensive help documentation via the `help` subcommand and `-h` flags.
+
+### Help Access Methods
+
+**1. Main help (all subcommands):**
+```bash
+workflow help
+workflow --help
+workflow -h
+```
+
+**2. Subcommand-specific help:**
+```bash
+workflow help <subcommand>    # Detailed help
+workflow <subcommand> -h      # Quick help (same output)
+```
+
+### Implementation
+
+**Location:** `lib/help.sh`
+
+**Functions:**
+- `show_help()` - Main help listing all subcommands
+- `show_help_init()` - Initialize project help
+- `show_help_new()` - Create workflow help
+- `show_help_edit()` - Edit files help
+- `show_help_list()` - List workflows help
+- `show_help_config()` - Configuration help
+- `show_help_run()` - Execute workflow help (detailed options)
+- `show_help_task()` - Execute task help (detailed options)
+
+**Integration:**
+- `workflow.sh` handles `help` subcommand (lines 162-187)
+- Each subcommand checks for `-h`/`--help` before processing
+- `lib/help.sh` sourced early in workflow.sh (line 30)
+
+**Style:**
+Follows git-style help format:
+- Concise usage line
+- Arguments and options with descriptions
+- Grouped options (Context, API, Output, etc.)
+- Examples for common use cases
+- Cross-references to related subcommands
+
+**Testing:**
+- `tests/help.bats` - 18 tests covering main help, subcommand help, and -h flags
 
 ## Configuration
 
