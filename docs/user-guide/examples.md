@@ -735,9 +735,9 @@ workflow new analysis
 
 ## Next Steps
 
-- **[Configuration Guide](configuration.md)** - Master the configuration cascade
-- **[Execution Guide](execution.md)** - Learn all execution options
-- **[CLI Reference](../reference/cli-reference.md)** - Complete command reference
+- **[Configuration Guide](configuration.md):** Master the configuration cascade
+- **[Execution Guide](execution.md):** Learn all execution options
+- **[CLI Reference](../reference/cli-reference.md):** Complete command reference
 
 ---
 

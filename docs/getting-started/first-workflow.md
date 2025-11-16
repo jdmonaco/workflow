@@ -400,10 +400,10 @@ Now practice by:
 
 Now that you understand workflows, explore:
 
-- **[Configuration Guide](../user-guide/configuration.md)** - Master the four-tier configuration cascade
-- **[Execution Guide](../user-guide/execution.md)** - Learn all execution options and modes
-- **[Examples](../user-guide/examples.md)** - More real-world patterns
-- **[CLI Reference](../reference/cli-reference.md)** - Complete command reference
+- **[Configuration Guide](../user-guide/configuration.md):** Master the four-tier configuration cascade
+- **[Execution Guide](../user-guide/execution.md):** Learn all execution options and modes
+- **[Examples](../user-guide/examples.md):** More real-world patterns
+- **[CLI Reference](../reference/cli-reference.md):** Complete command reference
 
 ---
 

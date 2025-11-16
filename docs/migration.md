@@ -26,11 +26,11 @@ Guide for migrating from previous versions of Workflow.
 
 **New in 2.0:**
 
-- **Global config** - User defaults at `~/.config/workflow/config`
-- **Auto-creation** - First run creates global config and prompts
-- **Pass-through** - Empty config values inherit from parent tier
-- **Task mode** - New `workflow task` subcommand
-- **Help system** - `workflow help <subcommand>` for detailed help
+- **Global config:** User defaults at `~/.config/workflow/config`
+- **Auto-creation:** First run creates global config and prompts
+- **Pass-through:** Empty config values inherit from parent tier
+- **Task mode:** New `workflow task` subcommand
+- **Help system:** `workflow help <subcommand>` for detailed help
 
 **Backwards compatible:**
 

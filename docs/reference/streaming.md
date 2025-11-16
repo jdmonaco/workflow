@@ -6,8 +6,8 @@ Reference for streaming and batch execution modes in Workflow.
 
 Workflow supports two execution modes:
 
-- **Streaming mode** - Real-time output as generated
-- **Batch mode** - Complete response at once
+- **Streaming mode:** Real-time output as generated
+- **Batch mode:** Complete response at once
 
 ## Mode Comparison
 
@@ -241,18 +241,18 @@ workflow run analysis --stream > /dev/null
 
 ### Choose Streaming When:
 
-- **Developing** - Iterating on tasks, want immediate feedback
-- **Long responses** - Want to see progress, not wait blindly
-- **Interactive** - Working at terminal, adjusting on the fly
-- **Debugging** - Need to see what's being generated
+- **Developing:** Iterating on tasks, want immediate feedback
+- **Long responses:** Want to see progress, not wait blindly
+- **Interactive:** Working at terminal, adjusting on the fly
+- **Debugging:** Need to see what's being generated
 
 ### Choose Batch When:
 
-- **Scripting** - Running automated workflows
-- **Reliability** - Want atomic file writes
-- **Consistency** - Need predictable behavior
-- **Large responses** - More reliable for very long outputs
-- **Non-interactive** - Running in background, cron jobs
+- **Scripting:** Running automated workflows
+- **Reliability:** Want atomic file writes
+- **Consistency:** Need predictable behavior
+- **Large responses:** More reliable for very long outputs
+- **Non-interactive:** Running in background, cron jobs
 
 ## Interrupting Execution
 

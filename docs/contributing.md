@@ -4,10 +4,10 @@ Thank you for your interest in contributing to Workflow!
 
 ## Ways to Contribute
 
-- **Report bugs** - File issues with clear reproduction steps
-- **Suggest features** - Propose enhancements or new capabilities
-- **Improve documentation** - Fix typos, clarify explanations, add examples
-- **Submit code** - Fix bugs or implement features
+- **Report bugs:** File issues with clear reproduction steps
+- **Suggest features:** Propose enhancements or new capabilities
+- **Improve documentation:** Fix typos, clarify explanations, add examples
+- **Submit code:** Fix bugs or implement features
 
 ## Getting Started
 

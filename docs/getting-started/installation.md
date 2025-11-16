@@ -6,10 +6,10 @@ This guide will walk you through installing and setting up the Workflow CLI tool
 
 Before installing Workflow, ensure you have the following:
 
-- **Bash 4.0+** - The tool is written as a bash script
-- **curl** - For downloading files and making API calls
-- **jq** - For JSON processing
-- **Anthropic API key** - Required for making API calls
+- **Bash 4.0+:** The tool is written as a bash script
+- **curl:** For downloading files and making API calls
+- **jq:** For JSON processing
+- **Anthropic API key:** Required for making API calls
 
 ### Getting an Anthropic API Key
 

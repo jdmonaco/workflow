@@ -868,3 +868,40 @@ Code comments      → Inline documentation
 - [ ] Update code comments and headers
 - [ ] Verify README.md and docs/index.md are synchronized
 - [ ] Test with `mkdocs serve` (no warnings)
+
+### Documentation Style Guidelines
+
+**Bullet List Formatting:**
+
+**Key Features (README.md and docs/index.md only):**
+```markdown
+- 🎯 **Feature Name:** Description text on same line, can be longer and more detailed.
+```
+- Emoji first, bold heading with colon, description follows
+- Descriptions can be 1-2 sentences
+- Only location where emojis are used
+
+**Other Bullet Lists:**
+```markdown
+// Short descriptions (< 10 words):
+- **Item:** Brief description
+
+// Longer descriptions (> 10 words):
+- **Item:**
+  Longer description on next line with proper indentation
+```
+- Use colon immediately after bold heading (no dash separator)
+- Move longer descriptions to next line for readability
+- No emojis outside of Key Features lists
+
+**Navigation/Link Lists:**
+```markdown
+- **[Link Text](path):** Description of the linked content
+```
+- Consistent colon format
+- Brief, informative descriptions
+
+**Avoid:**
+- `- **Heading** - Description` (old dash style)
+- Emojis outside Key Features sections
+- Inconsistent punctuation after headings
