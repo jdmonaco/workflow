@@ -88,6 +88,102 @@ find_project_root() {
     return 1
 }
 
+# Find all project roots from current directory upward
+# Returns space-separated list of absolute paths (closest first)
+# Useful for nested project context aggregation
+find_all_project_roots() {
+    local dir="$PWD"
+    local roots=()
+
+    while [[ "$dir" != "$HOME" && "$dir" != "/" ]]; do
+        if [[ -d "$dir/.workflow" ]]; then
+            roots+=("$dir")
+        fi
+        dir="$(dirname "$dir")"
+    done
+
+    # Return all roots (space-separated)
+    if [[ ${#roots[@]} -gt 0 ]]; then
+        echo "${roots[@]}"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Aggregate project descriptions from all parent projects
+# Creates hierarchical context by concatenating project.txt files
+# from top-level down to current project with XML tagging
+#
+# Arguments:
+#   $1 - Project root path (required)
+#
+# Returns:
+#   0 if any project descriptions were aggregated
+#   1 if no non-empty project.txt files found
+#
+# Side effects:
+#   Writes aggregated content to $1/.workflow/prompts/project.txt
+#   Creates prompts/ directory if needed
+aggregate_nested_project_descriptions() {
+    local current_root="$1"
+
+    if [[ -z "$current_root" ]]; then
+        return 1
+    fi
+
+    # Find all project roots from current location
+    local all_roots
+    all_roots=$(cd "$current_root" && find_all_project_roots) || {
+        return 1
+    }
+
+    # Build cache file path
+    local cache_file="$current_root/.workflow/prompts/project.txt"
+    mkdir -p "$(dirname "$cache_file")"
+
+    # Clear cache file
+    > "$cache_file"
+
+    # Convert space-separated string to array
+    local -a roots_array
+    read -ra roots_array <<< "$all_roots"
+
+    # Process in reverse order (top-level first)
+    local processed_any=false
+    for ((i=${#roots_array[@]}-1; i>=0; i--)); do
+        local root="${roots_array[i]}"
+        local proj_file="$root/.workflow/project.txt"
+
+        # Skip if doesn't exist or is empty
+        if [[ ! -f "$proj_file" || ! -s "$proj_file" ]]; then
+            continue
+        fi
+
+        # Generate sanitized tag name from PROJECT_ROOT basename
+        local tag_name
+        tag_name=$(sanitize "$(basename "$root")")
+
+        # Append with XML tag
+        printf "<%s>\n" "$tag_name" >> "$cache_file"
+        cat "$proj_file" >> "$cache_file"
+
+        # Ensure newline before closing tag
+        [[ -n $(tail -c 1 "$proj_file" 2>/dev/null) ]] && printf "\n" >> "$cache_file"
+
+        printf "</%s>\n\n" "$tag_name" >> "$cache_file"
+
+        processed_any=true
+    done
+
+    # Return success if we processed any projects
+    if [[ "$processed_any" == true ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # =============================================================================
 # Workflow Listing
 # =============================================================================

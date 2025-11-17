@@ -544,12 +544,13 @@ fi
 # Read prompt files
 SYSTEM_PROMPT=$(<"$SYSTEM_PROMPT_FILE")
 
-# Append project description if exists and non-empty
-PROJECT_DESC_FILE="$PROJECT_ROOT/.workflow/project.txt"
-if [[ -f "$PROJECT_DESC_FILE" && -s "$PROJECT_DESC_FILE" ]]; then
-    # Use filecat to add with XML tags
-    PROJECT_DESC=$(filecat "$PROJECT_DESC_FILE")
-    SYSTEM_PROMPT="${SYSTEM_PROMPT}"$'\n'"${PROJECT_DESC}"
+# Append aggregated project descriptions from nested hierarchy
+if aggregate_nested_project_descriptions "$PROJECT_ROOT"; then
+    # Read cached aggregation with root-level tag
+    PROJECT_DESC_CACHE="$PROJECT_ROOT/.workflow/prompts/project.txt"
+    PROJECT_DESC=$(<"$PROJECT_DESC_CACHE")
+    # Wrap in root-level project-description tag
+    SYSTEM_PROMPT="${SYSTEM_PROMPT}"$'\n'"<project-description>"$'\n'"${PROJECT_DESC}</project-description>"
 fi
 
 # Combine context and task for user prompt

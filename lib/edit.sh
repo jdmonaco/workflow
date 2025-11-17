@@ -53,21 +53,21 @@ edit_files() {
         return 1
     fi
     
-    # Priority order: vim > nvim > vi > VISUAL > EDITOR > nano > emacs
-    if command -v vim >/dev/null 2>&1; then
-        editor="vim"
-    elif command -v nvim >/dev/null 2>&1; then
-        editor="nvim"
-    elif command -v vi >/dev/null 2>&1; then
-        editor="vi"
-    elif [ -n "$VISUAL" ] && command -v "$VISUAL" >/dev/null 2>&1; then
+    # Priority order: VISUAL > EDITOR > vim > nvim > nano > emacs > vi > ed
+    if [ -n "$VISUAL" ] && command -v "$VISUAL" >/dev/null 2>&1; then
         editor="$VISUAL"
     elif [ -n "$EDITOR" ] && command -v "$EDITOR" >/dev/null 2>&1; then
         editor="$EDITOR"
+    elif command -v vim >/dev/null 2>&1; then
+        editor="vim"
+    elif command -v nvim >/dev/null 2>&1; then
+        editor="nvim"
     elif command -v nano >/dev/null 2>&1; then
         editor="nano"
     elif command -v emacs >/dev/null 2>&1; then
         editor="emacs"
+    elif command -v vi >/dev/null 2>&1; then
+        editor="vi"
     elif command -v ed >/dev/null 2>&1; then
         editor="ed"
     else
@@ -85,7 +85,8 @@ edit_files() {
         elif [ $num_files -eq 3 ]; then
             "$editor" "${files[0]}" -c "vsplit ${files[1]} | wincmd l | split ${files[2]} | 1wincmd w"
         elif [ $num_files -eq 4 ]; then
-            vim -O2 "${files[0]}" "${files[1]}" -c "wincmd l | split ${files[3]} | wincmd h | split ${files[2]} | 1wincmd w"
+            "$editor" -O2 "${files[0]}" "${files[1]}" -c "wincmd l | split ${files[3]} | wincmd h | \
+                split ${files[2]} | 1wincmd w"
         else
             "$editor" "${files[@]}"
         fi

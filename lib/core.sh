@@ -135,7 +135,7 @@ CONFIG_EOF
     # Open both files for interactive editing
     edit_files "$target_dir/.workflow/project.txt" "$target_dir/.workflow/config"
 
-    target_dir_abs=$(cd "$target_dir_abs" && pwd)
+    target_dir_abs=$(cd "$target_dir" && pwd)
 
     echo ""
     echo "Next steps:"
