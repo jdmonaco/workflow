@@ -1,7 +1,7 @@
 site_name: Workflow - A CLI Tool for AI Workflows in the Terminal
 site_description: A flexible CLI tool for building persistent AI workflows anywhere you want
 site_author: Joseph Monaco
-repo_url: https://forge.joemona.co/joe/workflow
+repo_url: https://github.com/jdmonaco/workflow
 repo_name: workflow
 
 theme:
