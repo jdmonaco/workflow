@@ -267,28 +267,31 @@ CONTEXT_FILES=()
 CONTEXT_PATTERN=""
 DEPENDS_ON=()
 
-# Tier 2: Project-level config (only apply non-empty values)
+# Tier 2: Ancestor project cascade (grandparent → parent, oldest to newest)
+load_ancestor_configs "$PROJECT_ROOT"
+
+# Tier 3: Current project config (only apply non-empty values)
 if [[ -f "$PROJECT_ROOT/.workflow/config" ]]; then
     while IFS='=' read -r key value; do
         case "$key" in
-            MODEL) [[ -n "$value" ]] && MODEL="$value" ;;
-            TEMPERATURE) [[ -n "$value" ]] && TEMPERATURE="$value" ;;
-            MAX_TOKENS) [[ -n "$value" ]] && MAX_TOKENS="$value" ;;
-            OUTPUT_FORMAT) [[ -n "$value" ]] && OUTPUT_FORMAT="$value" ;;
-            SYSTEM_PROMPTS) [[ -n "$value" ]] && SYSTEM_PROMPTS=($value) ;;
+            MODEL) [[ -n "$value" ]] && MODEL="$value" && CONFIG_SOURCE_MAP[MODEL]="$PROJECT_ROOT" ;;
+            TEMPERATURE) [[ -n "$value" ]] && TEMPERATURE="$value" && CONFIG_SOURCE_MAP[TEMPERATURE]="$PROJECT_ROOT" ;;
+            MAX_TOKENS) [[ -n "$value" ]] && MAX_TOKENS="$value" && CONFIG_SOURCE_MAP[MAX_TOKENS]="$PROJECT_ROOT" ;;
+            OUTPUT_FORMAT) [[ -n "$value" ]] && OUTPUT_FORMAT="$value" && CONFIG_SOURCE_MAP[OUTPUT_FORMAT]="$PROJECT_ROOT" ;;
+            SYSTEM_PROMPTS) [[ -n "$value" ]] && SYSTEM_PROMPTS=($value) && CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="$PROJECT_ROOT" ;;
         esac
     done < <(extract_config "$PROJECT_ROOT/.workflow/config")
 fi
 
-# Tier 3: Workflow-level config (only apply non-empty values)
+# Tier 4: Workflow-level config (only apply non-empty values)
 if [[ -f "$WORKFLOW_DIR/config" ]]; then
     while IFS='=' read -r key value; do
         case "$key" in
-            MODEL) [[ -n "$value" ]] && MODEL="$value" ;;
-            TEMPERATURE) [[ -n "$value" ]] && TEMPERATURE="$value" ;;
-            MAX_TOKENS) [[ -n "$value" ]] && MAX_TOKENS="$value" ;;
-            OUTPUT_FORMAT) [[ -n "$value" ]] && OUTPUT_FORMAT="$value" ;;
-            SYSTEM_PROMPTS) [[ -n "$value" ]] && SYSTEM_PROMPTS=($value) ;;
+            MODEL) [[ -n "$value" ]] && MODEL="$value" && CONFIG_SOURCE_MAP[MODEL]="workflow" ;;
+            TEMPERATURE) [[ -n "$value" ]] && TEMPERATURE="$value" && CONFIG_SOURCE_MAP[TEMPERATURE]="workflow" ;;
+            MAX_TOKENS) [[ -n "$value" ]] && MAX_TOKENS="$value" && CONFIG_SOURCE_MAP[MAX_TOKENS]="workflow" ;;
+            OUTPUT_FORMAT) [[ -n "$value" ]] && OUTPUT_FORMAT="$value" && CONFIG_SOURCE_MAP[OUTPUT_FORMAT]="workflow" ;;
+            SYSTEM_PROMPTS) [[ -n "$value" ]] && SYSTEM_PROMPTS=($value) && CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="workflow" ;;
             CONTEXT_PATTERN) [[ -n "$value" ]] && CONTEXT_PATTERN="$value" ;;
             CONTEXT_FILES) [[ -n "$value" ]] && CONTEXT_FILES=($value) ;;
             DEPENDS_ON) [[ -n "$value" ]] && DEPENDS_ON=($value) ;;

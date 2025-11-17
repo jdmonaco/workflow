@@ -197,6 +197,81 @@ EOF
     return $?
 }
 
+# Find ancestor project roots (excluding current project)
+# Returns newline-separated paths from oldest to newest ancestor
+# Args: $1 = current project root
+find_ancestor_projects() {
+    local current="$1"
+
+    # Get all project roots from current location
+    local all_roots
+    all_roots=$(cd "$current" && find_all_project_roots) || return 1
+
+    # Filter out current project, keep only ancestors
+    local ancestors=()
+    while IFS= read -r root; do
+        if [[ "$root" != "$current" ]]; then
+            ancestors+=("$root")
+        fi
+    done <<< "$all_roots"
+
+    # Reverse array to get oldest first
+    local reversed=()
+    for ((i=${#ancestors[@]}-1; i>=0; i--)); do
+        reversed+=("${ancestors[i]}")
+    done
+
+    # Output newline-separated
+    if [[ ${#reversed[@]} -gt 0 ]]; then
+        printf '%s\n' "${reversed[@]}"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Load configuration cascade from ancestor projects
+# Loads configs from all ancestor projects (oldest to newest)
+# Tracks which ancestor set each configuration value
+# Args: $1 = current project root
+# Side effects:
+#   Sets: MODEL, TEMPERATURE, MAX_TOKENS, OUTPUT_FORMAT, SYSTEM_PROMPTS (if non-empty in configs)
+#   Sets: CONFIG_SOURCE_MAP (associative array tracking source for each key)
+load_ancestor_configs() {
+    local current_root="$1"
+
+    # Initialize source tracking map
+    declare -gA CONFIG_SOURCE_MAP
+
+    # Get ancestors (oldest first)
+    local ancestors
+    ancestors=$(find_ancestor_projects "$current_root") || return 0
+
+    # Load each ancestor config in order
+    while IFS= read -r ancestor; do
+        local config_file="$ancestor/.workflow/config"
+        [[ ! -f "$config_file" ]] && continue
+
+        while IFS='=' read -r key value; do
+            [[ -z "$value" ]] && continue
+            case "$key" in
+                MODEL|TEMPERATURE|MAX_TOKENS|OUTPUT_FORMAT|SYSTEM_PROMPTS)
+                    # Set value and track source
+                    case "$key" in
+                        SYSTEM_PROMPTS)
+                            SYSTEM_PROMPTS=($value)
+                            ;;
+                        *)
+                            eval "$key=\"$value\""
+                            ;;
+                    esac
+                    CONFIG_SOURCE_MAP[$key]="$ancestor"
+                    ;;
+            esac
+        done < <(extract_config "$config_file")
+    done
+}
+
 # Load global configuration with fallback to hard-coded defaults
 # Reads from ~/.config/workflow/config if exists
 # Handles environment variable precedence for API key and prompt prefix
