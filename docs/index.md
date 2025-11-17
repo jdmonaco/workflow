@@ -1,6 +1,6 @@
 # Workflow
 
-**A CLI tool for persistent, configurable AI workflows everywhere**
+**A CLI tool for building AI workflows anywhere**
 
 Workflow is a text-configurable, bash-based tool for building and managing AI workflows in the terminal. It provides a git-like project structure with flexible configuration, context aggregation, and workflow chaining capabilities.
 
