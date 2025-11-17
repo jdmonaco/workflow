@@ -118,13 +118,6 @@ TEMPERATURE=
 MAX_TOKENS=
 SYSTEM_PROMPTS=()
 OUTPUT_FORMAT=
-
-# To override, uncomment and set values:
-# MODEL="claude-opus-4"
-# TEMPERATURE=0.7
-# MAX_TOKENS=8192
-# SYSTEM_PROMPTS=(Root NeuroAI)
-# OUTPUT_FORMAT="json"
 CONFIG_EOF
 
     # Create empty project description file
@@ -142,9 +135,11 @@ CONFIG_EOF
     # Open both files for interactive editing
     edit_files "$target_dir/.workflow/project.txt" "$target_dir/.workflow/config"
 
+    target_dir_abs=$(cd "$target_dir_abs" && pwd)
+
     echo ""
     echo "Next steps:"
-    echo "  1. cd $target_dir"
+    echo "  1. cd $target_dir_abs"
     echo "  2. workflow new WORKFLOW_NAME"
 }
 
@@ -206,13 +201,6 @@ new_workflow() {
 # )
 
 # API overrides (leave empty to inherit from project/global defaults)
-# Examples of values you can set:
-#   MODEL="claude-opus-4"
-#   TEMPERATURE=0.7
-#   MAX_TOKENS=8192
-#   SYSTEM_PROMPTS=(Root NeuroAI)
-#   OUTPUT_FORMAT="json"
-
 # Leave empty to inherit (recommended):
 MODEL=
 TEMPERATURE=
@@ -334,6 +322,41 @@ list_workflows_cmd() {
     fi
 
     echo ""
+}
+
+# =============================================================================
+# Cat Subcommand - Display Workflow Output
+# =============================================================================
+
+cat_workflow() {
+    local workflow_name="$1"
+
+    # Find project root
+    PROJECT_ROOT=$(find_project_root) || {
+        echo "Error: Not in workflow project (no .workflow/ directory found)" >&2
+        echo "Run 'workflow init' to initialize a project" >&2
+        exit 1
+    }
+
+    # Find output file in .workflow/output/
+    local output_file
+    output_file=$(find "$PROJECT_ROOT/.workflow/output" -maxdepth 1 -type f -name "${workflow_name}.*" 2>/dev/null | head -1)
+
+    if [[ -z "$output_file" ]]; then
+        echo "Error: No output found for workflow: $workflow_name" >&2
+        echo "Available workflows:" >&2
+        if list_workflows; then
+            list_workflows | sed 's/^/  /' >&2
+        else
+            echo "  (none)" >&2
+        fi
+        echo "" >&2
+        echo "Run the workflow first: workflow run $workflow_name" >&2
+        exit 1
+    fi
+
+    # Output to stdout
+    cat "$output_file"
 }
 
 # =============================================================================

@@ -25,6 +25,7 @@ teardown() {
     assert_output --partial "init"
     assert_output --partial "new"
     assert_output --partial "edit"
+    assert_output --partial "cat"
     assert_output --partial "list"
     assert_output --partial "config"
     assert_output --partial "run"
@@ -73,6 +74,15 @@ teardown() {
     assert_success
     assert_output --partial "usage: workflow edit"
     assert_output --partial "Edit workflow or project files"
+}
+
+@test "help: 'workflow help cat' shows cat help" {
+    run bash "$WORKFLOW_SCRIPT" help cat
+
+    assert_success
+    assert_output --partial "Usage: workflow"
+    assert_output --partial "cat"
+    assert_output --partial "Display workflow output"
 }
 
 @test "help: 'workflow help list' shows list help" {
@@ -140,6 +150,14 @@ teardown() {
 
     assert_success
     assert_output --partial "usage: workflow edit"
+}
+
+@test "help: 'workflow cat -h' shows cat help" {
+    run bash "$WORKFLOW_SCRIPT" cat -h
+
+    assert_success
+    assert_output --partial "Usage: workflow"
+    assert_output --partial "cat"
 }
 
 @test "help: 'workflow list -h' shows list help" {

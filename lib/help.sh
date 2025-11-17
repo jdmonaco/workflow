@@ -8,36 +8,39 @@
 # This file is sourced by workflow.sh.
 # =============================================================================
 
+SCRIPT_NAME="$(basename ${0})"
+
 # =============================================================================
 # Main Help
 # =============================================================================
 
 show_help() {
     cat <<EOF
-Usage: workflow <subcommand> [options]
+Usage: $SCRIPT_NAME <subcommand> [options]
 
-Workflow - AI-Assisted Research and Project Development Tool
+Workflow - A CLI tool for building AI workflows anywhere
 
 Available subcommands:
     init [dir]       Initialize workflow project
     new NAME         Create new workflow
     edit [NAME]      Edit workflow or project files
+    cat NAME         Display workflow output
     list, ls         List workflows in project
     config [NAME]    View/edit configuration
     run NAME         Execute workflow with full context
     task NAME|TEXT   Execute one-off task (lightweight)
 
-Use 'workflow help <subcommand>' for detailed help on a specific command.
-Use 'workflow <subcommand> -h' for quick help.
+Use '$SCRIPT_NAME help <subcommand>' for detailed help on a specific command.
+Use '$SCRIPT_NAME <subcommand> -h' for quick help.
 
 Common options:
     -h, --help       Show help message
 
 Examples:
-    workflow init .
-    workflow new 01-analysis
-    workflow run 01-analysis --stream
-    workflow task -i "Summarize findings" --context-file data.md
+    $SCRIPT_NAME init .
+    $SCRIPT_NAME new 01-analysis
+    $SCRIPT_NAME run 01-analysis --stream
+    $SCRIPT_NAME task -i "Summarize findings" --context-file data.md
 
 Environment variables:
     ANTHROPIC_API_KEY         Your Anthropic API key (required)
@@ -59,7 +62,7 @@ EOF
 
 show_help_init() {
     cat <<EOF
-usage: workflow init [<directory>]
+Usage: $SCRIPT_NAME init [<directory>]
 
 Initialize a workflow project with .workflow/ structure.
 
@@ -90,18 +93,18 @@ Parent project inheritance:
     Nested projects can inherit from parent .workflow/config instead.
 
 Examples:
-    workflow init .
-    workflow init my-project
+    $SCRIPT_NAME init .
+    $SCRIPT_NAME init my-project
 
 See also:
-    workflow help new
-    workflow help config
+    $SCRIPT_NAME help new
+    $SCRIPT_NAME help config
 EOF
 }
 
 show_help_new() {
     cat <<EOF
-usage: workflow new <name>
+Usage: $SCRIPT_NAME new <name>
 
 Create a new workflow in the current project.
 
@@ -127,20 +130,20 @@ Requirements:
     Use 'workflow init' first if needed.
 
 Examples:
-    workflow new 01-outline
-    workflow new analyze-data
-    workflow new final-report
+    $SCRIPT_NAME new 01-outline
+    $SCRIPT_NAME new analyze-data
+    $SCRIPT_NAME new final-report
 
 See also:
-    workflow help init
-    workflow help edit
-    workflow help run
+    $SCRIPT_NAME help init
+    $SCRIPT_NAME help edit
+    $SCRIPT_NAME help run
 EOF
 }
 
 show_help_edit() {
     cat <<EOF
-usage: workflow edit [<name>]
+Usage: $SCRIPT_NAME edit [<name>]
 
 Edit workflow or project files in interactive text editor.
 
@@ -165,18 +168,54 @@ Requirements:
     Must be run within an initialized workflow project.
 
 Examples:
-    workflow edit                    # Edit project files
-    workflow edit 01-outline         # Edit workflow files
+    $SCRIPT_NAME edit                    # Edit project files
+    $SCRIPT_NAME edit 01-outline         # Edit workflow files
 
 See also:
-    workflow help config
+    $SCRIPT_NAME help config
+EOF
+}
+
+show_help_cat() {
+    cat <<EOF
+Usage: $SCRIPT_NAME cat <name>
+
+Display workflow output to stdout.
+
+Arguments:
+    <name>                Workflow name (required)
+
+Options:
+    -h, --help            Show this help
+
+Description:
+    Outputs the workflow result file to stdout for viewing or piping
+    to other commands. Useful for quick viewing or shell pipeline
+    processing.
+
+    Reads from: .workflow/output/<name>.<format>
+
+Requirements:
+    Must be run within an initialized workflow project.
+    Workflow must have been run at least once (output must exist).
+
+Examples:
+    $SCRIPT_NAME cat 01-analysis
+    $SCRIPT_NAME cat data-summary | grep "findings"
+    $SCRIPT_NAME cat report | less
+    $SCRIPT_NAME cat extract | jq .results
+    $SCRIPT_NAME cat draft > published.md
+
+See also:
+    $SCRIPT_NAME help run
+    $SCRIPT_NAME help list
 EOF
 }
 
 show_help_list() {
     cat <<EOF
-usage: workflow list
-   or: workflow ls
+Usage: $SCRIPT_NAME list
+   or: $SCRIPT_NAME ls
 
 List all workflows in the current project.
 
@@ -195,18 +234,18 @@ Requirements:
     Must be run within an initialized workflow project.
 
 Examples:
-    workflow list
-    workflow ls
+    $SCRIPT_NAME list
+    $SCRIPT_NAME ls
 
 See also:
-    workflow help new
-    workflow help run
+    $SCRIPT_NAME help new
+    $SCRIPT_NAME help run
 EOF
 }
 
 show_help_config() {
     cat <<EOF
-usage: workflow config [<name>] [options]
+Usage: $SCRIPT_NAME config [<name>] [options]
 
 Display configuration with source tracking and option to edit.
 
@@ -240,19 +279,19 @@ Source indicators:
     (workflow) - From .workflow/<name>/config
 
 Examples:
-    workflow config                  # Show project config
-    workflow config 01-analysis      # Show workflow config
-    workflow config --no-edit        # Skip edit prompt
+    $SCRIPT_NAME config                  # Show project config
+    $SCRIPT_NAME config 01-analysis      # Show workflow config
+    $SCRIPT_NAME config --no-edit        # Skip edit prompt
 
 See also:
-    workflow help run
-    workflow help task
+    $SCRIPT_NAME help run
+    $SCRIPT_NAME help task
 EOF
 }
 
 show_help_run() {
     cat <<EOF
-usage: workflow run <name> [options]
+Usage: $SCRIPT_NAME run <name> [options]
 
 Execute a workflow with full context aggregation and persistence.
 
@@ -300,22 +339,22 @@ Description:
         Previous outputs backed up with timestamps
 
 Examples:
-    workflow run 01-analysis
-    workflow run 01-analysis --stream
-    workflow run 02-report --depends-on 01-analysis
-    workflow run draft --context-file notes.md --max-tokens 8192
+    $SCRIPT_NAME run 01-analysis
+    $SCRIPT_NAME run 01-analysis --stream
+    $SCRIPT_NAME run 02-report --depends-on 01-analysis
+    $SCRIPT_NAME run draft --context-file notes.md --max-tokens 8192
 
 See also:
-    workflow help config
-    workflow help task
+    $SCRIPT_NAME help config
+    $SCRIPT_NAME help task
 EOF
 }
 
 show_help_task() {
     cat <<EOF
-usage: workflow task <name> [options]
-   or: workflow task --inline <text> [options]
-   or: workflow task -i <text> [options]
+Usage: $SCRIPT_NAME task <name> [options]
+   or: $SCRIPT_NAME task --inline <text> [options]
+   or: $SCRIPT_NAME task -i <text> [options]
 
 Execute a one-off task without creating workflow directories.
 
@@ -363,18 +402,18 @@ Environment:
 
 Examples:
     # Named task with context
-    workflow task summarize --context-file notes.md
+    $SCRIPT_NAME task summarize --context-file notes.md
 
     # Inline task
-    workflow task -i "Extract action items" --context-file meeting.md
+    $SCRIPT_NAME task -i "Extract action items" --context-file meeting.md
 
     # Save output to file
-    workflow task -i "Analyze data" --context-pattern "data/*.csv" --output-file analysis.md
+    $SCRIPT_NAME task -i "Analyze data" --context-pattern "data/*.csv" --output-file analysis.md
 
     # Override model
-    workflow task summarize --model claude-opus-4 --context-file report.md
+    $SCRIPT_NAME task summarize --model claude-opus-4 --context-file report.md
 
-Key differences from 'workflow run':
+Key differences from '$SCRIPT_NAME run':
     - No workflow directory required
     - Streams by default (vs batch)
     - No dependencies or workflow config
@@ -382,7 +421,7 @@ Key differences from 'workflow run':
     - Optional output file
 
 See also:
-    workflow help run
-    workflow help config
+    $SCRIPT_NAME help run
+    $SCRIPT_NAME help config
 EOF
 }
