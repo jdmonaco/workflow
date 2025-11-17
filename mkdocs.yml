@@ -54,7 +54,6 @@ nav:
     - Streaming Modes: reference/streaming.md
 
   - Troubleshooting: troubleshooting.md
-  - Migration Guide: migration.md
   - Contributing: contributing.md
 
 markdown_extensions:

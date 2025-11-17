@@ -14,7 +14,7 @@ Workflow is a text-configurable, bash-based tool for building and managing AI wo
 
 - 📦 **Context Aggregation:** Powerful context management using glob patterns, explicit file lists, or workflow outputs, giving Claude comprehensive project awareness.
 
-- 🚀 **Portable:** Modular bash-based tool that works from anywhere in your project tree, with automatic project root discovery similar to git.
+- 🚀 **Portable:** Modular bash-based tool that works anywhere in your project tree, with automatic project root discovery similar to git.
 
 - 💾 **Safe Output:** Automatic timestamped backups of all workflow outputs with hardlinked copies for convenient access, ensuring no work is ever lost.
 
@@ -94,7 +94,6 @@ workflow run 02-analysis --depends-on 01-context --stream
 - **[User Guide](user-guide/initialization.md):** Complete guide to using workflow effectively
 - **[Reference](reference/cli-reference.md):** Comprehensive CLI and feature reference
 - **[Troubleshooting](troubleshooting.md):** Common issues and solutions
-- **[Migration Guide](migration.md):** Upgrading from previous versions
 - **[Contributing](contributing.md):** Contribution guidelines
 
 ## Requirements
