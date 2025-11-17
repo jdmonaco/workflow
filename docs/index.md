@@ -1,8 +1,8 @@
 # Workflow
 
-**A CLI tool for persistent, configurable AI-assisted project development**
+**A CLI tool for persistent, configurable AI workflows everywhere**
 
-Workflow is a portable bash-based tool for managing AI-assisted research and project development workflows using the Anthropic Messages API. It provides a git-like project structure with flexible configuration, context aggregation, and workflow chaining capabilities.
+Workflow is a text-configurable, bash-based tool for building and managing AI workflows in the terminal. It provides a git-like project structure with flexible configuration, context aggregation, and workflow chaining capabilities.
 
 ## Key Features
 

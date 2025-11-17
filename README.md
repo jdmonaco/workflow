@@ -1,6 +1,6 @@
-# Workflow - AI-Assisted Development Tool
+# Simple AI Workflows in the Terminal with Bash and Text
 
-A portable CLI tool for managing AI-assisted research and project development workflows using the Anthropic Messages API.
+A flexible, configurable CLI tool for building and managing AI workflows for research and project development using the Anthropic API.
 
 ## Features
 
