@@ -200,3 +200,67 @@ handle_dry_run_mode() {
     edit_files "$dry_run_system" "$dry_run_user"
     exit 0
 }
+
+# =============================================================================
+# Prompt Building
+# =============================================================================
+
+# Build final system and user prompts for API request
+# Combines system prompt with project descriptions
+# Combines context with task for user prompt
+#
+# Args:
+#   $1 - system_prompt_file: Path to system prompt file
+#   $2 - project_root: Project root directory (or empty if no project)
+#   $3 - context_prompt_file: Path to context file
+#   $4 - task_source: Path to task file OR task string content
+#   $5 - output_format: Output format (for format hint)
+# Sets global variables:
+#   SYSTEM_PROMPT: Final system prompt
+#   USER_PROMPT: Final user prompt
+build_prompts() {
+    local system_file="$1"
+    local project_root="$2"
+    local context_file="$3"
+    local task_source="$4"
+    local output_format="$5"
+
+    # Read system prompt
+    SYSTEM_PROMPT=$(<"$system_file")
+
+    # Append aggregated project descriptions from nested hierarchy
+    if [[ -n "$project_root" ]] && aggregate_nested_project_descriptions "$project_root"; then
+        local project_desc_cache="$project_root/.workflow/prompts/project.txt"
+        local project_desc
+        project_desc=$(<"$project_desc_cache")
+        SYSTEM_PROMPT="${SYSTEM_PROMPT}"$'\n'"<project-description>"$'\n'"${project_desc}</project-description>"
+    fi
+
+    # Build user prompt: combine context with task
+    local task_content
+    if [[ -f "$task_source" ]]; then
+        # Task is a file
+        task_content=$(<"$task_source")
+    else
+        # Task is inline string
+        task_content="$task_source"
+    fi
+
+    if [[ -s "$context_file" ]]; then
+        # Run mode uses filecat for context, task mode uses plain cat
+        if [[ -f "$task_source" ]]; then
+            # Task is a file - use filecat for both
+            USER_PROMPT="$(filecat "$context_file" "$task_source")"
+        else
+            # Task is inline - concatenate context + task
+            USER_PROMPT="$(cat "$context_file")"$'\n'"$task_content"
+        fi
+    else
+        USER_PROMPT="$task_content"
+    fi
+
+    # Add output format hint for non-markdown formats
+    if [[ "$output_format" != "md" ]]; then
+        USER_PROMPT="${USER_PROMPT}"$'\n'"<output-format>${output_format}</output-format>"
+    fi
+}

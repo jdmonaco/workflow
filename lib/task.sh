@@ -233,29 +233,7 @@ fi
 # Task Mode - API Request Setup - Build Final Prompts
 # =============================================================================
 
-# Read system prompt
-SYSTEM_PROMPT=$(<"$SYSTEM_PROMPT_FILE")
-
-# Append aggregated project descriptions from nested hierarchy
-if [[ -n "$PROJECT_ROOT" ]] && aggregate_nested_project_descriptions "$PROJECT_ROOT"; then
-    # Read cached aggregation with root-level tag
-    PROJECT_DESC_CACHE="$PROJECT_ROOT/.workflow/prompts/project.txt"
-    PROJECT_DESC=$(<"$PROJECT_DESC_CACHE")
-    # Wrap in root-level project-description tag
-    SYSTEM_PROMPT="${SYSTEM_PROMPT}"$'\n'"<project-description>"$'\n'"${PROJECT_DESC}</project-description>"
-fi
-
-# Combine context and task for user prompt
-if [[ -s "$CONTEXT_PROMPT_FILE" ]]; then
-    USER_PROMPT="$(cat "$CONTEXT_PROMPT_FILE")"$'\n'"$TASK_PROMPT"
-else
-    USER_PROMPT="$TASK_PROMPT"
-fi
-
-# Add output format hint for non-markdown formats
-if [[ "$OUTPUT_FORMAT" != "md" ]]; then
-    USER_PROMPT="${USER_PROMPT}"$'\n'"<output-format>${OUTPUT_FORMAT}</output-format>"
-fi
+build_prompts "$SYSTEM_PROMPT_FILE" "$PROJECT_ROOT" "$CONTEXT_PROMPT_FILE" "$TASK_PROMPT" "$OUTPUT_FORMAT"
 
 # =============================================================================
 # Token Estimation (if requested)
