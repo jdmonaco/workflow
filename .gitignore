@@ -1,5 +1,6 @@
 # Local-only files
 CLAUDE.local.md
+.claude/
 venv/
 dev/
 notes/

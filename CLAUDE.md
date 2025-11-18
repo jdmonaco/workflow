@@ -60,13 +60,14 @@ project-root/
 
 ### Configuration Cascade
 
-**Four-tier cascade with pass-through:**
+**Multi-tier cascade with pass-through:**
 
 1. Global defaults (hardcoded in `lib/config.sh`)
 2. Global config (`~/.config/workflow/config`, auto-created on first use)
-3. Project config (`.workflow/config`)
-4. Workflow config (`.workflow/<name>/config`)
-5. CLI flags (highest priority)
+3. Ancestor project configs (grandparent → parent, oldest to newest)
+4. Current project config (`.workflow/config`)
+5. Workflow config (`.workflow/<name>/config`)
+6. CLI flags (highest priority)
 
 **Pass-Through Mechanism:**
 
@@ -76,9 +77,10 @@ project-root/
 **Implementation:**
 
 ```bash
-# In load_global_config(), load_project_config(), etc.
-if [[ -z "$MODEL" && -n "$value" ]]; then
-    MODEL="$value"  # Only set if currently empty
+# In load_ancestor_configs(), apply non-empty values from each ancestor
+if [[ -n "$value" ]]; then
+    MODEL="$value"
+    CONFIG_SOURCE_MAP[MODEL]="$ancestor_path"
 fi
 ```
 
@@ -86,14 +88,21 @@ fi
 - Change global default → affects all empty configs
 - Explicit values stay independent
 - Easy to reset: set to empty to restore pass-through
+- Nested projects inherit from ALL ancestors in the tree
 
-**Nested Project Inheritance:**
+**Nested Project Configuration:**
 
-When initializing inside an existing project:
-- `find_project_root()` from target directory searches for parent
-- `extract_parent_config()` sources parent config in isolated subshell
-- Displays inherited values, writes to new project config
+When running workflows in nested projects:
+- `find_ancestor_projects()` walks up the directory tree to find all `.workflow/` directories
+- `load_ancestor_configs()` loads configs from oldest to newest ancestor
+- `CONFIG_SOURCE_MAP` tracks which ancestor (or tier) set each value
+- Display functions (`config_project`, `config_workflow`) show full cascade with ancestor paths
+- Each project can override ancestor values or pass through with empty values
+
+When initializing a new nested project:
+- `init_project()` detects parent project and displays inherited values
 - Creates separate workflow namespace
+- Stub config shows inherited values in comments for reference
 
 ### Path Resolution
 
@@ -149,6 +158,18 @@ filecat() {
 for dep in "${DEPENDS_ON[@]}"; do
     dep_file=$(ls "$PROJECT_ROOT/.workflow/output/$dep".* 2>/dev/null)
 done
+```
+
+**Nested Project Descriptions:**
+
+```bash
+aggregate_nested_project_descriptions() {
+    # Finds all ancestor projects
+    # Aggregates their project.txt files (oldest first)
+    # Wraps each in XML tags using sanitized directory name
+    # Caches to .workflow/prompts/project.txt
+    # Used in both workflow.sh and lib/task.sh
+}
 ```
 
 ### System Prompt Composition

@@ -269,7 +269,7 @@ load_ancestor_configs() {
                     ;;
             esac
         done < <(extract_config "$config_file")
-    done
+    done <<< "$ancestors"
 }
 
 # Load global configuration with fallback to hard-coded defaults

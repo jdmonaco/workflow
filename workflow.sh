@@ -125,7 +125,7 @@ case "$1" in
         shift  # Remove 'config' from args
 
         # Parse flags
-        NO_EDIT=false
+        EDIT_MODE=false
         WORKFLOW_NAME=""
 
         while [[ $# -gt 0 ]]; do
@@ -134,8 +134,8 @@ case "$1" in
                     show_help_config
                     exit 0
                     ;;
-                --no-edit)
-                    NO_EDIT=true
+                --edit)
+                    EDIT_MODE=true
                     shift
                     ;;
                 *)
@@ -150,9 +150,9 @@ case "$1" in
 
         # Call appropriate config function
         if [[ -z "$WORKFLOW_NAME" ]]; then
-            config_project "$NO_EDIT"
+            config_project "$EDIT_MODE"
         else
-            config_workflow "$WORKFLOW_NAME" "$NO_EDIT"
+            config_workflow "$WORKFLOW_NAME" "$EDIT_MODE"
         fi
         exit 0
         ;;

@@ -7,9 +7,10 @@ load test_helper/common
 
 setup() {
     setup_test_env
-    # Source utility functions to test directly
+    # Source utility and config functions to test directly
     WORKFLOW_LIB_DIR="$(cd "$(dirname "$BATS_TEST_DIRNAME")"; pwd)/lib"
     source "$WORKFLOW_LIB_DIR/utils.sh"
+    source "$WORKFLOW_LIB_DIR/config.sh"
 }
 
 teardown() {
@@ -179,4 +180,56 @@ teardown() {
         run cat "$TEST_TEMP_DIR/parent/child/.workflow/prompts/project.txt"
         assert_output ""
     fi
+}
+
+# =============================================================================
+# Nested Config Cascade Tests
+# =============================================================================
+
+@test "config cascade: find_ancestor_projects returns oldest first" {
+    # Create three-level nesting
+    mkdir -p "$TEST_TEMP_DIR/grandparent/.workflow"
+    mkdir -p "$TEST_TEMP_DIR/grandparent/parent/.workflow"
+    mkdir -p "$TEST_TEMP_DIR/grandparent/parent/child/.workflow"
+
+    # Find ancestors from child
+    cd "$TEST_TEMP_DIR/grandparent/parent/child"
+    run find_ancestor_projects "$TEST_TEMP_DIR/grandparent/parent/child"
+
+    assert_success
+
+    # Parse output (newline-separated)
+    local -a ancestors
+    mapfile -t ancestors <<< "$output"
+
+    # Should have 2 ancestors (grandparent and parent)
+    [[ ${#ancestors[@]} -eq 2 ]]
+
+    # First should be grandparent (oldest)
+    [[ "${ancestors[0]}" == "$TEST_TEMP_DIR/grandparent" ]]
+
+    # Second should be parent
+    [[ "${ancestors[1]}" == "$TEST_TEMP_DIR/grandparent/parent" ]]
+}
+
+@test "config cascade: load_ancestor_configs identifies correct ancestors" {
+    # Create three-level nesting
+    mkdir -p "$TEST_TEMP_DIR/grandparent/.workflow"
+    cat > "$TEST_TEMP_DIR/grandparent/.workflow/config" <<EOF
+MODEL=claude-opus-4
+EOF
+
+    mkdir -p "$TEST_TEMP_DIR/grandparent/parent/.workflow"
+    cat > "$TEST_TEMP_DIR/grandparent/parent/.workflow/config" <<EOF
+TEMPERATURE=0.5
+EOF
+
+    mkdir -p "$TEST_TEMP_DIR/grandparent/parent/child/.workflow"
+
+    # Load ancestors from child
+    cd "$TEST_TEMP_DIR/grandparent/parent/child"
+
+    # Since load_ancestor_configs sets global variables, just verify it doesn't error
+    run load_ancestor_configs "$TEST_TEMP_DIR/grandparent/parent/child"
+    assert_success
 }

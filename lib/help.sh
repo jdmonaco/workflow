@@ -289,41 +289,43 @@ show_help_config() {
     cat <<EOF
 Usage: $SCRIPT_NAME config [<name>] [options]
 
-Display configuration with source tracking and option to edit.
+Display configuration with source tracking. Optionally prompt to edit files.
 
 Arguments:
     <name>                Workflow name (optional)
 
 Options:
-    --no-edit             Skip interactive edit prompt
+    --edit                Prompt to edit configuration files
     -h, --help            Show this help
 
 Behavior:
     Without <name>:
         - Shows project configuration
         - Lists all workflows
-        - Source tracking: (global), (project)
+        - Source tracking: (global), (ancestor:path), (project)
 
     With <name>:
         - Shows workflow configuration
-        - Full cascade: global → project → workflow
+        - Full cascade: global → ancestors → project → workflow
         - Shows context sources (CONTEXT_PATTERN, etc.)
 
 Configuration cascade:
-    1. Global:   ~/.config/workflow/config
-    2. Project:  .workflow/config
-    3. Workflow: .workflow/<name>/config
-    4. CLI flags (highest priority)
+    1. Global:      ~/.config/workflow/config
+    2. Ancestors:   Parent project configs (oldest to newest)
+    3. Project:     .workflow/config
+    4. Workflow:    .workflow/<name>/config
+    5. CLI flags:   (highest priority)
 
 Source indicators:
-    (global)   - From ~/.config/workflow/config
-    (project)  - From .workflow/config
-    (workflow) - From .workflow/<name>/config
+    (global)              - From ~/.config/workflow/config
+    (ancestor:path)       - From ancestor project config
+    (project)             - From .workflow/config
+    (workflow)            - From .workflow/<name>/config
 
 Examples:
     $SCRIPT_NAME config                  # Show project config
     $SCRIPT_NAME config 01-analysis      # Show workflow config
-    $SCRIPT_NAME config --no-edit        # Skip edit prompt
+    $SCRIPT_NAME config --edit           # Show config and prompt to edit
 
 See also:
     $SCRIPT_NAME help run
