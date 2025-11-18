@@ -269,7 +269,7 @@ EOF
 # Dry-Run and Streaming Mode Tests
 # =============================================================================
 
-@test "run: dry-run mode estimates tokens without API call" {
+@test "run: count-tokens mode shows token estimation without API call" {
     # Override curl to fail if called
     curl() {
         echo "ERROR: curl should not be called" >&2
@@ -277,13 +277,30 @@ EOF
     }
     export -f curl
 
-    run bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run
+    run bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens
 
     assert_success
     assert_output --partial "Estimated system tokens"
     assert_output --partial "Estimated task tokens"
     assert_output --partial "Estimated total input tokens"
-    assert_output --partial "Dry-run mode"
+
+    # No output file should be created
+    [[ ! -f ".workflow/test-workflow/output.md" ]]
+}
+
+@test "run: dry-run mode saves prompts to files" {
+    run bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run
+
+    assert_success
+    assert_output --partial "Dry-run mode: Prompts saved for inspection"
+    assert_output --partial "System prompt:"
+    assert_output --partial "User prompt:"
+    assert_output --partial "dry-run-system.txt"
+    assert_output --partial "dry-run-user.txt"
+
+    # Verify files were created
+    assert_file_exists ".workflow/test-workflow/dry-run-system.txt"
+    assert_file_exists ".workflow/test-workflow/dry-run-user.txt"
 
     # No output file should be created
     [[ ! -f ".workflow/test-workflow/output.md" ]]
@@ -329,7 +346,7 @@ EOF
 @test "run: appends format hint for non-markdown formats" {
     echo 'OUTPUT_FORMAT="json"' >> .workflow/test-workflow/config
 
-    bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run > /dev/null
+    bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens > /dev/null
 
     # The format hint should be appended to the user prompt
     # We can't easily check the internal state, but we can verify the workflow runs
@@ -348,7 +365,7 @@ EOF
     echo 'MODEL="claude-sonnet-4"' >> .workflow/test-workflow/config
 
     # Dry-run to see what would be sent (avoid actual API call)
-    run bash "$WORKFLOW_SCRIPT" run test-workflow --model claude-opus-4 --dry-run
+    run bash "$WORKFLOW_SCRIPT" run test-workflow --model claude-opus-4 --count-tokens
 
     assert_success
     # Can't easily verify model in dry-run, but command should succeed
@@ -357,7 +374,7 @@ EOF
 @test "run: CLI --max-tokens overrides config" {
     echo 'MAX_TOKENS=2000' >> .workflow/test-workflow/config
 
-    run bash "$WORKFLOW_SCRIPT" run test-workflow --max-tokens 8000 --dry-run
+    run bash "$WORKFLOW_SCRIPT" run test-workflow --max-tokens 8000 --count-tokens
 
     assert_success
 }
@@ -366,7 +383,7 @@ EOF
     # Add NeuroAI prompt
     echo "NeuroAI system prompt" > "$WORKFLOW_PROMPT_PREFIX/NeuroAI.txt"
 
-    run bash "$WORKFLOW_SCRIPT" run test-workflow --system-prompts "base,NeuroAI" --dry-run
+    run bash "$WORKFLOW_SCRIPT" run test-workflow --system-prompts "base,NeuroAI" --count-tokens
 
     assert_success
     # System prompt should be built with both
@@ -440,7 +457,7 @@ EOF
 # =============================================================================
 
 @test "run: builds system prompt from configured prompts" {
-    bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run > /dev/null
+    bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens > /dev/null
 
     assert_file_exists ".workflow/prompts/system.txt"
 
@@ -450,13 +467,13 @@ EOF
 
 @test "run: rebuilds system prompt on every run" {
     # Run once
-    bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run > /dev/null
+    bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens > /dev/null
 
     # Modify system prompt file
     echo "MODIFIED BASE PROMPT" > "$WORKFLOW_PROMPT_PREFIX/base.txt"
 
     # Run again - should rebuild
-    bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run > /dev/null
+    bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens > /dev/null
 
     run cat .workflow/prompts/system.txt
     assert_output "MODIFIED BASE PROMPT"
@@ -469,7 +486,7 @@ This is a test project for neural analysis.
 Use scientific terminology.
 EOF
 
-    run bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run
+    run bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens
 
     # Verify execution succeeds
     assert_success
@@ -526,15 +543,6 @@ EOF
 # =============================================================================
 # Additional Tests
 # =============================================================================
-
-@test "run: displays token estimates before execution" {
-    run bash "$WORKFLOW_SCRIPT" run test-workflow
-
-    assert_success
-    assert_output --partial "Estimated system tokens:"
-    assert_output --partial "Estimated task tokens:"
-    assert_output --partial "Estimated total input tokens:"
-}
 
 @test "run: handles empty context gracefully" {
     # Don't configure any context sources

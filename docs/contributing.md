@@ -85,7 +85,7 @@ Include:
 **Steps to reproduce:**
 1. Create project: `workflow init test-project`
 2. Add config: `CONTEXT_PATTERN="data/*.csv"`
-3. Run with dry-run: `workflow run test --dry-run`
+3. Run with dry-run: `workflow run test --count-tokens`
 
 **Expected:** Should match data/file.csv
 **Actual:** Shows 0 files matched

@@ -578,7 +578,8 @@ workflow run <name> [options]
 | Option | Description |
 |--------|-------------|
 | `--stream` | Stream output in real-time |
-| `--dry-run` | Estimate tokens without API call |
+| `--count-tokens` | Show token estimation only |
+| `--dry-run` | Save prompts to files and inspect in editor |
 | `-h`, `--help` | Show help |
 
 ### Description
@@ -638,6 +639,9 @@ workflow run analysis \
   --stream
 
 # Estimate tokens first
+workflow run analysis --count-tokens
+
+# Inspect prompts before running
 workflow run analysis --dry-run
 
 # Custom system prompts
@@ -710,7 +714,8 @@ workflow task -i <text> [options]
 
 | Option | Description |
 |--------|-------------|
-| `--dry-run` | Estimate tokens without API call |
+| `--count-tokens` | Show token estimation only |
+| `--dry-run` | Save prompts to files and inspect in editor |
 | `-h`, `--help` | Show help |
 
 ### Description

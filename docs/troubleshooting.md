@@ -233,7 +233,7 @@ nano ~/.config/workflow/prompts/custom.txt
 
 ```bash
 # Check estimate
-workflow run analysis --dry-run
+workflow run analysis --count-tokens
 
 # Reduce context
 # - Use more specific patterns
@@ -348,7 +348,7 @@ cat .workflow/analysis/output.md
 # Look at workflow command output for error messages
 
 # Re-run with dry-run
-workflow run analysis --dry-run
+workflow run analysis --count-tokens
 ```
 
 ### Wrong Output Format
@@ -508,7 +508,7 @@ df -h .
 
 ```bash
 # Check token count
-workflow run analysis --dry-run
+workflow run analysis --count-tokens
 
 # Reduce context if large
 # Check network latency
@@ -526,7 +526,7 @@ workflow run analysis --model claude-3-5-haiku-20241022 --stream
 
 ```bash
 # Always estimate first
-workflow run expensive-task --dry-run
+workflow run expensive-task --count-tokens
 
 # Review token usage
 # Look at actual usage in output:

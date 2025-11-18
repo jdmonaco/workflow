@@ -202,12 +202,14 @@ API Options:
 
 Execution Options:
     --stream                  Stream output in real-time
-    --dry-run                 Estimate tokens without API call
+    --count-tokens            Show token estimation only
+    --dry-run                 Save prompts to files and inspect in editor
     -h, --help                Quick help
 
 Examples:
     $SCRIPT_NAME run 01-analysis --stream
-    $SCRIPT_NAME run 02-report --depends-on 01-analysis
+    $SCRIPT_NAME run 01-analysis --count-tokens
+    $SCRIPT_NAME run 01-analysis --dry-run --count-tokens
 EOF
 }
 
@@ -240,12 +242,13 @@ Output Options:
     --no-stream               Use batch mode
 
 Other Options:
-    --dry-run                 Estimate tokens without API call
+    --count-tokens            Show token estimation only
+    --dry-run                 Save prompts to files and inspect in editor
     -h, --help                Quick help
 
 Examples:
     $SCRIPT_NAME task -i "Summarize these notes" --context-file notes.md
-    $SCRIPT_NAME task summarize --context-pattern "*.txt"
+    $SCRIPT_NAME task summarize --count-tokens
 EOF
 }
 

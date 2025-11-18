@@ -167,26 +167,35 @@ EOF
 }
 
 @test "task: respects --model override" {
-    run bash "$WORKFLOW_SCRIPT" task -i "Test" --model claude-haiku-4 --dry-run
+    run bash "$WORKFLOW_SCRIPT" task -i "Test" --model claude-haiku-4 --count-tokens
 
     assert_success
     # Would need to check API call payload to fully verify
 }
 
 @test "task: respects --max-tokens override" {
-    run bash "$WORKFLOW_SCRIPT" task -i "Test" --max-tokens 16384 --dry-run
+    run bash "$WORKFLOW_SCRIPT" task -i "Test" --max-tokens 16384 --count-tokens
 
     assert_success
 }
 
-@test "task: dry-run mode estimates tokens without API call" {
-    run bash "$WORKFLOW_SCRIPT" task -i "Test task" --dry-run
+@test "task: count-tokens mode shows token estimation without API call" {
+    run bash "$WORKFLOW_SCRIPT" task -i "Test task" --count-tokens
 
     assert_success
     assert_output --partial "Estimated system tokens:"
     assert_output --partial "Estimated task tokens:"
     assert_output --partial "Estimated total input tokens:"
-    assert_output --partial "Dry-run mode: Stopping before API call"
+}
+
+@test "task: dry-run mode saves prompts to temp files" {
+    run bash "$WORKFLOW_SCRIPT" task -i "Test task" --dry-run
+
+    assert_success
+    assert_output --partial "Dry-run mode: Prompts saved for inspection"
+    assert_output --partial "System prompt:"
+    assert_output --partial "User prompt:"
+    # Files are temp files, so we can't verify their existence after command exits
 }
 
 @test "task: --no-stream uses single-batch mode" {

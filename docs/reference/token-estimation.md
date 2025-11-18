@@ -45,7 +45,7 @@ Sending Messages API request...
 Get estimates without making API calls:
 
 ```bash
-workflow run analysis --dry-run
+workflow run analysis --count-tokens
 ```
 
 Output:
@@ -374,7 +374,7 @@ ls .workflow/dependency/output/
 - Verify glob patterns aren't too broad
 
 ```bash
-workflow run analysis --dry-run  # See detailed breakdown
+workflow run analysis --count-tokens  # See detailed breakdown
 ```
 
 ### API Call Exceeds Limit
@@ -454,7 +454,7 @@ If running final analysis 10 times:
 
 ## See Also
 
-- [Execution Guide](../user-guide/execution.md) - Using --dry-run
+- [Execution Guide](../user-guide/execution.md) - Using --count-tokens
 - [Context Aggregation](context-aggregation.md) - Managing context
 - [Configuration Guide](../user-guide/configuration.md) - Setting MAX_TOKENS
 

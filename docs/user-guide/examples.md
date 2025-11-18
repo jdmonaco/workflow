@@ -339,13 +339,13 @@ Experiment with different models and parameters without changing configs.
 
 ```bash
 # Test with Haiku (fast, economical)
-workflow run analysis --model claude-3-5-haiku-20241022 --dry-run
+workflow run analysis --model claude-3-5-haiku-20241022 --count-tokens
 
 # Test with Sonnet (balanced)
-workflow run analysis --model claude-3-5-sonnet-20241022 --dry-run
+workflow run analysis --model claude-3-5-sonnet-20241022 --count-tokens
 
 # Test with Opus (most capable)
-workflow run analysis --model claude-3-opus-4-20250514 --dry-run
+workflow run analysis --model claude-3-opus-4-20250514 --count-tokens
 
 # Choose best and run
 workflow run analysis --model claude-3-5-sonnet-20241022 --stream

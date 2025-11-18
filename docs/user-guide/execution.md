@@ -109,34 +109,37 @@ workflow run 01-analysis --format-hint json  # Creates <name>.json
 workflow run 01-analysis --format-hint txt   # Creates <name>.txt
 ```
 
-### Estimate Tokens (Dry Run)
+### Estimate Tokens
 
-Preview token count and cost without making an API call:
+Preview token count without making an API call:
+
+```bash
+workflow run 01-analysis --count-tokens
+```
+
+Shows estimated token usage for system prompts, task, and context.
+
+### Inspect Prompts (Dry Run)
+
+Save final system and user prompts to files for inspection:
 
 ```bash
 workflow run 01-analysis --dry-run
 ```
 
-Output:
+This saves prompts to:
+- `.workflow/01-analysis/dry-run-system.txt` - Final system prompt
+- `.workflow/01-analysis/dry-run-user.txt` - Final user prompt (context + task)
 
+Then opens both files in your editor for inspection.
+
+### Combined: Estimate and Inspect
+
+```bash
+workflow run 01-analysis --dry-run --count-tokens
 ```
-Token Estimation:
-─────────────────────────────────────────────────────────
-System prompts:   ~1,200 tokens
-  - base.txt
-Task:             ~150 tokens
-Project description: ~300 tokens
-Context:          ~4,500 tokens
-  - data/results.csv (2,100 tokens)
-  - notes.md (800 tokens)
-  - 00-context output (1,600 tokens)
 
-Total estimated:  ~6,150 tokens
-Estimated cost:   $0.0185 (claude-3-5-sonnet-20241022)
-─────────────────────────────────────────────────────────
-
-Use --stream to execute
-```
+Shows token estimation, then prompts to open the saved prompt files in your editor
 
 ## Task Mode (`task`)
 

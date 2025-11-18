@@ -291,7 +291,7 @@ Standard CLI behavior (like `cp`, `cat`, etc.).
 ### Estimate Before Running
 
 ```bash
-workflow run analysis --dry-run
+workflow run analysis --count-tokens
 ```
 
 Shows:
@@ -342,7 +342,7 @@ workflow run 02-analyze
 ### Dry Run
 
 ```bash
-workflow run analysis --dry-run
+workflow run analysis --count-tokens
 ```
 
 Shows exactly what will be included and token estimates.
@@ -483,7 +483,7 @@ ls .workflow/dependency-name/output/
 
 ```bash
 # Estimate first
-workflow run analysis --dry-run
+workflow run analysis --count-tokens
 
 # If too large, reduce:
 # - Use more specific patterns

@@ -739,7 +739,7 @@ teardown() {
 
 **Mock API calls:**
 - Tests should not make real API calls
-- Use `--dry-run` where possible
+- Use `--count-tokens` or `--dry-run` to avoid API calls in tests
 - Mock `lib/api.sh` functions for integration tests
 
 ### Git Commit Guidelines

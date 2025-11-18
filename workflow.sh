@@ -304,6 +304,7 @@ fi
 # =============================================================================
 STREAM_MODE=false
 DRY_RUN=false
+COUNT_TOKENS=false
 SYSTEM_PROMPTS_OVERRIDE=""
 
 # Separate storage for CLI-provided paths (relative to PWD)
@@ -323,6 +324,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dry-run)
             DRY_RUN=true
+            shift
+            ;;
+        --count-tokens)
+            COUNT_TOKENS=true
             shift
             ;;
         --context-file)
@@ -511,37 +516,7 @@ if [[ ! -s "$CONTEXT_PROMPT_FILE" ]]; then
 fi
 
 # =============================================================================
-# Token Estimation
-# =============================================================================
-
-SYSWC=$(wc -w < "$SYSTEM_PROMPT_FILE")
-SYSTC=$((SYSWC * 13 / 10 + 4096))
-echo "Estimated system tokens: $SYSTC"
-
-TASKWC=$(wc -w < "$TASK_PROMPT_FILE")
-TASKTC=$((TASKWC * 13 / 10 + 4096))
-echo "Estimated task tokens: $TASKTC"
-
-if [[ -s "$CONTEXT_PROMPT_FILE" ]]; then
-    CONTEXTWC=$(wc -w < "$CONTEXT_PROMPT_FILE")
-    CONTEXTTC=$((CONTEXTWC * 13 / 10 + 4096))
-    echo "Estimated context tokens: $CONTEXTTC"
-else
-    CONTEXTTC=0
-fi
-
-TOTAL_INPUT_TOKENS=$((SYSTC + TASKTC + CONTEXTTC))
-echo "Estimated total input tokens: $TOTAL_INPUT_TOKENS"
-echo ""
-
-# Exit if dry-run
-if [[ "$DRY_RUN" == true ]]; then
-    echo "Dry-run mode: Stopping before API call"
-    exit 0
-fi
-
-# =============================================================================
-# API Request Setup
+# API Request Setup - Build Final Prompts
 # =============================================================================
 
 # Read prompt files
@@ -566,6 +541,64 @@ fi
 # Add output format hint for non-markdown formats
 if [[ "$OUTPUT_FORMAT" != "md" ]]; then
     USER_PROMPT="${USER_PROMPT}"$'\n'"<output-format>${OUTPUT_FORMAT}</output-format>"
+fi
+
+# =============================================================================
+# Token Estimation (if requested)
+# =============================================================================
+
+if [[ "$COUNT_TOKENS" == true ]]; then
+    SYSWC=$(wc -w < "$SYSTEM_PROMPT_FILE")
+    SYSTC=$((SYSWC * 13 / 10 + 4096))
+    echo "Estimated system tokens: $SYSTC"
+
+    TASKWC=$(wc -w < "$TASK_PROMPT_FILE")
+    TASKTC=$((TASKWC * 13 / 10 + 4096))
+    echo "Estimated task tokens: $TASKTC"
+
+    if [[ -s "$CONTEXT_PROMPT_FILE" ]]; then
+        CONTEXTWC=$(wc -w < "$CONTEXT_PROMPT_FILE")
+        CONTEXTTC=$((CONTEXTWC * 13 / 10 + 4096))
+        echo "Estimated context tokens: $CONTEXTTC"
+    else
+        CONTEXTTC=0
+    fi
+
+    TOTAL_INPUT_TOKENS=$((SYSTC + TASKTC + CONTEXTTC))
+    echo "Estimated total input tokens: $TOTAL_INPUT_TOKENS"
+    echo ""
+
+    # Exit if only counting tokens (not combined with dry-run)
+    if [[ "$DRY_RUN" == false ]]; then
+        exit 0
+    fi
+fi
+
+# =============================================================================
+# Dry-Run Mode - Save Prompts and Inspect
+# =============================================================================
+
+if [[ "$DRY_RUN" == true ]]; then
+    # Save final prompts to workflow directory
+    DRY_RUN_SYSTEM="$WORKFLOW_DIR/dry-run-system.txt"
+    DRY_RUN_USER="$WORKFLOW_DIR/dry-run-user.txt"
+
+    echo "$SYSTEM_PROMPT" > "$DRY_RUN_SYSTEM"
+    echo "$USER_PROMPT" > "$DRY_RUN_USER"
+
+    echo "Dry-run mode: Prompts saved for inspection"
+    echo "  System prompt: $DRY_RUN_SYSTEM"
+    echo "  User prompt:   $DRY_RUN_USER"
+    echo ""
+
+    # If count-tokens was also requested, prompt before opening
+    if [[ "$COUNT_TOKENS" == true ]]; then
+        read -p "Press Enter to inspect prompts in editor (or Ctrl+C to cancel): " -r
+        echo ""
+    fi
+
+    edit_files "$DRY_RUN_SYSTEM" "$DRY_RUN_USER"
+    exit 0
 fi
 
 # JSON-escape prompts
