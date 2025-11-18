@@ -185,6 +185,28 @@ aggregate_nested_project_descriptions() {
 }
 
 # =============================================================================
+# Path Formatting
+# =============================================================================
+
+# Format absolute path with ~/ prefix for HOME directory
+# Arguments:
+#   $1 - Absolute path
+# Returns:
+#   Path with ~/ prefix if under $HOME, otherwise original path
+format_path_with_tilde() {
+    local path="$1"
+    local relative="${path#$HOME/}"
+
+    if [[ "$relative" == "$path" ]]; then
+        # Path is not under HOME
+        echo "$path"
+    else
+        # Path is under HOME, use ~/ prefix
+        echo "~/$relative"
+    fi
+}
+
+# =============================================================================
 # Workflow Listing
 # =============================================================================
 

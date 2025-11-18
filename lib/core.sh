@@ -390,106 +390,24 @@ config_project() {
         exit 1
     }
 
-    # Format project root path with ~ prefix
-    local project_display="${PROJECT_ROOT#$HOME/}"
-    if [[ "$project_display" == "$PROJECT_ROOT" ]]; then
-        project_display="$PROJECT_ROOT"
-    else
-        project_display="~/$project_display"
-    fi
+    # Format and display header
+    local project_display
+    project_display=$(format_path_with_tilde "$PROJECT_ROOT")
 
     echo "Current Project:"
     echo "  Location: $project_display"
     echo ""
 
-    # Load config using same cascade as workflow.sh
+    # Load configuration cascade (Tiers 1-3: global → ancestors → project)
+    load_project_config_tiers "$PROJECT_ROOT"
 
-    # Tier 1: Load global config
-    load_global_config
+    # Display configuration cascade hierarchy
+    local global_display
+    global_display=$(format_path_with_tilde "$GLOBAL_CONFIG_FILE")
+    display_config_cascade_hierarchy "$global_display" "$PROJECT_ROOT"
 
-    # Track initial values
-    declare -A CONFIG_VALUE
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
-
-    # Tier 2: Ancestor project cascade
-    load_ancestor_configs "$PROJECT_ROOT"
-
-    # Update values after ancestor cascade
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
-
-    # Tier 3: Current project config (only apply non-empty values)
-    if [[ -f "$PROJECT_ROOT/.workflow/config" ]]; then
-        while IFS='=' read -r key value; do
-            case "$key" in
-                MODEL) [[ -n "$value" ]] && MODEL="$value" && CONFIG_SOURCE_MAP[MODEL]="project" ;;
-                TEMPERATURE) [[ -n "$value" ]] && TEMPERATURE="$value" && CONFIG_SOURCE_MAP[TEMPERATURE]="project" ;;
-                MAX_TOKENS) [[ -n "$value" ]] && MAX_TOKENS="$value" && CONFIG_SOURCE_MAP[MAX_TOKENS]="project" ;;
-                OUTPUT_FORMAT) [[ -n "$value" ]] && OUTPUT_FORMAT="$value" && CONFIG_SOURCE_MAP[OUTPUT_FORMAT]="project" ;;
-                SYSTEM_PROMPTS) [[ -n "$value" ]] && SYSTEM_PROMPTS=($value) && CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="project" ;;
-            esac
-        done < <(extract_config "$PROJECT_ROOT/.workflow/config")
-    fi
-
-    # Update final values
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
-
-    # Format global config path with ~ prefix
-    local global_display="${GLOBAL_CONFIG_FILE#$HOME/}"
-    if [[ "$global_display" == "$GLOBAL_CONFIG_FILE" ]]; then
-        global_display="$GLOBAL_CONFIG_FILE"
-    else
-        global_display="~/$global_display"
-    fi
-
-    # Build cascade display with all ancestors
-    echo "Configuration Cascade:"
-    echo "  Global:   $global_display"
-
-    # Display each ancestor project
-    local ancestors
-    if ancestors=$(find_ancestor_projects "$PROJECT_ROOT" 2>/dev/null); then
-        while IFS= read -r ancestor; do
-            local rel_path="${ancestor#$HOME/}"
-            if [[ "$rel_path" == "$ancestor" ]]; then
-                # Not under HOME
-                echo "  Ancestor: $ancestor/.workflow/config"
-            else
-                echo "  Ancestor: ~/$rel_path/.workflow/config"
-            fi
-        done <<< "$ancestors"
-    fi
-
-    echo "  Project:  $project_display/.workflow/config"
-    echo ""
-
-    # Display effective configuration with source tracking
-    echo "Effective Configuration:"
-
-    # Use CONFIG_SOURCE_MAP if keys exist, otherwise default to "global"
-    local model_source="${CONFIG_SOURCE_MAP[MODEL]:-global}"
-    local temp_source="${CONFIG_SOURCE_MAP[TEMPERATURE]:-global}"
-    local tokens_source="${CONFIG_SOURCE_MAP[MAX_TOKENS]:-global}"
-    local prompts_source="${CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]:-global}"
-    local format_source="${CONFIG_SOURCE_MAP[OUTPUT_FORMAT]:-global}"
-
-    echo "  MODEL: ${CONFIG_VALUE[MODEL]} ($(format_config_source "$model_source"))"
-    echo "  TEMPERATURE: ${CONFIG_VALUE[TEMPERATURE]} ($(format_config_source "$temp_source"))"
-    echo "  MAX_TOKENS: ${CONFIG_VALUE[MAX_TOKENS]} ($(format_config_source "$tokens_source"))"
-    echo "  SYSTEM_PROMPTS: ${CONFIG_VALUE[SYSTEM_PROMPTS]} ($(format_config_source "$prompts_source"))"
-    echo "  OUTPUT_FORMAT: ${CONFIG_VALUE[OUTPUT_FORMAT]} ($(format_config_source "$format_source"))"
-    echo ""
+    # Display effective configuration values with sources
+    display_effective_config_values
 
     # Show workflows
     echo "Workflows:"
@@ -553,68 +471,17 @@ config_workflow() {
         exit 1
     fi
 
-    # Format paths with ~ prefix
-    local workflow_display="${WORKFLOW_DIR#$HOME/}"
-    if [[ "$workflow_display" == "$WORKFLOW_DIR" ]]; then
-        workflow_display="$WORKFLOW_DIR"
-    else
-        workflow_display="~/$workflow_display"
-    fi
-
-    local project_display="${PROJECT_ROOT#$HOME/}"
-    if [[ "$project_display" == "$PROJECT_ROOT" ]]; then
-        project_display="$PROJECT_ROOT"
-    else
-        project_display="~/$project_display"
-    fi
+    # Format and display header
+    local workflow_display
+    workflow_display=$(format_path_with_tilde "$WORKFLOW_DIR")
 
     echo "Current Workflow:"
     echo "  Name: $workflow_name"
     echo "  Location: $workflow_display"
     echo ""
 
-    # Load config using same cascade as workflow.sh
-
-    # Tier 1: Load global config
-    load_global_config
-
-    # Track initial values
-    declare -A CONFIG_VALUE
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
-
-    # Tier 2: Ancestor project cascade
-    load_ancestor_configs "$PROJECT_ROOT"
-
-    # Update values after ancestor cascade
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
-
-    # Tier 3: Current project config (only apply non-empty values)
-    if [[ -f "$PROJECT_ROOT/.workflow/config" ]]; then
-        while IFS='=' read -r key value; do
-            case "$key" in
-                MODEL) [[ -n "$value" ]] && MODEL="$value" && CONFIG_SOURCE_MAP[MODEL]="project" ;;
-                TEMPERATURE) [[ -n "$value" ]] && TEMPERATURE="$value" && CONFIG_SOURCE_MAP[TEMPERATURE]="project" ;;
-                MAX_TOKENS) [[ -n "$value" ]] && MAX_TOKENS="$value" && CONFIG_SOURCE_MAP[MAX_TOKENS]="project" ;;
-                OUTPUT_FORMAT) [[ -n "$value" ]] && OUTPUT_FORMAT="$value" && CONFIG_SOURCE_MAP[OUTPUT_FORMAT]="project" ;;
-                SYSTEM_PROMPTS) [[ -n "$value" ]] && SYSTEM_PROMPTS=($value) && CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="project" ;;
-            esac
-        done < <(extract_config "$PROJECT_ROOT/.workflow/config")
-    fi
-
-    # Update values
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
+    # Load configuration cascade (Tiers 1-3: global → ancestors → project)
+    load_project_config_tiers "$PROJECT_ROOT"
 
     # Tier 4: Workflow config
     CONTEXT_PATTERN=""
@@ -623,83 +490,43 @@ config_workflow() {
 
     if [[ -f "$WORKFLOW_DIR/config" ]]; then
         while IFS='=' read -r key value; do
-            if [[ -n "$value" ]]; then
-                case "$key" in
-                    MODEL|TEMPERATURE|MAX_TOKENS|OUTPUT_FORMAT)
-                        eval "$key=\"$value\""
-                        CONFIG_SOURCE_MAP[$key]="workflow"
-                        ;;
-                    SYSTEM_PROMPTS)
-                        SYSTEM_PROMPTS=($value)
-                        CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="workflow"
-                        ;;
-                    CONTEXT_PATTERN)
-                        CONTEXT_PATTERN="$value"
-                        ;;
-                    CONTEXT_FILES)
-                        CONTEXT_FILES_STR="$value"
-                        ;;
-                    DEPENDS_ON)
-                        DEPENDS_ON_STR="$value"
-                        ;;
-                esac
-            fi
+            [[ -z "$value" ]] && continue
+            case "$key" in
+                MODEL|TEMPERATURE|MAX_TOKENS|OUTPUT_FORMAT)
+                    eval "$key=\"$value\""
+                    CONFIG_SOURCE_MAP[$key]="workflow"
+                    ;;
+                SYSTEM_PROMPTS)
+                    SYSTEM_PROMPTS=($value)
+                    CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="workflow"
+                    ;;
+                CONTEXT_PATTERN)
+                    CONTEXT_PATTERN="$value"
+                    ;;
+                CONTEXT_FILES)
+                    CONTEXT_FILES_STR="$value"
+                    ;;
+                DEPENDS_ON)
+                    DEPENDS_ON_STR="$value"
+                    ;;
+            esac
         done < <(extract_config "$WORKFLOW_DIR/config")
     fi
 
-    # Update final values
+    # Update final values after workflow config
     CONFIG_VALUE[MODEL]="$MODEL"
     CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
     CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
     CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
     CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
 
-    # Format global config path with ~ prefix
-    local global_display="${GLOBAL_CONFIG_FILE#$HOME/}"
-    if [[ "$global_display" == "$GLOBAL_CONFIG_FILE" ]]; then
-        global_display="$GLOBAL_CONFIG_FILE"
-    else
-        global_display="~/$global_display"
-    fi
+    # Display configuration cascade hierarchy (with workflow tier)
+    local global_display
+    global_display=$(format_path_with_tilde "$GLOBAL_CONFIG_FILE")
+    display_config_cascade_hierarchy "$global_display" "$PROJECT_ROOT" "$WORKFLOW_DIR"
 
-    # Build cascade display with all ancestors
-    echo "Configuration Cascade:"
-    echo "  Global:   $global_display"
-
-    # Display each ancestor project
-    local ancestors
-    if ancestors=$(find_ancestor_projects "$PROJECT_ROOT" 2>/dev/null); then
-        while IFS= read -r ancestor; do
-            local rel_path="${ancestor#$HOME/}"
-            if [[ "$rel_path" == "$ancestor" ]]; then
-                # Not under HOME
-                echo "  Ancestor: $ancestor/.workflow/config"
-            else
-                echo "  Ancestor: ~/$rel_path/.workflow/config"
-            fi
-        done <<< "$ancestors"
-    fi
-
-    echo "  Project:  $project_display/.workflow/config"
-    echo "  Workflow: $workflow_display/config"
-    echo ""
-
-    # Display effective configuration with source tracking
-    echo "Effective Configuration:"
-
-    # Use CONFIG_SOURCE_MAP if keys exist, otherwise default to "global"
-    local model_source="${CONFIG_SOURCE_MAP[MODEL]:-global}"
-    local temp_source="${CONFIG_SOURCE_MAP[TEMPERATURE]:-global}"
-    local tokens_source="${CONFIG_SOURCE_MAP[MAX_TOKENS]:-global}"
-    local prompts_source="${CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]:-global}"
-    local format_source="${CONFIG_SOURCE_MAP[OUTPUT_FORMAT]:-global}"
-
-    echo "  MODEL: ${CONFIG_VALUE[MODEL]} ($(format_config_source "$model_source"))"
-    echo "  TEMPERATURE: ${CONFIG_VALUE[TEMPERATURE]} ($(format_config_source "$temp_source"))"
-    echo "  MAX_TOKENS: ${CONFIG_VALUE[MAX_TOKENS]} ($(format_config_source "$tokens_source"))"
-    echo "  SYSTEM_PROMPTS: ${CONFIG_VALUE[SYSTEM_PROMPTS]} ($(format_config_source "$prompts_source"))"
-    echo "  OUTPUT_FORMAT: ${CONFIG_VALUE[OUTPUT_FORMAT]} ($(format_config_source "$format_source"))"
-    echo ""
+    # Display effective configuration values with sources
+    display_effective_config_values
 
     # Display context sources if any are configured
     if [[ -n "$CONTEXT_PATTERN" || -n "$CONTEXT_FILES_STR" || -n "$DEPENDS_ON_STR" ]]; then
