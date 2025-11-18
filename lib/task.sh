@@ -197,37 +197,11 @@ build_system_prompt "$SYSTEM_PROMPT_FILE" || exit 1
 # Task Mode - Context Aggregation
 # =============================================================================
 
-echo "Building context..."
-
 # Use temporary context file
 CONTEXT_PROMPT_FILE=$(mktemp)
 trap "rm -f $CONTEXT_PROMPT_FILE" EXIT
 
-# Add files from CLI --context-pattern (relative to PWD)
-if [[ -n "$CLI_CONTEXT_PATTERN" ]]; then
-    echo "  Adding files from CLI pattern: $CLI_CONTEXT_PATTERN"
-    eval "filecat $CLI_CONTEXT_PATTERN" >> "$CONTEXT_PROMPT_FILE"
-fi
-
-# Add explicit files from CLI --context-file (relative to PWD)
-if [[ ${#CLI_CONTEXT_FILES[@]} -gt 0 ]]; then
-    echo "  Adding explicit files from CLI..."
-    validated_files=()
-    for file in "${CLI_CONTEXT_FILES[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            echo "Error: Context file not found: $file"
-            exit 1
-        fi
-        validated_files+=("$file")
-    done
-    filecat "${validated_files[@]}" >> "$CONTEXT_PROMPT_FILE"
-fi
-
-# Check if any context was provided
-if [[ ! -s "$CONTEXT_PROMPT_FILE" ]]; then
-    echo "Warning: No context provided. Task will run without context."
-    echo "  Use --context-file or --context-pattern to add context"
-fi
+aggregate_context "task" "$CONTEXT_PROMPT_FILE" "$PROJECT_ROOT"
 
 # =============================================================================
 # Task Mode - API Request Setup - Build Final Prompts

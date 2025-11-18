@@ -264,3 +264,106 @@ build_prompts() {
         USER_PROMPT="${USER_PROMPT}"$'\n'"<output-format>${output_format}</output-format>"
     fi
 }
+
+# =============================================================================
+# Context Aggregation
+# =============================================================================
+
+# Aggregate context files from various sources based on mode
+# Run mode: dependencies + config patterns/files + CLI patterns/files
+# Task mode: CLI patterns/files only
+#
+# Args:
+#   $1 - mode: "run" or "task"
+#   $2 - context_file: Path where aggregated context should be written
+#   $3 - project_root: Project root (for run mode, empty for task standalone)
+# Requires (run mode):
+#   DEPENDS_ON: Array of workflow dependencies
+#   CONTEXT_PATTERN: Config context pattern
+#   CONTEXT_FILES: Array of config context files
+# Requires (both modes):
+#   CLI_CONTEXT_PATTERN: CLI context pattern
+#   CLI_CONTEXT_FILES: Array of CLI context files
+# Side effects:
+#   Writes aggregated context to context_file
+aggregate_context() {
+    local mode="$1"
+    local context_file="$2"
+    local project_root="$3"
+
+    echo "Building context..."
+
+    # Start with empty context
+    > "$context_file"
+
+    # Run mode: Add workflow dependencies
+    if [[ "$mode" == "run" && ${#DEPENDS_ON[@]} -gt 0 ]]; then
+        echo "  Adding dependencies..."
+        local dep_files=()
+        for dep in "${DEPENDS_ON[@]}"; do
+            # Find dependency output with any extension
+            local dep_file
+            dep_file=$(ls "$project_root/.workflow/output/${dep}".* 2>/dev/null | head -1)
+            if [[ -z "$dep_file" ]]; then
+                echo "Error: Dependency output not found for workflow: $dep"
+                echo "Expected file matching: $project_root/.workflow/output/${dep}.*"
+                echo "Ensure workflow '$dep' has been executed successfully"
+                exit 1
+            fi
+            echo "    - $dep_file"
+            dep_files+=("$dep_file")
+        done
+        filecat "${dep_files[@]}" >> "$context_file"
+    fi
+
+    # Run mode: Add files from config CONTEXT_PATTERN (project-relative)
+    if [[ "$mode" == "run" && -n "$CONTEXT_PATTERN" ]]; then
+        echo "  Adding files from config pattern: $CONTEXT_PATTERN"
+        (cd "$project_root" && eval "filecat $CONTEXT_PATTERN") >> "$context_file"
+    fi
+
+    # Both modes: Add files from CLI --context-pattern (PWD-relative)
+    if [[ -n "$CLI_CONTEXT_PATTERN" ]]; then
+        echo "  Adding files from CLI pattern: $CLI_CONTEXT_PATTERN"
+        eval "filecat $CLI_CONTEXT_PATTERN" >> "$context_file"
+    fi
+
+    # Run mode: Add explicit files from config CONTEXT_FILES (project-relative)
+    if [[ "$mode" == "run" && ${#CONTEXT_FILES[@]} -gt 0 ]]; then
+        echo "  Adding explicit files from config..."
+        local resolved_files=()
+        for file in "${CONTEXT_FILES[@]}"; do
+            local resolved_file="$project_root/$file"
+            if [[ ! -f "$resolved_file" ]]; then
+                echo "Error: Context file not found: $file (resolved: $resolved_file)"
+                exit 1
+            fi
+            resolved_files+=("$resolved_file")
+        done
+        filecat "${resolved_files[@]}" >> "$context_file"
+    fi
+
+    # Both modes: Add explicit files from CLI --context-file (PWD-relative)
+    if [[ ${#CLI_CONTEXT_FILES[@]} -gt 0 ]]; then
+        echo "  Adding explicit files from CLI..."
+        local validated_files=()
+        for file in "${CLI_CONTEXT_FILES[@]}"; do
+            if [[ ! -f "$file" ]]; then
+                echo "Error: Context file not found: $file"
+                exit 1
+            fi
+            validated_files+=("$file")
+        done
+        filecat "${validated_files[@]}" >> "$context_file"
+    fi
+
+    # Check if any context was provided
+    if [[ ! -s "$context_file" ]]; then
+        echo "Warning: No context provided. Task will run without context."
+        if [[ "$mode" == "run" ]]; then
+            echo "  Use --context-file, --context-pattern, or --depends-on to add context"
+        else
+            echo "  Use --context-file or --context-pattern to add context"
+        fi
+    fi
+}

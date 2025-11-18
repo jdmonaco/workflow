@@ -401,76 +401,7 @@ build_system_prompt "$SYSTEM_PROMPT_FILE" || exit 1
 # Context Aggregation
 # =============================================================================
 
-echo "Building context..."
-
-# Start with empty context
-> "$CONTEXT_PROMPT_FILE"
-
-# Add files from --depends-on (from output/ directory)
-if [[ ${#DEPENDS_ON[@]} -gt 0 ]]; then
-    echo "  Adding dependencies..."
-    dep_files=()
-    for dep in "${DEPENDS_ON[@]}"; do
-        # Find dependency output with any extension using glob
-        dep_file=$(ls "$PROJECT_ROOT/.workflow/output/${dep}".* 2>/dev/null | head -1)
-        if [[ -z "$dep_file" ]]; then
-            echo "Error: Dependency output not found for workflow: $dep"
-            echo "Expected file matching: $PROJECT_ROOT/.workflow/output/${dep}.*"
-            echo "Ensure workflow '$dep' has been executed successfully"
-            exit 1
-        fi
-        echo "    - $dep_file"
-        dep_files+=("$dep_file")
-    done
-    filecat "${dep_files[@]}" >> "$CONTEXT_PROMPT_FILE"
-fi
-
-# Add files from config CONTEXT_PATTERN (relative to PROJECT_ROOT)
-if [[ -n "$CONTEXT_PATTERN" ]]; then
-    echo "  Adding files from config pattern: $CONTEXT_PATTERN"
-    (cd "$PROJECT_ROOT" && eval "filecat $CONTEXT_PATTERN") >> "$CONTEXT_PROMPT_FILE"
-fi
-
-# Add files from CLI --context-pattern (relative to PWD)
-if [[ -n "$CLI_CONTEXT_PATTERN" ]]; then
-    echo "  Adding files from CLI pattern: $CLI_CONTEXT_PATTERN"
-    eval "filecat $CLI_CONTEXT_PATTERN" >> "$CONTEXT_PROMPT_FILE"
-fi
-
-# Add explicit files from config CONTEXT_FILES (relative to PROJECT_ROOT)
-if [[ ${#CONTEXT_FILES[@]} -gt 0 ]]; then
-    echo "  Adding explicit files from config..."
-    resolved_files=()
-    for file in "${CONTEXT_FILES[@]}"; do
-        resolved_file="$PROJECT_ROOT/$file"
-        if [[ ! -f "$resolved_file" ]]; then
-            echo "Error: Context file not found: $file (resolved: $resolved_file)"
-            exit 1
-        fi
-        resolved_files+=("$resolved_file")
-    done
-    filecat "${resolved_files[@]}" >> "$CONTEXT_PROMPT_FILE"
-fi
-
-# Add explicit files from CLI --context-file (relative to PWD)
-if [[ ${#CLI_CONTEXT_FILES[@]} -gt 0 ]]; then
-    echo "  Adding explicit files from CLI..."
-    validated_files=()
-    for file in "${CLI_CONTEXT_FILES[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            echo "Error: Context file not found: $file"
-            exit 1
-        fi
-        validated_files+=("$file")
-    done
-    filecat "${validated_files[@]}" >> "$CONTEXT_PROMPT_FILE"
-fi
-
-# Check if any context was provided
-if [[ ! -s "$CONTEXT_PROMPT_FILE" ]]; then
-    echo "Warning: No context provided. Task will run without context."
-    echo "  Use --context-file, --context-pattern, or --depends-on to add context"
-fi
+aggregate_context "run" "$CONTEXT_PROMPT_FILE" "$PROJECT_ROOT"
 
 # =============================================================================
 # API Request Setup - Build Final Prompts
