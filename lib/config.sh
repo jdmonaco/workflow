@@ -35,6 +35,8 @@ extract_config() {
         echo "OUTPUT_FORMAT=${OUTPUT_FORMAT:-}"
         # Handle arrays - output space-separated
         echo "SYSTEM_PROMPTS=${SYSTEM_PROMPTS[*]:-}"
+        echo "INPUT_PATTERN=${INPUT_PATTERN:-}"
+        echo "INPUT_FILES=${INPUT_FILES[*]:-}"
         echo "CONTEXT_PATTERN=${CONTEXT_PATTERN:-}"
         echo "CONTEXT_FILES=${CONTEXT_FILES[*]:-}"
         echo "DEPENDS_ON=${DEPENDS_ON[*]:-}"

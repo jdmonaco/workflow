@@ -150,9 +150,21 @@ TASK_SKELETON_EOF
 #
 # Run 'workflow config <name>' to see current effective configuration.
 
-# Context aggregation methods (uncomment and configure as needed):
-# Note: Paths in CONTEXT_PATTERN and CONTEXT_FILES are relative to project root
+# Input and context aggregation methods (uncomment and configure as needed):
+# Note: Paths in INPUT_* and CONTEXT_* are relative to project root
 
+# INPUT: Primary documents to analyze (wrapped in <documents> tag)
+# Method 1: Glob pattern (single pattern, supports brace expansion)
+# INPUT_PATTERN="Data/*.csv"
+# INPUT_PATTERN="Data/{Experiment1,Experiment2}/*.json"
+
+# Method 2: Explicit file list
+# INPUT_FILES=(
+#     "Data/dataset1.json"
+#     "Data/dataset2.json"
+# )
+
+# CONTEXT: Supporting materials and references (wrapped in <context> tag)
 # Method 1: Glob pattern (single pattern, supports brace expansion)
 # CONTEXT_PATTERN="References/*.md"
 # CONTEXT_PATTERN="References/{Topic1,Topic2}/*.md"
@@ -163,7 +175,7 @@ TASK_SKELETON_EOF
 #     "References/doc2.md"
 # )
 
-# Method 3: Workflow dependencies
+# Method 3: Workflow dependencies (outputs from other workflows)
 # DEPENDS_ON=(
 #     "00-workshop-context"
 #     "01-outline-draft"
@@ -500,6 +512,8 @@ config_workflow() {
     load_project_config_tiers "$PROJECT_ROOT"
 
     # Tier 4: Workflow config
+    INPUT_PATTERN=""
+    INPUT_FILES_STR=""
     CONTEXT_PATTERN=""
     CONTEXT_FILES_STR=""
     DEPENDS_ON_STR=""
@@ -515,6 +529,12 @@ config_workflow() {
                 SYSTEM_PROMPTS)
                     SYSTEM_PROMPTS=($value)
                     CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="workflow"
+                    ;;
+                INPUT_PATTERN)
+                    INPUT_PATTERN="$value"
+                    ;;
+                INPUT_FILES)
+                    INPUT_FILES_STR="$value"
                     ;;
                 CONTEXT_PATTERN)
                     CONTEXT_PATTERN="$value"
@@ -544,9 +564,23 @@ config_workflow() {
     # Display effective configuration values with sources
     display_effective_config_values
 
-    # Display context sources if any are configured
+    # Display input and context sources if any are configured
+    local has_input_sources=false
+    local has_context_sources=false
+
+    # Check for input sources
+    if [[ -n "$INPUT_PATTERN" || -n "$INPUT_FILES_STR" ]]; then
+        has_input_sources=true
+        echo "Input Sources (primary documents to analyze):"
+        [[ -n "$INPUT_PATTERN" ]] && echo "  INPUT_PATTERN: $INPUT_PATTERN"
+        [[ -n "$INPUT_FILES_STR" ]] && echo "  INPUT_FILES: $INPUT_FILES_STR"
+        echo ""
+    fi
+
+    # Check for context sources
     if [[ -n "$CONTEXT_PATTERN" || -n "$CONTEXT_FILES_STR" || -n "$DEPENDS_ON_STR" ]]; then
-        echo "Context Sources:"
+        has_context_sources=true
+        echo "Context Sources (supporting materials and references):"
         [[ -n "$CONTEXT_PATTERN" ]] && echo "  CONTEXT_PATTERN: $CONTEXT_PATTERN"
         [[ -n "$CONTEXT_FILES_STR" ]] && echo "  CONTEXT_FILES: $CONTEXT_FILES_STR"
         [[ -n "$DEPENDS_ON_STR" ]] && echo "  DEPENDS_ON: $DEPENDS_ON_STR"

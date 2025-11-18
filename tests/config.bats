@@ -152,7 +152,7 @@ EOF
     run bash -c "bash '$WORKFLOW_SCRIPT' config test-workflow"
 
     assert_success
-    assert_output --partial "Context Sources:"
+    assert_output --partial "Context Sources (supporting materials and references):"
     assert_output --partial "CONTEXT_PATTERN: References/*.md"
     assert_output --partial "CONTEXT_FILES: data/file1.md data/file2.md"
     assert_output --partial "DEPENDS_ON: workflow-01"
@@ -164,7 +164,53 @@ EOF
     run bash -c "bash '$WORKFLOW_SCRIPT' config test-workflow"
 
     assert_success
-    refute_output --partial "Context Sources:"
+    refute_output --partial "Context Sources"
+}
+
+@test "config NAME: displays input sources" {
+    bash "$WORKFLOW_SCRIPT" new test-workflow > /dev/null 2>&1
+
+    # Configure input sources
+    cat >> .workflow/test-workflow/config <<'EOF'
+INPUT_PATTERN="Data/*.csv"
+INPUT_FILES=("data/dataset1.json" "data/dataset2.json")
+EOF
+
+    run bash -c "bash '$WORKFLOW_SCRIPT' config test-workflow"
+
+    assert_success
+    assert_output --partial "Input Sources (primary documents to analyze):"
+    assert_output --partial "INPUT_PATTERN: Data/*.csv"
+    assert_output --partial "INPUT_FILES: data/dataset1.json data/dataset2.json"
+}
+
+@test "config NAME: displays both input and context sources" {
+    bash "$WORKFLOW_SCRIPT" new test-workflow > /dev/null 2>&1
+
+    # Configure both input and context sources
+    cat >> .workflow/test-workflow/config <<'EOF'
+INPUT_PATTERN="Data/*.csv"
+CONTEXT_PATTERN="References/*.md"
+DEPENDS_ON=("workflow-01")
+EOF
+
+    run bash -c "bash '$WORKFLOW_SCRIPT' config test-workflow"
+
+    assert_success
+    assert_output --partial "Input Sources (primary documents to analyze):"
+    assert_output --partial "INPUT_PATTERN: Data/*.csv"
+    assert_output --partial "Context Sources (supporting materials and references):"
+    assert_output --partial "CONTEXT_PATTERN: References/*.md"
+    assert_output --partial "DEPENDS_ON: workflow-01"
+}
+
+@test "config NAME: no input section when no input sources configured" {
+    bash "$WORKFLOW_SCRIPT" new test-workflow > /dev/null 2>&1
+
+    run bash -c "bash '$WORKFLOW_SCRIPT' config test-workflow"
+
+    assert_success
+    refute_output --partial "Input Sources"
 }
 
 @test "config NAME: completes successfully when declining edit" {
