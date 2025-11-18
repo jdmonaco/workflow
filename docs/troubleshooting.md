@@ -372,7 +372,7 @@ nano .workflow/analysis/config
 
 ### Backups Not Created
 
-**Problem:** No `.backup.*` files
+**Problem:** No `-*.*` files
 
 **Solution:**
 
@@ -385,7 +385,7 @@ workflow run analysis
 # Second run: Creates backup
 workflow run analysis
 ls .workflow/analysis/output/
-# Now you'll see <name>.md.backup.TIMESTAMP
+# Now you'll see <name>-TIMESTAMP.md
 ```
 
 ## Global Config Issues

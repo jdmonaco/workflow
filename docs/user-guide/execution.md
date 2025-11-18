@@ -436,8 +436,8 @@ Each re-run creates timestamped backups:
 ```
 .workflow/analysis/output/
 ├── <name>.md                           # Latest
-├── <name>.md.backup.20241115_143022    # Previous
-└── <name>.md.backup.20241115_141530    # Older
+├── <name>-20241115143022.md    # Previous
+└── <name>-20241115141530.md    # Older
 ```
 
 ### Output Formats
@@ -519,7 +519,7 @@ workflow run draft --context-file outline.md --stream
 
 # Compare outputs
 diff .workflow/draft/output/<name>.md \
-     .workflow/draft/output/<name>.md.backup.*
+     .workflow/draft/output/<name>.md-*.*
 ```
 
 ### Progressive Refinement

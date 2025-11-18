@@ -513,14 +513,14 @@ Tone: Friendly but informative
 workflow run draft-v1 --stream
 ```
 
-Previous output is automatically backed up to `<name>.md.backup.TIMESTAMP`.
+Previous output is automatically backed up to `<name>-TIMESTAMP.md`.
 
 ### Compare Versions
 
 ```bash
 ls -lt .workflow/draft-v1/output/
 diff .workflow/draft-v1/output/<name>.md \
-     .workflow/draft-v1/output/<name>.md.backup.20241115_143022
+     .workflow/draft-v1/output/<name>-20241115143022.md
 ```
 
 ## Example 9: Research Pipeline
@@ -682,7 +682,7 @@ workflow edit workflow-name
 workflow run workflow-name --stream
 
 # Compare
-diff output/<name>.md output/<name>.md.backup.*
+diff output/<name>.md output/<name>.md-*.*
 ```
 
 ## Tips for Effective Workflows

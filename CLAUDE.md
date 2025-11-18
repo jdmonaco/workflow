@@ -54,7 +54,7 @@ project-root/
 │       ├── context/              # Optional context files
 │       └── output/
 │           ├── <name>.<format>
-│           └── <name>.<format>.backup.TIMESTAMP
+│           └── <name>-TIMESTAMP.<format>
 └── (project files...)
 ```
 
@@ -251,8 +251,9 @@ ln "$output_file" ".workflow/output/$workflow_name.$format"
 ```bash
 # Before overwriting
 if [[ -f "$output_file" ]]; then
-    timestamp=$(date +%Y%m%d_%H%M%S)
-    mv "$output_file" "$output_file.backup.$timestamp"
+    timestamp=$(date +%Y%m%d%H%M%S)
+    backup_file="${output_file%.*}-${timestamp}.${output_file##*.}"
+    mv "$output_file" "$backup_file"
 fi
 ```
 

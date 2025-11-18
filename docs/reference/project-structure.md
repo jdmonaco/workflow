@@ -25,8 +25,8 @@ my-project/
 │   │   ├── context/                     # Optional context files
 │   │   └── output/                      # Workflow outputs
 │   │       ├── <name>.md              # Latest output
-│   │       ├── <name>.md.backup.20241115_143022
-│   │       └── <name>.md.backup.20241115_141530
+│   │       ├── <name>-20241115143022.md
+│   │       └── <name>-20241115141530.md
 │   ├── 01-analysis/                     # Individual workflow
 │   │   ├── task.txt
 │   │   ├── config
@@ -231,7 +231,7 @@ Output directory for workflow responses.
 **Contents:**
 
 - `<name>.<format>` - Latest output
-- `<name>.<format>.backup.TIMESTAMP` - Previous versions
+- `<name>-TIMESTAMP.<format>` - Previous versions
 
 **Hardlink:** Also accessible at `.workflow/output/<name>.<format>`
 
@@ -319,7 +319,7 @@ Where `<format>` is determined by `OUTPUT_FORMAT` config or `--format-hint` flag
 
 Format: `<name>.<format>.backup.YYYYMMDD_HHMMSS`
 
-**Example:** `<name>.md.backup.20241115_143022`
+**Example:** `<name>-20241115143022.md`
 
 ## Path Resolution Rules
 
@@ -437,9 +437,9 @@ Each workflow run creates a timestamped backup:
 ```
 output/
 ├── <name>.md                        # Latest (e.g., 50 KB)
-├── <name>.md.backup.20241115_143022 # Previous (50 KB)
-├── <name>.md.backup.20241115_141530 # Older (48 KB)
-└── <name>.md.backup.20241115_135812 # Oldest (45 KB)
+├── <name>-20241115143022.md # Previous (50 KB)
+├── <name>-20241115141530.md # Older (48 KB)
+└── <name>-20241115135812.md # Oldest (45 KB)
 ```
 
 **Total:** 193 KB for 4 versions
@@ -475,7 +475,7 @@ chmod 644 .workflow/*/output/*
 
 ```bash
 # Remove backups older than 7 days
-find .workflow/*/output/ -name "*.backup.*" -mtime +7 -delete
+find .workflow/*/output/ -name "*-*.*" -mtime +7 -delete
 ```
 
 ### Remove Workflow

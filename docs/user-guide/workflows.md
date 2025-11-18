@@ -388,15 +388,15 @@ Outputs are saved in `.workflow/<name>/output/`:
 ```
 .workflow/analysis-01/output/
 ├── <name>.md                      # Latest output
-├── <name>.md.backup.20241115_143022  # Previous version
-└── <name>.md.backup.20241115_141530  # Older version
+├── <name>-20241115143022.md  # Previous version
+└── <name>-20241115141530.md  # Older version
 ```
 
 ### Automatic Backups
 
 Each time you re-run a workflow:
 
-- Previous output is renamed to `<name>.<ext>.backup.TIMESTAMP`
+- Previous output is renamed to `<name>-TIMESTAMP.<ext>`
 - New output is written to `<name>.<ext>`
 - All backups are preserved
 
@@ -425,7 +425,7 @@ ls -lt .workflow/analysis-01/output/
 
 # Compare versions
 diff .workflow/analysis-01/output/<name>.md \
-     .workflow/analysis-01/output/<name>.md.backup.20241115_143022
+     .workflow/analysis-01/output/<name>-20241115143022.md
 ```
 
 ## Deleting Workflows

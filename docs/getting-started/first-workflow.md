@@ -311,7 +311,7 @@ workflow run 02-generate-docs \
   --stream
 ```
 
-The previous output is automatically saved as `<name>.md.backup.TIMESTAMP`.
+The previous output is automatically saved as `<name>-TIMESTAMP.md`.
 
 ### View Output History
 
@@ -323,7 +323,7 @@ ls -lt .workflow/02-generate-docs/output/
 
 ```bash
 diff .workflow/02-generate-docs/output/<name>.md \
-     .workflow/02-generate-docs/output/<name>.md.backup.20241115_143022
+     .workflow/02-generate-docs/output/<name>-20241115143022.md
 ```
 
 ## Advanced Techniques
