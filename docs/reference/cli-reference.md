@@ -603,9 +603,9 @@ Executes workflow by:
 
 | Location | Description |
 |----------|-------------|
-| `.workflow/<name>/output/<name>.<format>` | Primary output location |
+| `.workflow/<name>/output.<format>` | Primary output location |
 | `.workflow/output/<name>.<format>` | Hardlinked copy |
-| `.workflow/<name>/output/<name>-TIMESTAMP.<format>` | Previous versions |
+| `.workflow/<name>/output-TIMESTAMP.<format>` | Previous versions |
 
 Previous outputs are automatically backed up with timestamps.
 

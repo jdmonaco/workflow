@@ -147,7 +147,7 @@ Format: `<name>.<format>`
 ### Location
 
 ```
-.workflow/<name>/output/<name>.<format>
+.workflow/<name>/output.<format>
 ```
 
 Also hardlinked to:

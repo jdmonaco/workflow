@@ -47,14 +47,13 @@ project-root/
 │   │   ├── system.txt            # Cached system prompt
 │   │   └── project.txt           # Cached nested project descriptions
 │   ├── output/                   # Hardlinks to workflow outputs
-│   │   └── <name>.<format>       # → ../<name>/output/<name>.<format>
+│   │   └── <name>.<format>       # → ../<name>/output.<format>
 │   └── <name>/                   # Individual workflows
 │       ├── config                # Workflow configuration
 │       ├── task.txt              # Task prompt
 │       ├── context/              # Optional context files
-│       └── output/
-│           ├── <name>.<format>
-│           └── <name>-TIMESTAMP.<format>
+│       ├── output.<format>       # Primary output
+│       └── output-TIMESTAMP.<format>  # Backup outputs
 └── (project files...)
 ```
 

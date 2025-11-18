@@ -127,7 +127,7 @@ Hardlink directory for quick access to workflow outputs.
 
 **Created by:** First workflow run
 
-**Contents:** Hardlinks to `.workflow/<name>/output/<name>.<format>`
+**Contents:** Hardlinks to `.workflow/<name>/output.<format>`
 
 **Purpose:**
 
@@ -425,7 +425,7 @@ research-project/
 
 Output hardlinks do **not** duplicate data:
 
-- `.workflow/<name>/output/<name>.md`
+- `.workflow/<name>/output.md`
 - `.workflow/output/<name>.md`
 
 Both files are **hardlinks** pointing to the same data on disk.

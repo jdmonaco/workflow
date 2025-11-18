@@ -418,7 +418,7 @@ Outputs are saved in two places:
 **Primary location:**
 
 ```
-.workflow/<name>/output/<name>.<format>
+.workflow/<name>/output.<format>
 ```
 
 **Hardlinked copy:**
