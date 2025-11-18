@@ -8,10 +8,10 @@ System prompts are XML-formatted text files that define Claude's behavior, role,
 
 ### Why Use System Prompts?
 
-✅ **Consistency** - Same behavior across all workflows
-✅ **Reusability** - Define once, use everywhere
-✅ **Modularity** - Combine multiple prompts
-✅ **Specialization** - Domain-specific expertise
+- ✅ **Consistency** - Same behavior across all workflows
+- ✅ **Reusability** - Define once, use everywhere
+- ✅ **Modularity** - Combine multiple prompts
+- ✅ **Specialization** - Domain-specific expertise
 
 ## System Prompt Structure
 

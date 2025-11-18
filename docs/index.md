@@ -8,7 +8,7 @@ Workflow is a text-configurable, bash-based tool for building and managing AI wo
 
 - 🎯 **Git-like Structure:** Uses `.workflow/` directories with automatic project root discovery, allowing you to run workflow commands from anywhere within your project tree.
 
-- 🔧 **Flexible Configuration:** Four-tier cascade system (global → project → workflow → CLI overrides) with pass-through inheritance, enabling centralized defaults with granular customization where needed.
+- 🔧 **Flexible Configuration:** Multi-tier cascade with pass-through inheritance (global → ancestors → project → workflow → CLI), enabling centralized defaults with granular overrides.
 
 - 🔗 **Workflow Dependencies:** Chain workflows together with `--depends-on` for sequential processing, automatically passing outputs as context to dependent workflows.
 

@@ -1,19 +1,21 @@
 # Configuration Guide
 
-Master the four-tier configuration cascade system that makes Workflow flexible and powerful.
+Master the multi-tier configuration cascade system that makes Workflow flexible and powerful.
 
 ## Configuration Overview
 
-Workflow uses a **four-tier cascade** where each level can override the previous:
+Workflow uses a **multi-tier cascade** where each level can override the previous:
 
 ```
 1. Global Config (~/.config/workflow/config)
         ↓
-2. Project Config (.workflow/config)
+2. Ancestor Projects (grandparent → parent)
         ↓
-3. Workflow Config (.workflow/<name>/config)
+3. Project Config (.workflow/config)
         ↓
-4. CLI Flags (--model, --temperature, etc.)
+4. Workflow Config (.workflow/<name>/config)
+        ↓
+5. CLI Flags (--model, --temperature, etc.)
 ```
 
 Lower tiers override higher tiers. **Empty values pass through** to inherit from above.
@@ -37,9 +39,9 @@ This makes the tool self-contained and ready to use immediately.
 
 ```bash
 # Global Workflow Configuration
-MODEL="claude-3-5-sonnet-20241022"
+MODEL="claude-sonnet-4-5"
 TEMPERATURE=1.0
-MAX_TOKENS=8192
+MAX_TOKENS=4096
 OUTPUT_FORMAT="md"
 SYSTEM_PROMPTS=(base)
 
@@ -139,6 +141,61 @@ Or directly:
 ```bash
 nano .workflow/config
 ```
+
+## Nested Projects and Ancestor Cascade
+
+### Overview
+
+You can initialize workflow projects inside other workflow projects, creating a hierarchy where nested projects automatically inherit configuration from all ancestor projects.
+
+### How It Works
+
+When you initialize a project inside an existing workflow project:
+
+```bash
+cd ~/projects/research
+workflow init .                    # Parent project
+
+cd data-analysis
+workflow init .                    # Nested project
+```
+
+The nested project inherits configuration from the full cascade:
+
+```
+Global config
+    ↓
+Parent project(s) config
+    ↓
+Current project config
+```
+
+### Viewing Effective Configuration
+
+Use `workflow config` to see which ancestor set each value:
+
+```bash
+workflow config
+```
+
+Output shows:
+```
+Configuration Cascade:
+  Global:   ~/.config/workflow/config
+  Ancestor: ~/projects/research/.workflow/config
+  Project:  ~/projects/research/data-analysis/.workflow/config
+
+Effective Configuration:
+  MODEL: claude-opus-4 (ancestor:projects/research)
+  TEMPERATURE: 0.5 (project)
+  ...
+```
+
+### Use Cases
+
+- **Monorepo organization:** Separate workflows for different subprojects
+- **Hierarchical defaults:** Set model/prompts at project level, override in subprojects
+- **Shared context:** Parent project.txt automatically included in nested projects
 
 ## Workflow Configuration
 
