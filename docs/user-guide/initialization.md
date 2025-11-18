@@ -279,7 +279,7 @@ Shows current project configuration values.
 
 ### Project Organization
 
-- ✅ **Do:**
+✅ **Do:**
 
 - One `.workflow/` per logical project
 - Use descriptive project names
