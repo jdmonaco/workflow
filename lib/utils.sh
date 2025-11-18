@@ -46,31 +46,80 @@ sanitize() {
     echo "$sanitized"
 }
 
-# File concatenation with XML-like tag encapsulation
-filecat() {
+# Document aggregation with metadata for INPUT files
+# Primary documents to be analyzed or transformed
+# Outputs XML structure with document index and source path
+documentcat() {
     # Input files are required
     if [ $# -eq 0 ]; then
-        echo "Usage: filecat file1 [file2 ...]" >&2
-        return 1;
+        echo "Usage: documentcat file1 [file2 ...]" >&2
+        return 1
     fi
 
-    local sanitized
+    local index=1
     for file in "$@"; do
         if [[ -f "$file" ]]; then
-            # Opening tag, with sanitized identifier based on the filename
-            sanitized="$(sanitize "$file")"
-            printf "<%s>\n" "$sanitized"
+            # Resolve to absolute path
+            local abs_path
+            abs_path=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
 
-            # Add the file contents
+            # Document with index and metadata
+            printf "  <document index=\"%d\">\n" "$index"
+            printf "    <source>%s</source>\n" "$abs_path"
+            printf "    <document_content>\n"
+
+            # Add file contents (no indentation)
             cat "$file"
 
-            # Ensure newline before closing tag if file doesn't end with one
-            [[ -n $(tail -c 1 "$file") ]] && printf "\n"
+            # Ensure newline before closing tag
+            [[ -n $(tail -c 1 "$file" 2>/dev/null) ]] && printf "\n"
 
-            # Closing tag
-            printf "</%s>\n" "$sanitized"
+            printf "    </document_content>\n"
+            printf "  </document>\n"
+            printf "\n"
+
+            ((index++))
         fi
     done
+}
+
+# Context aggregation with metadata for CONTEXT files
+# Supporting information and background
+# Outputs XML structure with source path
+contextcat() {
+    # Input files are required
+    if [ $# -eq 0 ]; then
+        echo "Usage: contextcat file1 [file2 ...]" >&2
+        return 1
+    fi
+
+    for file in "$@"; do
+        if [[ -f "$file" ]]; then
+            # Resolve to absolute path
+            local abs_path
+            abs_path=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
+
+            # Context file with metadata
+            printf "  <context-file>\n"
+            printf "    <source>%s</source>\n" "$abs_path"
+            printf "    <context_content>\n"
+
+            # Add file contents (no indentation)
+            cat "$file"
+
+            # Ensure newline before closing tag
+            [[ -n $(tail -c 1 "$file" 2>/dev/null) ]] && printf "\n"
+
+            printf "    </context_content>\n"
+            printf "  </context-file>\n"
+            printf "\n"
+        fi
+    done
+}
+
+# Legacy function for backward compatibility (uses contextcat)
+filecat() {
+    contextcat "$@"
 }
 
 # =============================================================================

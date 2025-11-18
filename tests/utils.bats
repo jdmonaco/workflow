@@ -106,40 +106,140 @@ teardown() {
 # filecat() Function Tests
 # =============================================================================
 
-@test "filecat: concatenates single file with XML tags" {
+@test "documentcat: creates document with index and metadata" {
+    echo "Test document content" > doc.txt
+
+    run documentcat doc.txt
+
+    assert_success
+    assert_output --partial '<document index="1">'
+    assert_output --partial '<source>'
+    assert_output --partial 'doc.txt</source>'
+    assert_output --partial '<document_content>'
+    assert_output --partial 'Test document content'
+    assert_output --partial '</document_content>'
+    assert_output --partial '</document>'
+}
+
+@test "documentcat: multiple documents have sequential indices" {
+    echo "Doc 1" > file1.txt
+    echo "Doc 2" > file2.txt
+
+    run documentcat file1.txt file2.txt
+
+    assert_success
+    assert_output --partial '<document index="1">'
+    assert_output --partial 'Doc 1'
+    assert_output --partial '<document index="2">'
+    assert_output --partial 'Doc 2'
+}
+
+@test "documentcat: includes absolute path in source" {
+    echo "Content" > test.txt
+
+    run documentcat test.txt
+
+    assert_success
+    # Should contain full absolute path
+    assert_output --regexp '<source>/.*test\.txt</source>'
+}
+
+@test "documentcat: has proper indentation" {
+    echo "Content" > test.txt
+
+    run documentcat test.txt
+
+    assert_success
+    # Document tag at 2-space indent
+    assert_output --partial '  <document index='
+    # Source/content tags at 4-space indent
+    assert_output --partial '    <source>'
+    assert_output --partial '    <document_content>'
+}
+
+@test "documentcat: has empty lines between documents" {
+    echo "Doc 1" > file1.txt
+    echo "Doc 2" > file2.txt
+
+    run documentcat file1.txt file2.txt
+
+    assert_success
+    # Output should contain empty line between closing and opening tags
+    assert_output --regexp '</document>\n\n  <document'
+}
+
+@test "contextcat: creates context-file with metadata" {
+    echo "Context content" > context.txt
+
+    run contextcat context.txt
+
+    assert_success
+    assert_output --partial '<context-file>'
+    assert_output --partial '<source>'
+    assert_output --partial 'context.txt</source>'
+    assert_output --partial '<context_content>'
+    assert_output --partial 'Context content'
+    assert_output --partial '</context_content>'
+    assert_output --partial '</context-file>'
+}
+
+@test "contextcat: includes absolute path in source" {
+    echo "Content" > test.txt
+
+    run contextcat test.txt
+
+    assert_success
+    # Should contain full absolute path
+    assert_output --regexp '<source>/.*test\.txt</source>'
+}
+
+@test "contextcat: has proper indentation" {
+    echo "Content" > test.txt
+
+    run contextcat test.txt
+
+    assert_success
+    # Context-file tag at 2-space indent
+    assert_output --partial '  <context-file>'
+    # Source/content tags at 4-space indent
+    assert_output --partial '    <source>'
+    assert_output --partial '    <context_content>'
+}
+
+@test "contextcat: has empty lines between files" {
+    echo "File 1" > file1.txt
+    echo "File 2" > file2.txt
+
+    run contextcat file1.txt file2.txt
+
+    assert_success
+    # Output should contain empty line between closing and opening tags
+    assert_output --regexp '</context-file>\n\n  <context-file>'
+}
+
+@test "filecat: uses contextcat format (backward compatibility)" {
     echo "Test content" > test.txt
 
     run filecat test.txt
 
     assert_success
-    assert_line --index 0 "<test>"
-    assert_line --index 1 "Test content"
-    assert_line --index 2 "</test>"
+    # Should use new contextcat format
+    assert_output --partial '<context-file>'
+    assert_output --partial 'Test content'
+    assert_output --partial '</context-file>'
 }
 
-@test "filecat: concatenates multiple files with tags" {
+@test "filecat: concatenates multiple files" {
     echo "Content 1" > file1.txt
     echo "Content 2" > file2.txt
 
     run filecat file1.txt file2.txt
 
     assert_success
-    assert_output --partial "<file1>"
     assert_output --partial "Content 1"
-    assert_output --partial "</file1>"
-    assert_output --partial "<file2>"
     assert_output --partial "Content 2"
-    assert_output --partial "</file2>"
-}
-
-@test "filecat: sanitizes filenames in tags" {
-    echo "Test content" > "Test File.txt"
-
-    run filecat "Test File.txt"
-
-    assert_success
-    assert_output --partial "<test-file>"
-    assert_output --partial "</test-file>"
+    # Uses contextcat format
+    assert_output --partial "<context-file>"
 }
 
 @test "filecat: handles files without trailing newline" {
@@ -149,9 +249,8 @@ teardown() {
     run filecat test.txt
 
     assert_success
-    assert_output --partial "<test>"
     assert_output --partial "No newline"
-    assert_output --partial "</test>"
+    assert_output --partial "<context-file>"
 }
 
 @test "filecat: skips nonexistent files silently" {
@@ -161,8 +260,8 @@ teardown() {
     run filecat exists.txt nonexistent.txt
 
     assert_success
-    assert_output --partial "<exists>"
-    refute_output --partial "<nonexistent>"
+    assert_output --partial "Content"
+    assert_output --partial "<context-file>"
 }
 
 @test "filecat: requires at least one argument" {
@@ -178,8 +277,7 @@ teardown() {
     run filecat empty.txt
 
     assert_success
-    assert_output --partial "<empty>"
-    assert_output --partial "</empty>"
+    assert_output --partial "<context-file>"
 }
 
 @test "filecat: preserves file content exactly" {
