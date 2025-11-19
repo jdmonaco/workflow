@@ -541,9 +541,14 @@ build_and_track_document_block() {
 
     # Handle image files separately
     if [[ "$file_type" == "image" ]]; then
+        echo "    Processing image: $(basename "$file")" >&2
+
         # Build image content block (Vision API)
         local block
-        block=$(build_image_content_block "$file" "$project_root" "$workflow_dir")
+        if ! block=$(build_image_content_block "$file" "$project_root" "$workflow_dir" 2>&1); then
+            echo "    Warning: Failed to process image: $file" >&2
+            return 1
+        fi
 
         # Add to IMAGE_BLOCKS array (images are separate, not in context/input)
         IMAGE_BLOCKS+=("$block")

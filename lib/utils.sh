@@ -555,10 +555,11 @@ cache_image() {
 
     # Calculate relative path from project root
     local rel_path
-    if [[ "$source_file" == "$project_root"/* ]]; then
+    if [[ -n "$project_root" && "$source_file" == "$project_root"/* ]]; then
+        # File is within project, preserve relative path
         rel_path="${source_file#$project_root/}"
     else
-        # File outside project, use basename in cache
+        # File outside project (or no project), use basename in cache
         rel_path="external/$(basename "$source_file")"
     fi
 
@@ -608,14 +609,18 @@ build_image_content_block() {
     local project_root="$2"
     local workflow_dir="$3"
 
+    # Get absolute path
+    local abs_path
+    abs_path=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
+
     # Validate image
-    if ! validate_image_file "$file"; then
+    if ! validate_image_file "$abs_path"; then
         return 1
     fi
 
     # Cache and potentially resize image
     local image_file
-    image_file=$(cache_image "$file" "$project_root" "$workflow_dir")
+    image_file=$(cache_image "$abs_path" "$project_root" "$workflow_dir")
 
     # Get media type
     local media_type
