@@ -626,17 +626,19 @@ build_image_content_block() {
     local media_type
     media_type=$(get_image_media_type "$image_file")
 
-    # Base64 encode image
-    local base64_data
-    base64_data=$(base64 < "$image_file" | tr -d '\n')
+    # Base64 encode image and save to temp file to avoid jq argument issues
+    local temp_b64=$(mktemp)
+    base64 < "$image_file" | tr -d '\n' > "$temp_b64"
 
     # Build image content block (Vision API format)
     # Note: No cache_control for images, no citations, no document index
-    jq -n \
+    # Use --rawfile to read base64 data from file (handles large strings)
+    local result
+    result=$(jq -n \
         --arg type "image" \
         --arg source_type "base64" \
         --arg media_type "$media_type" \
-        --arg data "$base64_data" \
+        --rawfile data "$temp_b64" \
         '{
             type: $type,
             source: {
@@ -644,7 +646,12 @@ build_image_content_block() {
                 media_type: $media_type,
                 data: $data
             }
-        }'
+        }')
+
+    # Clean up temp file
+    rm -f "$temp_b64"
+
+    echo "$result"
 }
 
 # Build a content block from a file (document or text type)
