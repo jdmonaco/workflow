@@ -45,13 +45,13 @@ anthropic_validate() {
 #
 # Args:
 #   All arguments are key=value pairs:
-#   api_key=...        - Anthropic API key
-#   model=...          - Model name (e.g., "claude-sonnet-4-5")
-#   max_tokens=...     - Maximum tokens to generate
-#   temperature=...    - Temperature (0.0-1.0)
-#   system_prompt=...  - JSON-escaped system prompt
-#   user_prompt=...    - JSON-escaped user prompt
-#   output_file=...    - Path to write response
+#   api_key=...              - Anthropic API key
+#   model=...                - Model name (e.g., "claude-sonnet-4-5")
+#   max_tokens=...           - Maximum tokens to generate
+#   temperature=...          - Temperature (0.0-1.0)
+#   system_blocks_file=...   - Path to file containing JSON array of system content blocks
+#   user_blocks_file=...     - Path to file containing JSON array of user content blocks
+#   output_file=...          - Path to write response
 #
 # Returns:
 #   0 - Success (response written to output_file)
@@ -70,23 +70,33 @@ anthropic_execute_single() {
         shift
     done
 
-    # Build JSON payload
+    # Read JSON from files
+    local system_blocks
+    local user_blocks
+    system_blocks=$(<"${params[system_blocks_file]}")
+    user_blocks=$(<"${params[user_blocks_file]}")
+
+    # Build JSON payload with content blocks
     local json_payload
-    json_payload=$(cat <<EOF
-{
-  "model": "${params[model]}",
-  "max_tokens": ${params[max_tokens]},
-  "temperature": ${params[temperature]},
-  "system": ${params[system_prompt]},
-  "messages": [
-    {
-      "role": "user",
-      "content": ${params[user_prompt]}
-    }
-  ]
-}
-EOF
-)
+    json_payload=$(jq -n \
+        --arg model "${params[model]}" \
+        --argjson max_tokens "${params[max_tokens]}" \
+        --argjson temperature "${params[temperature]}" \
+        --argjson system "$system_blocks" \
+        --argjson user_content "$user_blocks" \
+        '{
+            model: $model,
+            max_tokens: $max_tokens,
+            temperature: $temperature,
+            system: $system,
+            messages: [
+                {
+                    role: "user",
+                    content: $user_content
+                }
+            ]
+        }'
+    )
 
     # Execute request
     echo -n "Sending Messages API request... "
@@ -122,7 +132,7 @@ EOF
 # Args:
 #   All arguments are key=value pairs (same as anthropic_execute_single):
 #   api_key, model, max_tokens, temperature
-#   system_prompt, user_prompt, output_file
+#   system_blocks_file, user_blocks_file, output_file
 #
 # Returns:
 #   0 - Success (response written to output_file)
@@ -141,23 +151,33 @@ anthropic_execute_stream() {
         shift
     done
 
-    # Build JSON payload
+    # Read JSON from files
+    local system_blocks
+    local user_blocks
+    system_blocks=$(<"${params[system_blocks_file]}")
+    user_blocks=$(<"${params[user_blocks_file]}")
+
+    # Build JSON payload with content blocks
     local json_payload
-    json_payload=$(cat <<EOF
-{
-  "model": "${params[model]}",
-  "max_tokens": ${params[max_tokens]},
-  "temperature": ${params[temperature]},
-  "system": ${params[system_prompt]},
-  "messages": [
-    {
-      "role": "user",
-      "content": ${params[user_prompt]}
-    }
-  ]
-}
-EOF
-)
+    json_payload=$(jq -n \
+        --arg model "${params[model]}" \
+        --argjson max_tokens "${params[max_tokens]}" \
+        --argjson temperature "${params[temperature]}" \
+        --argjson system "$system_blocks" \
+        --argjson user_content "$user_blocks" \
+        '{
+            model: $model,
+            max_tokens: $max_tokens,
+            temperature: $temperature,
+            system: $system,
+            messages: [
+                {
+                    role: "user",
+                    content: $user_content
+                }
+            ]
+        }'
+    )
 
     # Add streaming flag to payload
     json_payload=$(echo "$json_payload" | jq '. + {stream: true}')
@@ -225,5 +245,73 @@ EOF
     echo ""
     echo "---"
 
+    return 0
+}
+
+# Count tokens using Anthropic's count_tokens API endpoint
+# Returns exact token counts for system and user messages
+#
+# Args:
+#   All arguments are key=value pairs:
+#   api_key=...              - Anthropic API key
+#   model=...                - Model name
+#   system_blocks_file=...   - Path to file containing JSON array of system content blocks
+#   user_blocks_file=...     - Path to file containing JSON array of user content blocks
+#
+# Returns:
+#   0 - Success (outputs JSON with token counts)
+#   1 - API error or network failure
+#
+# Outputs to stdout:
+#   JSON object with: {input_tokens: N}
+anthropic_count_tokens() {
+    # Parse key=value arguments into associative array
+    local -A params
+    while [[ $# -gt 0 ]]; do
+        IFS='=' read -r key value <<< "$1"
+        params["$key"]="$value"
+        shift
+    done
+
+    # Build JSON payload (same structure as Messages API)
+    # Read JSON from files
+    local system_blocks
+    local user_blocks
+    system_blocks=$(<"${params[system_blocks_file]}")
+    user_blocks=$(<"${params[user_blocks_file]}")
+
+    local json_payload
+    json_payload=$(jq -n \
+        --arg model "${params[model]}" \
+        --argjson system "$system_blocks" \
+        --argjson user_content "$user_blocks" \
+        '{
+            model: $model,
+            system: $system,
+            messages: [
+                {
+                    role: "user",
+                    content: $user_content
+                }
+            ]
+        }')
+
+    # Call count_tokens endpoint
+    local response
+    response=$(curl -s https://api.anthropic.com/v1/messages/count_tokens \
+        -H "content-type: application/json" \
+        -H "x-api-key: ${params[api_key]}" \
+        -H "anthropic-version: 2023-06-01" \
+        -d "$json_payload")
+
+    # Check for errors
+    if echo "$response" | jq -e '.error' > /dev/null 2>&1; then
+        echo "Token counting API Error:" >&2
+        echo "$response" | jq '.error' >&2
+        return 1
+    fi
+
+    # Output token count result
+    echo "$response"
     return 0
 }

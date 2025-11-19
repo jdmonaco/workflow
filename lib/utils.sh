@@ -292,3 +292,123 @@ escape_json() {
     local string="$1"
     printf '%s' "$string" | jq -Rs .
 }
+
+# =============================================================================
+# Content Block Builders (for Anthropic Messages API)
+# =============================================================================
+
+# Detect file type (text vs document/PDF)
+# Arguments:
+#   $1 - File path
+# Returns:
+#   "text" for text files (default)
+#   "document" for PDFs and images (future support)
+detect_file_type() {
+    local file="$1"
+    local extension="${file##*.}"
+
+    # Convert to lowercase
+    extension="${extension,,}"
+
+    # Check for document types (future support)
+    case "$extension" in
+        pdf)
+            echo "document"
+            ;;
+        png|jpg|jpeg|gif|webp)
+            echo "document"
+            ;;
+        *)
+            echo "text"
+            ;;
+    esac
+}
+
+# Build a text content block from a file
+# Arguments:
+#   $1 - File path (required)
+#   $2 - Type string: "context", "dependency", "input", or empty (optional)
+#   $3 - Additional metadata key (optional, e.g., "workflow")
+#   $4 - Additional metadata value (optional)
+# Returns:
+#   JSON content block object with metadata embedded as XML in text
+build_text_content_block() {
+    local file="$1"
+    local block_type="${2:-}"
+    local meta_key="${3:-}"
+    local meta_value="${4:-}"
+
+    if [[ ! -f "$file" ]]; then
+        echo "{}" >&2
+        return 1
+    fi
+
+    # Get absolute path
+    local abs_path
+    abs_path=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
+
+    # Read file content
+    local content
+    content=$(cat "$file")
+
+    # Build metadata XML header
+    local metadata_xml=""
+    if [[ -n "$block_type" && -n "$meta_key" && -n "$meta_value" ]]; then
+        # Has type and additional metadata
+        metadata_xml="<metadata type=\"$block_type\" $meta_key=\"$meta_value\" source=\"$abs_path\"></metadata>\n\n"
+    elif [[ -n "$block_type" ]]; then
+        # Has type only
+        metadata_xml="<metadata type=\"$block_type\" source=\"$abs_path\"></metadata>\n\n"
+    else
+        # No type, just source
+        metadata_xml="<metadata source=\"$abs_path\"></metadata>\n\n"
+    fi
+
+    # Combine metadata XML header with content
+    local full_text="${metadata_xml}${content}"
+
+    # Build JSON block with just type and text (no separate metadata field)
+    jq -n \
+        --arg type "text" \
+        --arg text "$full_text" \
+        '{
+            type: $type,
+            text: $text
+        }'
+}
+
+# Build a document content block (placeholder for future PDF support)
+# Arguments:
+#   $1 - File path
+#   $2 - Optional metadata (JSON object string)
+# Returns:
+#   JSON content block object
+build_document_content_block() {
+    local file="$1"
+    local metadata="${2:-{}}"
+
+    if [[ ! -f "$file" ]]; then
+        echo "{}" >&2
+        return 1
+    fi
+
+    # Get absolute path
+    local abs_path
+    abs_path=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
+
+    # For now, return error for non-text files
+    # Future: implement base64 encoding for PDFs/images
+    echo "Error: Document/PDF support not yet implemented" >&2
+
+    # Return placeholder structure
+    jq -n \
+        --arg type "document" \
+        --arg source "$abs_path" \
+        --argjson metadata "$metadata" \
+        '{
+            type: $type,
+            source: $source,
+            metadata: ($metadata + {source: $source}),
+            error: "Document support not yet implemented"
+        }'
+}

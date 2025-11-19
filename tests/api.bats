@@ -26,6 +26,22 @@ teardown() {
     cleanup_test_env
 }
 
+# Helper function to create test content blocks files
+create_test_blocks() {
+    local system_text="$1"
+    local user_text="$2"
+    local system_file="$TEST_TEMP_DIR/system_blocks.json"
+    local user_file="$TEST_TEMP_DIR/user_blocks.json"
+
+    # Create simple single-block arrays
+    echo "[{\"type\":\"text\",\"text\":\"$system_text\"}]" > "$system_file"
+    echo "[{\"type\":\"text\",\"text\":\"$user_text\"}]" > "$user_file"
+
+    # Return file paths via global variables
+    TEST_SYSTEM_FILE="$system_file"
+    TEST_USER_FILE="$user_file"
+}
+
 # =============================================================================
 # anthropic_validate() Tests
 # =============================================================================
@@ -124,16 +140,17 @@ teardown() {
     export -f curl
 
     local output_file="$TEST_TEMP_DIR/output.md"
-    local system_json=$(escape_json "Test system")
-    local user_json=$(escape_json "Test user")
+
+    # Create test content blocks
+    create_test_blocks "Test system" "Test user"
 
     anthropic_execute_single \
         api_key="sk-ant-test" \
         model="claude-sonnet-4-5" \
         max_tokens=8192 \
         temperature=0.7 \
-        system_prompt="$system_json" \
-        user_prompt="$user_json" \
+        system_blocks_file="$TEST_SYSTEM_FILE" \
+        user_blocks_file="$TEST_USER_FILE" \
         output_file="$output_file"
 
     # Check payload was constructed correctly
@@ -226,16 +243,17 @@ EOF
     mock_curl_streaming
 
     local output_file="$TEST_TEMP_DIR/output.md"
-    local system_json=$(escape_json "System")
-    local user_json=$(escape_json "User")
+
+    # Create test content blocks
+    create_test_blocks "System" "User"
 
     anthropic_execute_stream \
         api_key="sk-ant-test" \
         model="claude-test" \
         max_tokens=100 \
         temperature=1.0 \
-        system_prompt="$system_json" \
-        user_prompt="$user_json" \
+        system_blocks_file="$TEST_SYSTEM_FILE" \
+        user_blocks_file="$TEST_USER_FILE" \
         output_file="$output_file" > /dev/null
 
     # Output file should contain streamed content
@@ -283,8 +301,9 @@ EOF
 @test "API: single mode produces same output as stream mode" {
     local output_single="$TEST_TEMP_DIR/output_single.md"
     local output_stream="$TEST_TEMP_DIR/output_stream.md"
-    local system_json=$(escape_json "System")
-    local user_json=$(escape_json "User")
+
+    # Create test content blocks
+    create_test_blocks "System" "User"
 
     # Execute in single mode
     mock_curl_success
@@ -293,8 +312,8 @@ EOF
         model="claude-test" \
         max_tokens=100 \
         temperature=1.0 \
-        system_prompt="$system_json" \
-        user_prompt="$user_json" \
+        system_blocks_file="$TEST_SYSTEM_FILE" \
+        user_blocks_file="$TEST_USER_FILE" \
         output_file="$output_single" > /dev/null
 
     # Execute in stream mode
@@ -304,8 +323,8 @@ EOF
         model="claude-test" \
         max_tokens=100 \
         temperature=1.0 \
-        system_prompt="$system_json" \
-        user_prompt="$user_json" \
+        system_blocks_file="$TEST_SYSTEM_FILE" \
+        user_blocks_file="$TEST_USER_FILE" \
         output_file="$output_stream" > /dev/null
 
     # Both should produce output files

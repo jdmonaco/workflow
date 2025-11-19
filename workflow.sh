@@ -403,13 +403,25 @@ fi
 # Run Mode - Setup Paths
 # =============================================================================
 
-# File paths (all relative to PROJECT_ROOT/.workflow/)
+# File paths - XML text files for debugging (relative to PROJECT_ROOT/.workflow/)
 TASK_PROMPT_FILE="$WORKFLOW_DIR/task.txt"
 INPUT_PROMPT_FILE="$WORKFLOW_DIR/input.txt"
 CONTEXT_PROMPT_FILE="$WORKFLOW_DIR/context.txt"
+
+# File paths - JSON block files for API (relative to PROJECT_ROOT/.workflow/)
+JSON_BLOCKS_FILE="$WORKFLOW_DIR/content_blocks.json"
+JSON_REQUEST_FILE="$WORKFLOW_DIR/request.json"
+
+# File paths - Output and system
 OUTPUT_FILE="$WORKFLOW_DIR/output.${OUTPUT_FORMAT}"
 OUTPUT_LINK="$PROJECT_ROOT/.workflow/output/${WORKFLOW_NAME}.${OUTPUT_FORMAT}"
 SYSTEM_PROMPT_FILE="$PROJECT_ROOT/.workflow/prompts/system.txt"
+
+# Content blocks arrays for JSON building
+declare -a SYSTEM_BLOCKS
+declare -a CONTEXT_BLOCKS
+declare -a DEPENDENCY_BLOCKS
+declare -a INPUT_BLOCKS
 
 # Validate task file exists
 if [[ ! -f "$TASK_PROMPT_FILE" ]]; then

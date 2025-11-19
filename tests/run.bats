@@ -270,10 +270,23 @@ EOF
 # =============================================================================
 
 @test "run: count-tokens mode shows token estimation without API call" {
-    # Override curl to fail if called
+    # Mock curl to handle count_tokens endpoint but fail on Messages endpoint
     curl() {
-        echo "ERROR: curl should not be called" >&2
-        return 1
+        local url=""
+        while [[ $# -gt 0 ]]; do
+            if [[ "$1" =~ ^https:// ]]; then
+                url="$1"
+            fi
+            shift
+        done
+
+        # Allow count_tokens API, block Messages API
+        if [[ "$url" == *"/count_tokens" ]]; then
+            echo '{"input_tokens": 5000}'
+        elif [[ "$url" == *"/messages" ]]; then
+            echo "ERROR: Messages API should not be called in count-tokens mode" >&2
+            return 1
+        fi
     }
     export -f curl
 
@@ -282,7 +295,8 @@ EOF
     assert_success
     assert_output --partial "Estimated system tokens"
     assert_output --partial "Estimated task tokens"
-    assert_output --partial "Estimated total input tokens"
+    assert_output --partial "Estimated total input tokens (heuristic)"
+    assert_output --partial "Exact total input tokens (from API)"
 
     # No output file should be created
     [[ ! -f ".workflow/test-workflow/output.md" ]]
@@ -292,15 +306,21 @@ EOF
     run bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run
 
     assert_success
-    assert_output --partial "Dry-run mode: Prompts saved for inspection"
-    assert_output --partial "System prompt:"
-    assert_output --partial "User prompt:"
+    assert_output --partial "Dry-run mode: Prompts and JSON payload saved for inspection"
+    assert_output --partial "System prompt (XML):"
+    assert_output --partial "User prompt (XML):"
+    assert_output --partial "API request (JSON):"
+    assert_output --partial "Content blocks (JSON):"
     assert_output --partial "dry-run-system.txt"
     assert_output --partial "dry-run-user.txt"
+    assert_output --partial "dry-run-request.json"
+    assert_output --partial "dry-run-blocks.json"
 
     # Verify files were created
     assert_file_exists ".workflow/test-workflow/dry-run-system.txt"
     assert_file_exists ".workflow/test-workflow/dry-run-user.txt"
+    assert_file_exists ".workflow/test-workflow/dry-run-request.json"
+    assert_file_exists ".workflow/test-workflow/dry-run-blocks.json"
 
     # No output file should be created
     [[ ! -f ".workflow/test-workflow/output.md" ]]
@@ -616,7 +636,13 @@ INPUT_FILES=(
 )
 EOF
 
-    bash "$WORKFLOW_SCRIPT" run test-workflow
+    # Mock curl for count_tokens API (use --count-tokens to avoid full API call)
+    curl() {
+        echo '{"input_tokens": 1000}'
+    }
+    export -f curl
+
+    bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens
 
     # Check input file contains both documents with sequential indexing
     assert_file_exists ".workflow/test-workflow/input.txt"

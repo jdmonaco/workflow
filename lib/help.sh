@@ -66,38 +66,47 @@ EOF
 
 show_quick_help_init() {
     echo "Usage: $SCRIPT_NAME init [<directory>]"
+    echo "See '$SCRIPT_NAME help init' for complete usage details."
 }
 
 show_quick_help_new() {
     echo "Usage: $SCRIPT_NAME new <name>"
+    echo "See '$SCRIPT_NAME help new' for complete usage details."
 }
 
 show_quick_help_edit() {
     echo "Usage: $SCRIPT_NAME edit [<name>]"
+    echo "See '$SCRIPT_NAME help edit' for complete usage details."
 }
 
 show_quick_help_config() {
     echo "Usage: $SCRIPT_NAME config [<name>] [--edit]"
+    echo "See '$SCRIPT_NAME help config' for complete usage details."
 }
 
 show_quick_help_run() {
     echo "Usage: $SCRIPT_NAME run <name> [options]"
+    echo "See '$SCRIPT_NAME help run' for complete usage details."
 }
 
 show_quick_help_task() {
     echo "Usage: $SCRIPT_NAME task <name>|--inline <text> [options]"
+    echo "See '$SCRIPT_NAME help task' for complete usage details."
 }
 
 show_quick_help_cat() {
     echo "Usage: $SCRIPT_NAME cat <name>"
+    echo "See '$SCRIPT_NAME help cat' for complete usage details."
 }
 
 show_quick_help_open() {
     echo "Usage: $SCRIPT_NAME open <name>"
+    echo "See '$SCRIPT_NAME help open' for complete usage details."
 }
 
 show_quick_help_list() {
     echo "Usage: $SCRIPT_NAME list"
+    echo "See '$SCRIPT_NAME help list' for complete usage details."
 }
 
 # =============================================================================

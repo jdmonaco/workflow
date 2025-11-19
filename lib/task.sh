@@ -207,10 +207,22 @@ build_system_prompt "$SYSTEM_PROMPT_FILE" || exit 1
 # Task Mode - Context Aggregation
 # =============================================================================
 
-# Use temporary files for input and context
+# Use temporary files for XML text files (for debugging)
 INPUT_PROMPT_FILE=$(mktemp)
 CONTEXT_PROMPT_FILE=$(mktemp)
-trap "rm -f $INPUT_PROMPT_FILE $CONTEXT_PROMPT_FILE" EXIT
+
+# Use temporary files for JSON block files (for API)
+JSON_BLOCKS_FILE=$(mktemp)
+JSON_REQUEST_FILE=$(mktemp)
+
+# Clean up all temp files on exit
+trap "rm -f $INPUT_PROMPT_FILE $CONTEXT_PROMPT_FILE $JSON_BLOCKS_FILE $JSON_REQUEST_FILE" EXIT
+
+# Content blocks arrays for JSON building
+declare -a SYSTEM_BLOCKS
+declare -a CONTEXT_BLOCKS
+declare -a DEPENDENCY_BLOCKS
+declare -a INPUT_BLOCKS
 
 aggregate_context "task" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE" "$PROJECT_ROOT"
 

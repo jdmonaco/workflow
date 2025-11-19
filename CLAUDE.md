@@ -194,15 +194,20 @@ aggregate_nested_project_descriptions() {
 
 ### System Prompt Composition
 
+**Dual-track architecture:** Builds both XML text files (for debugging) and JSON content blocks (for API).
+
 **Build process (every run):**
 
 1. Load prompts from `$WORKFLOW_PROMPT_PREFIX/{name}.txt`
 2. Concatenate in order specified by `SYSTEM_PROMPTS` array
-3. Wrap in `<system-prompts>` XML tags
-4. Write to `.workflow/prompts/system.txt`
-5. Use cached version as fallback if rebuild fails
+3. Create JSON content block with `cache_control: {type: "ephemeral"}`
+4. Add to `SYSTEM_BLOCKS` array
+5. Write XML version to `.workflow/prompts/system.txt` for debugging
+6. Add project-description block (if exists) with cache_control
+7. Add current-date block (without cache_control - intentionally volatile)
+8. Use cached XML version as fallback if rebuild fails
 
-**XML structure:**
+**XML structure (for debugging):**
 
 ```xml
 <system>
@@ -214,17 +219,42 @@ aggregate_nested_project_descriptions() {
     [Nested project descriptions if project.txt exists]
   </project-description>
 
-  <current-datetime>
-    [UTC timestamp]
-  </current-datetime>
+  <current-date>
+    [UTC date in YYYY-MM-DD format]
+  </current-date>
 </system>
 ```
 
-**Rationale:** Rebuild ensures configuration changes take effect immediately.
+**JSON content blocks (for API):**
+
+```json
+[
+  {
+    "type": "text",
+    "text": "[concatenated system prompts]",
+    "cache_control": {"type": "ephemeral"}
+  },
+  {
+    "type": "text",
+    "text": "[project descriptions]",
+    "cache_control": {"type": "ephemeral"}
+  },
+  {
+    "type": "text",
+    "text": "Today's date: YYYY-MM-DD"
+  }
+]
+```
+
+**Cache breakpoints:** System prompts and project descriptions are cached (most stable), date is not cached (changes daily).
+
+**Date format change:** Changed from datetime to date-only to prevent minute-by-minute cache invalidation.
 
 ### User Prompt Composition
 
-**XML structure:**
+**Dual-track architecture:** Builds both XML text files (for debugging) and JSON content blocks (for API).
+
+**XML structure (for debugging):**
 
 ```xml
 <user>
@@ -240,20 +270,58 @@ aggregate_nested_project_descriptions() {
 
   <task>
     [Task content from task.txt or inline specification]
-    [Includes <output-format> if specified]
   </task>
 </user>
 ```
 
+**JSON content blocks (for API):**
+
+Each file becomes its own content block in the order: context → dependencies → input → task
+
+```json
+[
+  // Context files (each file is a separate block)
+  {"type": "text", "text": "<metadata type=\"context\" source=\"...\"></metadata>\n\n[file content]"},
+  {"type": "text", "text": "<metadata type=\"context\" source=\"...\"></metadata>\n\n[file content]", "cache_control": {"type": "ephemeral"}},
+
+  // Dependencies (each workflow output is a separate block)
+  {"type": "text", "text": "<metadata type=\"dependency\" workflow=\"name\" source=\"...\"></metadata>\n\n[file content]", "cache_control": {"type": "ephemeral"}},
+
+  // Input documents (each file is a separate block)
+  {"type": "text", "text": "<metadata type=\"input\" source=\"...\"></metadata>\n\n[file content]"},
+  {"type": "text", "text": "<metadata type=\"input\" source=\"...\"></metadata>\n\n[file content]", "cache_control": {"type": "ephemeral"}},
+
+  // Task (single block, no cache_control - most volatile)
+  {"type": "text", "text": "[task content]"}
+]
+```
+
+**Aggregation order (stable → volatile):**
+
+1. **Context files:** CONTEXT_FILES → CONTEXT_PATTERN → CLI_CONTEXT_FILES → CLI_CONTEXT_PATTERN
+2. **Dependencies:** DEPENDS_ON workflow outputs
+3. **Input documents:** INPUT_FILES → INPUT_PATTERN → CLI_INPUT_FILES → CLI_INPUT_PATTERN
+4. **Task:** Always last
+
+**Cache breakpoints:** Maximum of 4 breakpoints placed at semantic boundaries:
+- End of context files section
+- End of dependencies section
+- End of input documents section
+- Task has no cache_control (most volatile)
+
+**Metadata embedding:** Each file's metadata (type, source, workflow name) is embedded as XML tags at the start of the text content, not as separate JSON fields (Anthropic API doesn't accept extra fields).
+
 **Section rules:**
-- `<documents>` section only appears if INPUT_* sources are configured
-- `<context>` section only appears if CONTEXT_* or DEPENDS_ON sources are configured
+- `<documents>` XML section only appears if INPUT_* sources are configured
+- `<context>` XML section only appears if CONTEXT_* or DEPENDS_ON sources are configured
 - `<task>` section always present
-- Documents appear before context (follows Anthropic long-context best practices)
+- Content blocks are created for all files regardless of XML sections
 
 ### API Interaction
 
 **Location:** `lib/api.sh`
+
+**JSON-first architecture:** Content blocks are constructed and passed to API functions via temporary files (avoids bash parameter parsing issues with large JSON payloads).
 
 **Streaming mode:**
 - Uses `curl` with chunked transfer encoding
@@ -268,18 +336,31 @@ aggregate_nested_project_descriptions() {
 
 **Request construction:**
 ```bash
-# Build JSON payload
-jq -n --arg model "$MODEL" \
-      --arg prompt "$combined_prompt" \
-      --argjson max_tokens "$MAX_TOKENS" \
-      --argjson temp "$TEMPERATURE" \
-      --argjson stream "$stream_flag" \
-      '{model: $model, messages: [{role: "user", content: $prompt}], ...}'
+# Build JSON payload with content blocks
+jq -n \
+    --arg model "$MODEL" \
+    --argjson max_tokens "$MAX_TOKENS" \
+    --argjson temperature "$TEMPERATURE" \
+    --argjson system "$system_blocks" \
+    --argjson user_content "$user_blocks" \
+    '{
+        model: $model,
+        max_tokens: $max_tokens,
+        temperature: $temperature,
+        system: $system,
+        messages: [{role: "user", content: $user_content}]
+    }'
 ```
+
+**Parameter passing:** System and user content blocks are passed via temporary files to avoid bash variable expansion issues.
+
+**Token Counting API:** Dedicated endpoint `/v1/messages/count_tokens` provides exact token counts.
 
 ### Token Estimation
 
-**Formula:**
+**Dual approach:** Both heuristic estimation and exact API counting.
+
+**Heuristic formula:**
 
 ```bash
 token_count=$(( char_count / 4 ))
@@ -287,12 +368,26 @@ token_count=$(( char_count / 4 ))
 
 Simple character-based approximation (reasonable for English text).
 
+**API counting:**
+
+```bash
+anthropic_count_tokens \
+    api_key="$ANTHROPIC_API_KEY" \
+    model="$MODEL" \
+    system_blocks_file="$temp_system" \
+    user_blocks_file="$temp_user"
+```
+
+Calls Anthropic's `/v1/messages/count_tokens` endpoint for exact counts.
+
 **Display:**
-- System prompts tokens
-- Task tokens
-- Project description tokens
-- Context tokens (per-file breakdown)
-- Total and estimated cost
+- System prompts tokens (heuristic)
+- Task tokens (heuristic)
+- Input documents tokens (heuristic)
+- Context tokens (heuristic)
+- Total heuristic estimate
+- Exact total from API (when ANTHROPIC_API_KEY is set)
+- Comparison between heuristic and API count
 
 ### Output Management
 
@@ -326,6 +421,40 @@ fi
 - Markdown: `mdformat` if available
 - JSON: `jq '.'` for pretty-printing if available
 - Others: No processing
+
+### Prompt Caching
+
+**Implementation:** Anthropic prompt caching with ephemeral cache breakpoints.
+
+**Architecture:**
+- Dual-track: XML text files for debugging, JSON content blocks for API
+- Each file becomes its own content block (enables future PDF support)
+- Metadata embedded as XML tags within text content
+- Cache breakpoints at semantic boundaries (maximum 4)
+
+**Cache breakpoint strategy:**
+
+1. **System prompts** (most stable) - `cache_control: {type: "ephemeral"}`
+2. **Project descriptions** (stable) - `cache_control: {type: "ephemeral"}`
+3. **Context files** (medium stability) - cache_control on last block
+4. **Dependencies** (medium stability) - cache_control on last block
+5. **Input documents** (volatile) - cache_control on last block
+6. **Task** (most volatile) - no cache_control
+
+**Aggregation order:** Stable → volatile within each category:
+- Context: CONTEXT_FILES → CONTEXT_PATTERN → CLI_CONTEXT_FILES → CLI_CONTEXT_PATTERN
+- Input: INPUT_FILES → INPUT_PATTERN → CLI_INPUT_FILES → CLI_INPUT_PATTERN
+
+**Benefits:**
+- 90% cost reduction on cache reads
+- 5-minute default TTL (can extend to 1 hour)
+- Minimum 1024 tokens per cached block
+- Date-only timestamp (not datetime) prevents minute-by-minute invalidation
+
+**Monitoring:**
+- Heuristic token estimation (character-based)
+- Exact API token counting via `/v1/messages/count_tokens`
+- Future: cache usage metrics from API response
 
 ### Editor Selection
 
@@ -421,10 +550,15 @@ fi
 **Utility functions:**
 
 - `sanitize()` - Filename to XML tag conversion
-- `filecat()` - File concatenation with XML wrappers and metadata
+- `documentcat()` - Wraps INPUT documents with `<document index="N">` tags and metadata
+- `contextcat()` - Wraps CONTEXT files with `<context-file>` tags and metadata
+- `filecat()` - Legacy function (uses contextcat for backward compatibility)
 - `find_project_root()` - Walk up directory tree for `.workflow/`
 - `list_workflows()` - List workflow directories
 - `escape_json()` - JSON string escaping for API payloads
+- `build_text_content_block()` - Creates JSON content block from file with embedded XML metadata
+- `build_document_content_block()` - Placeholder for future PDF support
+- `detect_file_type()` - Detects text vs document/PDF files
 
 **Project discovery:**
 
@@ -446,17 +580,23 @@ Stops at `$HOME` or `/` to avoid escaping user space.
 
 ### lib/api.sh
 
-**API interaction:**
+**API functions:**
 
-- Request construction with `jq`
-- Streaming via SSE parsing
-- Batch mode with single response
-- Error handling and validation
+- `anthropic_validate()` - Validates API key configuration
+- `anthropic_execute_single()` - Single-shot request with pager display
+- `anthropic_execute_stream()` - Streaming request with real-time output
+- `anthropic_count_tokens()` - Exact token counting via count_tokens endpoint
+
+**Request construction:**
+- Uses `jq` to build JSON payloads with content blocks
+- Accepts `system_blocks_file` and `user_blocks_file` parameters
+- Reads JSON arrays from files (avoids bash parameter parsing issues)
 
 **Key implementation:**
 - Uses `curl` with Anthropic Messages API
 - Handles both streaming and non-streaming modes
-- Displays actual token counts from response
+- Supports prompt caching via `cache_control` in content blocks
+- Returns actual token counts from response
 
 ### lib/execute.sh
 
@@ -466,20 +606,40 @@ Eliminates duplication between run mode (workflow.sh) and task mode (lib/task.sh
 
 **Functions:**
 
-- `build_system_prompt()` - Concatenates prompt files from SYSTEM_PROMPTS array, wraps in `<system-prompts>`, atomic write
-- `estimate_tokens()` - Token estimation for system, task, input documents, and context prompts
-- `handle_dry_run_mode()` - Saves prompts to files (workflow dir or temp) and opens in editor
-- `build_prompts()` - Builds hierarchical XML structure for system and user prompts
-  - System: `<system>` with `<system-prompts>`, `<project-description>`, `<current-datetime>`
-  - User: `<user>` with `<documents>`, `<context>`, `<task>`
-- `aggregate_context(mode, input_file, context_file, project_root)` - Separates input documents from context
-  - Aggregates INPUT_* sources using `documentcat()` → input_file
-  - Aggregates CONTEXT_* sources using `contextcat()` → context_file
-  - Run mode: config + CLI for both INPUT and CONTEXT, plus dependencies
-  - Task mode: CLI only for INPUT and CONTEXT
-- `execute_api_request(mode)` - Unified API execution with mode-specific output handling
+- `build_system_prompt()` - Builds both XML and JSON content blocks for system prompts
+  - Concatenates prompt files from SYSTEM_PROMPTS array
+  - Creates JSON block with cache_control for system prompts
+  - Populates SYSTEM_BLOCKS array
+  - Writes XML version to `.workflow/prompts/system.txt` for debugging
+- `build_project_description_block()` - Creates cached JSON block for project descriptions
+- `build_current_date_block()` - Creates uncached JSON block for current date
+- `estimate_tokens()` - Dual token estimation (heuristic + API)
+  - Heuristic character-based estimation for quick feedback
+  - Calls `anthropic_count_tokens()` for exact API count (when API key available)
+  - Displays comparison between heuristic and actual counts
+- `handle_dry_run_mode()` - Saves prompts and JSON payloads for inspection
+  - Saves 4 files: XML system, XML user, JSON request, JSON blocks breakdown
+  - Opens in editor for inspection
+  - Exits without making API call
+- `build_prompts()` - Builds both XML and JSON structures
+  - Calls block-building functions to populate SYSTEM_BLOCKS
+  - Creates TASK_BLOCK for user message
+  - Builds hierarchical XML for debugging: `<system>` with `<system-prompts>`, `<project-description>`, `<current-date>`
+  - Builds hierarchical XML for debugging: `<user>` with `<documents>`, `<context>`, `<task>`
+- `aggregate_context(mode, input_file, context_file, project_root)` - Builds content blocks and XML
+  - Order: context → dependencies → input (stable → volatile)
+  - Within each: FILES → PATTERN → CLI (stable → volatile)
+  - Each file becomes a JSON content block in CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, or INPUT_BLOCKS
+  - Also writes XML to input_file and context_file for debugging
+  - Adds cache_control at end of each section (4 total breakpoints)
+  - Embeds metadata as XML tags in block text content
+- `execute_api_request(mode)` - Unified API execution
+  - Assembles content blocks arrays (SYSTEM_BLOCKS + CONTEXT_BLOCKS + DEPENDENCY_BLOCKS + INPUT_BLOCKS + TASK_BLOCK)
+  - Writes JSON arrays to temporary files
+  - Passes files to API functions (avoids bash parameter parsing issues)
   - Run mode: backs up existing output before API call
   - Task mode: displays to stdout in non-stream mode if no explicit file
+  - Cleans up temporary files
 
 **Design rationale:**
 
@@ -678,39 +838,40 @@ trap 'rm -f "$temp_file"' EXIT
 **Implementation** (`lib/api.sh`):
 
 ```bash
-# Build JSON payload with jq
+# Read content blocks from files
+system_blocks=$(<"${params[system_blocks_file]}")
+user_blocks=$(<"${params[user_blocks_file]}")
+
+# Build JSON payload with content blocks
 payload=$(jq -n \
     --arg model "$MODEL" \
-    --arg content "$combined_prompt" \
     --argjson max_tokens "$MAX_TOKENS" \
     --argjson temperature "$TEMPERATURE" \
-    --argjson stream "$stream_bool" \
+    --argjson system "$system_blocks" \
+    --argjson user_content "$user_blocks" \
     '{
         model: $model,
         max_tokens: $max_tokens,
         temperature: $temperature,
-        stream: $stream,
-        messages: [{role: "user", content: $content}]
+        system: $system,
+        messages: [
+            {
+                role: "user",
+                content: $user_content
+            }
+        ]
     }'
 )
 ```
 
+**File-based parameter passing:**
+- Avoids bash variable expansion issues with large JSON strings
+- Temporary files created by `execute_api_request()`, cleaned up after use
+- Each content block contains metadata as embedded XML tags
+
 **Streaming vs batch:**
-- Streaming: `stream: true`, parse SSE events
+- Streaming: `stream: true` added to payload, parse SSE events
 - Batch: `stream: false`, single JSON response
-
-### System Prompt Caching
-
-**Build process:**
-
-1. Concatenate prompts: `cat "$WORKFLOW_PROMPT_PREFIX/"{base,custom}.txt`
-2. Append project.txt if non-empty
-3. Write to `.workflow/prompts/system.txt`
-4. Use cached version on failure
-
-**Rebuild timing:** Every run, not cached across runs
-
-**Why:** Ensures config changes apply immediately
 
 ### Output Format Hints
 
@@ -726,21 +887,34 @@ Guides LLM to generate in requested format.
 
 ### Token Estimation Algorithm
 
-**Formula:**
+**Dual approach:**
+
+1. **Heuristic (character-based):**
 
 ```bash
 char_count=$(wc -c < "$file")
 token_count=$((char_count / 4))
 ```
 
-Simple approximation: ~4 chars per token (reasonable for English).
+Simple approximation: ~4 chars per token (reasonable for English). Fast and requires no API call.
+
+2. **Exact (API-based):**
+
+Calls Anthropic's `/v1/messages/count_tokens` endpoint with full content blocks for precise counting.
 
 **Display breakdown:**
-- System prompts
-- Task
-- Project description
-- Each context source
-- Total and cost estimate
+- System prompts (heuristic)
+- Task (heuristic)
+- Input documents (heuristic)
+- Context (heuristic)
+- Total heuristic estimate
+- Exact total from API (when API key available)
+- Difference between heuristic and API count
+
+**Note:** API count is typically higher due to:
+- XML metadata headers in each block
+- JSON structure overhead
+- More accurate tokenization
 
 ## Development Guidelines
 

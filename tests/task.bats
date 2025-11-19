@@ -167,6 +167,12 @@ EOF
 }
 
 @test "task: respects --model override" {
+    # Mock curl for count_tokens API
+    curl() {
+        echo '{"input_tokens": 1000}'
+    }
+    export -f curl
+
     run bash "$WORKFLOW_SCRIPT" task -i "Test" --model claude-haiku-4 --count-tokens
 
     assert_success
@@ -174,27 +180,52 @@ EOF
 }
 
 @test "task: respects --max-tokens override" {
+    # Mock curl for count_tokens API
+    curl() {
+        echo '{"input_tokens": 1000}'
+    }
+    export -f curl
+
     run bash "$WORKFLOW_SCRIPT" task -i "Test" --max-tokens 16384 --count-tokens
 
     assert_success
 }
 
 @test "task: count-tokens mode shows token estimation without API call" {
+    # Mock curl for count_tokens API
+    curl() {
+        local url=""
+        while [[ $# -gt 0 ]]; do
+            if [[ "$1" =~ ^https:// ]]; then
+                url="$1"
+            fi
+            shift
+        done
+
+        if [[ "$url" == *"/count_tokens" ]]; then
+            echo '{"input_tokens": 5000}'
+        fi
+    }
+    export -f curl
+
     run bash "$WORKFLOW_SCRIPT" task -i "Test task" --count-tokens
 
     assert_success
     assert_output --partial "Estimated system tokens:"
     assert_output --partial "Estimated task tokens:"
-    assert_output --partial "Estimated total input tokens:"
+    assert_output --partial "Estimated total input tokens (heuristic):"
+    assert_output --partial "Exact total input tokens (from API):"
 }
 
 @test "task: dry-run mode saves prompts to temp files" {
     run bash "$WORKFLOW_SCRIPT" task -i "Test task" --dry-run
 
     assert_success
-    assert_output --partial "Dry-run mode: Prompts saved for inspection"
-    assert_output --partial "System prompt:"
-    assert_output --partial "User prompt:"
+    assert_output --partial "Dry-run mode: Prompts and JSON payload saved for inspection"
+    assert_output --partial "System prompt (XML):"
+    assert_output --partial "User prompt (XML):"
+    assert_output --partial "API request (JSON):"
+    assert_output --partial "Content blocks (JSON):"
     # Files are temp files, so we can't verify their existence after command exits
 }
 
