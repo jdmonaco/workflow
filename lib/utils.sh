@@ -318,12 +318,13 @@ extract_title_from_file() {
 # Content Block Builders (for Anthropic Messages API)
 # =============================================================================
 
-# Detect file type (text vs document/PDF)
+# Detect file type (text vs document/PDF vs image)
 # Arguments:
 #   $1 - File path
 # Returns:
 #   "text" for text files (default)
-#   "document" for PDFs and images (future support)
+#   "document" for PDFs (future support)
+#   "image" for supported image formats (jpg, png, gif, webp)
 detect_file_type() {
     local file="$1"
     local extension="${file##*.}"
@@ -331,18 +332,314 @@ detect_file_type() {
     # Convert to lowercase
     extension="${extension,,}"
 
-    # Check for document types (future support)
+    # Check file type by extension
     case "$extension" in
+        # Image types (Vision API support)
+        png|jpg|jpeg|gif|webp)
+            echo "image"
+            ;;
+        # Document types (future support)
         pdf)
             echo "document"
             ;;
-        png|jpg|jpeg|gif|webp)
-            echo "document"
-            ;;
+        # Text files (default)
         *)
             echo "text"
             ;;
     esac
+}
+
+# Get image media type from file extension
+# Arguments:
+#   $1 - File path
+# Returns:
+#   Proper MIME type string (e.g., "image/jpeg")
+get_image_media_type() {
+    local file="$1"
+    local extension="${file##*.}"
+
+    # Convert to lowercase
+    extension="${extension,,}"
+
+    case "$extension" in
+        jpg|jpeg)
+            echo "image/jpeg"
+            ;;
+        png)
+            echo "image/png"
+            ;;
+        gif)
+            echo "image/gif"
+            ;;
+        webp)
+            echo "image/webp"
+            ;;
+        *)
+            echo "image/jpeg"  # Default fallback
+            ;;
+    esac
+}
+
+# Get image dimensions using ImageMagick
+# Arguments:
+#   $1 - Image file path
+# Returns:
+#   "width height" (space-separated) or empty string on error
+get_image_dimensions() {
+    local file="$1"
+
+    if ! command -v magick >/dev/null 2>&1; then
+        return 1
+    fi
+
+    # Use identify to get dimensions
+    magick identify -format "%w %h" "$file" 2>/dev/null
+}
+
+# Validate image file against API limits
+# Arguments:
+#   $1 - Image file path
+# Returns:
+#   0 if valid, 1 if invalid
+# Prints error message to stderr if invalid
+validate_image_file() {
+    local file="$1"
+
+    # Check file exists
+    if [[ ! -f "$file" ]]; then
+        echo "Error: Image file not found: $file" >&2
+        return 1
+    fi
+
+    # Check file size (5MB limit for API)
+    local file_size
+    file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null)
+    local max_size=$((5 * 1024 * 1024))  # 5MB
+
+    if [[ $file_size -gt $max_size ]]; then
+        echo "Error: Image file exceeds 5MB limit: $file ($file_size bytes)" >&2
+        return 1
+    fi
+
+    # Check dimensions if ImageMagick available
+    if command -v magick >/dev/null 2>&1; then
+        local dimensions
+        dimensions=$(get_image_dimensions "$file")
+        if [[ -n "$dimensions" ]]; then
+            local width height
+            read -r width height <<< "$dimensions"
+
+            # Hard limit: 8000x8000 (or 2000x2000 if >20 images, but we check per-image)
+            if [[ $width -gt 8000 || $height -gt 8000 ]]; then
+                echo "Warning: Image dimensions ($width x $height) exceed 8000px limit, will be resized" >&2
+                # Not a fatal error, will be resized
+            fi
+        fi
+    fi
+
+    return 0
+}
+
+# Check if image should be resized
+# Arguments:
+#   $1 - width (pixels)
+#   $2 - height (pixels)
+# Returns:
+#   0 if should resize (exceeds 1568px on long edge)
+#   1 if no resize needed
+should_resize_image() {
+    local width=$1
+    local height=$2
+    local max_long_edge=1568
+
+    local long_edge
+    [[ $width -gt $height ]] && long_edge=$width || long_edge=$height
+
+    [[ $long_edge -gt $max_long_edge ]]
+}
+
+# Calculate target dimensions for resizing
+# Maintains aspect ratio, limits long edge to 1568px
+# Arguments:
+#   $1 - width (pixels)
+#   $2 - height (pixels)
+# Returns:
+#   "target_width target_height" (space-separated)
+calculate_target_dimensions() {
+    local width=$1
+    local height=$2
+    local max_long_edge=1568
+
+    local long_edge
+    [[ $width -gt $height ]] && long_edge=$width || long_edge=$height
+
+    # If already within limits, return original dimensions
+    if [[ $long_edge -le $max_long_edge ]]; then
+        echo "$width $height"
+        return 0
+    fi
+
+    # Calculate scale factor
+    local scale
+    scale=$(awk "BEGIN {printf \"%.6f\", $max_long_edge / $long_edge}")
+
+    # Calculate new dimensions
+    local new_width new_height
+    new_width=$(awk "BEGIN {printf \"%.0f\", $width * $scale}")
+    new_height=$(awk "BEGIN {printf \"%.0f\", $height * $scale}")
+
+    echo "$new_width $new_height"
+}
+
+# Resize image using ImageMagick
+# Arguments:
+#   $1 - source_file: Original image file
+#   $2 - target_file: Output file path
+#   $3 - target_width: Target width in pixels
+#   $4 - target_height: Target height in pixels
+# Returns:
+#   0 on success, 1 on failure
+resize_image() {
+    local source_file="$1"
+    local target_file="$2"
+    local target_width="$3"
+    local target_height="$4"
+
+    if ! command -v magick >/dev/null 2>&1; then
+        echo "Error: ImageMagick not found. Cannot resize image: $source_file" >&2
+        return 1
+    fi
+
+    # Create target directory if needed
+    mkdir -p "$(dirname "$target_file")"
+
+    # Resize image using geometry specification
+    magick "$source_file" -resize "${target_width}x${target_height}" "$target_file" 2>/dev/null || {
+        echo "Error: Failed to resize image: $source_file" >&2
+        return 1
+    }
+
+    return 0
+}
+
+# Cache and potentially resize image for API use
+# Arguments:
+#   $1 - source_file: Original image file (absolute path)
+#   $2 - project_root: Project root directory
+#   $3 - workflow_dir: Workflow directory for cache
+# Returns:
+#   Path to cached/resized image (or original if no resize needed)
+cache_image() {
+    local source_file="$1"
+    local project_root="$2"
+    local workflow_dir="$3"
+
+    # Get dimensions
+    local dimensions
+    dimensions=$(get_image_dimensions "$source_file")
+    if [[ -z "$dimensions" ]]; then
+        # Can't get dimensions (ImageMagick not available), use original
+        echo "$source_file"
+        return 0
+    fi
+
+    local width height
+    read -r width height <<< "$dimensions"
+
+    # Check if resize needed
+    if ! should_resize_image "$width" "$height"; then
+        # No resize needed, use original
+        echo "$source_file"
+        return 0
+    fi
+
+    # Calculate relative path from project root
+    local rel_path
+    if [[ "$source_file" == "$project_root"/* ]]; then
+        rel_path="${source_file#$project_root/}"
+    else
+        # File outside project, use basename in cache
+        rel_path="external/$(basename "$source_file")"
+    fi
+
+    # Create cache path
+    local cache_dir="$workflow_dir/cache"
+    local cached_file="$cache_dir/$rel_path"
+
+    # Check if already cached and up-to-date
+    if [[ -f "$cached_file" ]]; then
+        # Compare modification times
+        if [[ "$cached_file" -nt "$source_file" ]]; then
+            # Cached version is newer, reuse it
+            echo "$cached_file"
+            return 0
+        fi
+    fi
+
+    # Calculate target dimensions
+    local target_dims
+    target_dims=$(calculate_target_dimensions "$width" "$height")
+    local target_width target_height
+    read -r target_width target_height <<< "$target_dims"
+
+    # Resize and cache
+    if resize_image "$source_file" "$cached_file" "$target_width" "$target_height"; then
+        echo "  Resized image: ${width}x${height} → ${target_width}x${target_height} (cached)" >&2
+        echo "$cached_file"
+        return 0
+    else
+        # Resize failed, fall back to original
+        echo "$source_file"
+        return 1
+    fi
+}
+
+# Build image content block for Vision API
+# Arguments:
+#   $1 - file: Image file path (absolute)
+#   $2 - project_root: Project root directory
+#   $3 - workflow_dir: Workflow directory (for cache)
+# Returns:
+#   JSON content block with type="image", base64-encoded data
+# Note:
+#   Images are NOT citable and do NOT get document indices
+build_image_content_block() {
+    local file="$1"
+    local project_root="$2"
+    local workflow_dir="$3"
+
+    # Validate image
+    if ! validate_image_file "$file"; then
+        return 1
+    fi
+
+    # Cache and potentially resize image
+    local image_file
+    image_file=$(cache_image "$file" "$project_root" "$workflow_dir")
+
+    # Get media type
+    local media_type
+    media_type=$(get_image_media_type "$image_file")
+
+    # Base64 encode image
+    local base64_data
+    base64_data=$(base64 < "$image_file" | tr -d '\n')
+
+    # Build image content block (Vision API format)
+    # Note: No cache_control for images, no citations, no document index
+    jq -n \
+        --arg type "image" \
+        --arg source_type "base64" \
+        --arg media_type "$media_type" \
+        --arg data "$base64_data" \
+        '{
+            type: $type,
+            source: {
+                type: $source_type,
+                media_type: $media_type,
+                data: $data
+            }
+        }'
 }
 
 # Build a content block from a file (document or text type)

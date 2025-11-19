@@ -233,8 +233,23 @@ estimate_tokens() {
         echo "Estimated input documents tokens: $inputtc"
     fi
 
+    # Image tokens (from IMAGE_BLOCKS)
+    # Formula: tokens = (width × height) / 750
+    local imagetc=0
+    local image_count=${#IMAGE_BLOCKS[@]}
+    if [[ $image_count -gt 0 ]]; then
+        echo "Processing $image_count image(s) for token estimation..."
+        for block in "${IMAGE_BLOCKS[@]}"; do
+            # Extract base64 data and decode to get file info
+            # For estimation, we'll use a conservative estimate of 1600 tokens per image
+            # (assumes ~1.15 megapixels per the API docs recommendation)
+            imagetc=$((imagetc + 1600))
+        done
+        echo "Estimated image tokens: $imagetc (~1600 tokens per image)"
+    fi
+
     # Total (heuristic)
-    local total_tokens=$((systc + tasktc + inputtc + contexttc))
+    local total_tokens=$((systc + tasktc + inputtc + contexttc + imagetc))
     echo "Estimated total input tokens (heuristic): $total_tokens"
     echo ""
 
@@ -262,6 +277,9 @@ estimate_tokens() {
                 all_user_blocks+=("$block")
             done
             for block in "${INPUT_BLOCKS[@]}"; do
+                all_user_blocks+=("$block")
+            done
+            for block in "${IMAGE_BLOCKS[@]}"; do
                 all_user_blocks+=("$block")
             done
             all_user_blocks+=("$TASK_BLOCK")
@@ -369,6 +387,9 @@ handle_dry_run_mode() {
         all_user_blocks+=("$block")
     done
     for block in "${INPUT_BLOCKS[@]}"; do
+        all_user_blocks+=("$block")
+    done
+    for block in "${IMAGE_BLOCKS[@]}"; do
         all_user_blocks+=("$block")
     done
     all_user_blocks+=("$TASK_BLOCK")
@@ -498,10 +519,12 @@ build_prompts() {
 #   $4 - doc_index_var: Name of variable holding current doc_index
 #   $5 - meta_key (optional): Additional metadata key
 #   $6 - meta_value (optional): Additional metadata value
+#   $7 - project_root: Project root directory (for image caching)
+#   $8 - workflow_dir: Workflow directory (for image caching)
 # Side effects:
-#   Appends block to CONTEXT_BLOCKS or INPUT_BLOCKS
-#   Appends to DOCUMENT_INDEX_MAP
-#   Increments doc_index variable
+#   Appends block to CONTEXT_BLOCKS, INPUT_BLOCKS, or IMAGE_BLOCKS
+#   Appends to DOCUMENT_INDEX_MAP (text files only, not images)
+#   Increments doc_index variable (text files only)
 build_and_track_document_block() {
     local file="$1"
     local category="$2"
@@ -509,8 +532,28 @@ build_and_track_document_block() {
     local doc_index_var="$4"
     local meta_key="${5:-}"
     local meta_value="${6:-}"
+    local project_root="${7:-}"
+    local workflow_dir="${8:-}"
 
-    # Build the content block
+    # Detect file type
+    local file_type
+    file_type=$(detect_file_type "$file")
+
+    # Handle image files separately
+    if [[ "$file_type" == "image" ]]; then
+        # Build image content block (Vision API)
+        local block
+        block=$(build_image_content_block "$file" "$project_root" "$workflow_dir")
+
+        # Add to IMAGE_BLOCKS array (images are separate, not in context/input)
+        IMAGE_BLOCKS+=("$block")
+
+        # Images are NOT citable, so don't track in DOCUMENT_INDEX_MAP
+        # Don't increment doc_index for images
+        return 0
+    fi
+
+    # Handle text/document files (existing logic)
     local block
     if [[ -n "$meta_key" && -n "$meta_value" ]]; then
         block=$(build_content_block "$file" "$category" "$enable_citations" "$meta_key" "$meta_value")
@@ -538,7 +581,7 @@ build_and_track_document_block() {
 
 # Aggregate input and context files from various sources based on mode
 # Builds JSON content blocks for API
-# Aggregation order (stable → volatile): context → dependencies → input
+# Aggregation order (stable → volatile): context → dependencies → input → images
 # Within each category: FILES → PATTERN → CLI
 # Run mode: config patterns/files + CLI patterns/files
 # Task mode: CLI patterns/files only
@@ -546,6 +589,7 @@ build_and_track_document_block() {
 # Args:
 #   $1 - mode: "run" or "task"
 #   $2 - project_root: Project root (for run mode, empty for task standalone)
+#   $3 - workflow_dir: Workflow directory (for cache), or temp dir for task mode
 # Requires (run mode):
 #   INPUT_PATTERN: Config input pattern
 #   INPUT_FILES: Array of config input files
@@ -558,11 +602,12 @@ build_and_track_document_block() {
 #   CLI_CONTEXT_PATTERN: CLI context pattern
 #   CLI_CONTEXT_FILES: Array of CLI context files
 # Side effects:
-#   Populates CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, INPUT_BLOCKS arrays
-#   Populates DOCUMENT_INDEX_MAP array (for citations)
+#   Populates CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, INPUT_BLOCKS, IMAGE_BLOCKS arrays
+#   Populates DOCUMENT_INDEX_MAP array (for citations, text files only)
 aggregate_context() {
     local mode="$1"
     local project_root="$2"
+    local workflow_dir="$3"
 
     echo "Building input documents and context..."
 
@@ -587,7 +632,7 @@ aggregate_context() {
             fi
 
             # Build and track document block
-            build_and_track_document_block "$resolved_file" "context" "$ENABLE_CITATIONS" "doc_index"
+            build_and_track_document_block "$resolved_file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
         done
     fi
 
@@ -601,7 +646,7 @@ aggregate_context() {
             local abs_file="$project_root/$file"
             if [[ -f "$abs_file" ]]; then
                 # Build and track document block
-                build_and_track_document_block "$abs_file" "context" "$ENABLE_CITATIONS" "doc_index"
+                build_and_track_document_block "$abs_file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
             fi
         done
     fi
@@ -616,7 +661,7 @@ aggregate_context() {
             fi
 
             # Build and track document block
-            build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index"
+            build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
         done
     fi
 
@@ -629,7 +674,7 @@ aggregate_context() {
         for file in "${pattern_files[@]}"; do
             if [[ -f "$file" ]]; then
                 # Build and track document block
-                build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index"
+                build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
             fi
         done
     fi
@@ -688,7 +733,7 @@ aggregate_context() {
             fi
 
             # Build and track document block
-            build_and_track_document_block "$resolved_file" "input" "$ENABLE_CITATIONS" "doc_index"
+            build_and_track_document_block "$resolved_file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
         done
     fi
 
@@ -702,7 +747,7 @@ aggregate_context() {
             local abs_file="$project_root/$file"
             if [[ -f "$abs_file" ]]; then
                 # Build and track document block
-                build_and_track_document_block "$abs_file" "input" "$ENABLE_CITATIONS" "doc_index"
+                build_and_track_document_block "$abs_file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
             fi
         done
     fi
@@ -717,7 +762,7 @@ aggregate_context() {
             fi
 
             # Build and track document block
-            build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index"
+            build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
         done
     fi
 
@@ -730,7 +775,7 @@ aggregate_context() {
         for file in "${pattern_files[@]}"; do
             if [[ -f "$file" ]]; then
                 # Build and track document block
-                build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index"
+                build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
             fi
         done
     fi
@@ -748,7 +793,7 @@ aggregate_context() {
     # Check if any input or context was provided
     local has_input=false
     local has_context=false
-    [[ ${#INPUT_BLOCKS[@]} -gt 0 ]] && has_input=true
+    [[ ${#INPUT_BLOCKS[@]} -gt 0 || ${#IMAGE_BLOCKS[@]} -gt 0 ]] && has_input=true
     [[ ${#CONTEXT_BLOCKS[@]} -gt 0 || ${#DEPENDENCY_BLOCKS[@]} -gt 0 ]] && has_context=true
 
     if [[ "$has_input" == false && "$has_context" == false ]]; then
@@ -758,6 +803,11 @@ aggregate_context() {
         else
             echo "  Use --input-file, --input-pattern, --context-file, or --context-pattern"
         fi
+    fi
+
+    # Report image count if any
+    if [[ ${#IMAGE_BLOCKS[@]} -gt 0 ]]; then
+        echo "Included ${#IMAGE_BLOCKS[@]} image(s) in request"
     fi
 
     # Save document index map for citations processing
@@ -783,6 +833,7 @@ aggregate_context() {
 #   CONTEXT_BLOCKS: Array of context content blocks
 #   DEPENDENCY_BLOCKS: Array of dependency content blocks
 #   INPUT_BLOCKS: Array of input document content blocks
+#   IMAGE_BLOCKS: Array of image content blocks (Vision API)
 #   TASK_BLOCK: Task content block
 #   ANTHROPIC_API_KEY: API key
 #   MODEL: Model name
@@ -823,6 +874,11 @@ execute_api_request() {
 
     # Add input blocks (if any)
     for block in "${INPUT_BLOCKS[@]}"; do
+        all_user_blocks+=("$block")
+    done
+
+    # Add image blocks (if any)
+    for block in "${IMAGE_BLOCKS[@]}"; do
         all_user_blocks+=("$block")
     done
 

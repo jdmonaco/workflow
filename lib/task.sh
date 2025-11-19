@@ -222,17 +222,21 @@ USER_BLOCKS_FILE=$(mktemp)
 REQUEST_JSON_FILE=$(mktemp)
 DOCUMENT_MAP_FILE=$(mktemp)
 
+# Create temporary cache directory for image processing
+TASK_CACHE_DIR=$(mktemp -d)
+
 # Clean up all temp files on exit
-trap "rm -f $SYSTEM_BLOCKS_FILE $USER_BLOCKS_FILE $REQUEST_JSON_FILE $DOCUMENT_MAP_FILE" EXIT
+trap "rm -f $SYSTEM_BLOCKS_FILE $USER_BLOCKS_FILE $REQUEST_JSON_FILE $DOCUMENT_MAP_FILE; rm -rf $TASK_CACHE_DIR" EXIT
 
 # Content blocks arrays for JSON building
 declare -a SYSTEM_BLOCKS
 declare -a CONTEXT_BLOCKS
 declare -a DEPENDENCY_BLOCKS
 declare -a INPUT_BLOCKS
+declare -a IMAGE_BLOCKS
 declare -a DOCUMENT_INDEX_MAP
 
-aggregate_context "task" "$PROJECT_ROOT"
+aggregate_context "task" "$PROJECT_ROOT" "$TASK_CACHE_DIR"
 
 # =============================================================================
 # Task Mode - API Request Setup - Build Final Prompts

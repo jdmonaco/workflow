@@ -432,6 +432,7 @@ declare -a SYSTEM_BLOCKS
 declare -a CONTEXT_BLOCKS
 declare -a DEPENDENCY_BLOCKS
 declare -a INPUT_BLOCKS
+declare -a IMAGE_BLOCKS
 declare -a DOCUMENT_INDEX_MAP
 
 # Validate task file exists
@@ -448,7 +449,7 @@ build_system_prompt "$SYSTEM_PROMPT_FILE" || exit 1
 # Context Aggregation
 # =============================================================================
 
-aggregate_context "run" "$PROJECT_ROOT"
+aggregate_context "run" "$PROJECT_ROOT" "$WORKFLOW_DIR"
 
 # =============================================================================
 # API Request Setup - Build Final Prompts
