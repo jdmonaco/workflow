@@ -218,7 +218,7 @@ API Options:
 Execution Options:
     --stream                  Stream output in real-time
     --count-tokens            Show token estimation only
-    --dry-run                 Save prompts to files and inspect in editor
+    --dry-run                 Save API request files and inspect in editor
     -h, --help                Quick help
 
 Examples:
@@ -262,7 +262,7 @@ Output Options:
 
 Other Options:
     --count-tokens            Show token estimation only
-    --dry-run                 Save prompts to files and inspect in editor
+    --dry-run                 Save API request files and inspect in editor
     -h, --help                Quick help
 
 Examples:
