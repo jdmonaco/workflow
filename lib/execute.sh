@@ -90,14 +90,15 @@ build_system_prompt() {
 # Token Estimation
 # =============================================================================
 
-# Estimate token count for system, task, and context prompts
+# Estimate token count for system, task, input documents, and context prompts
 # Only estimates if COUNT_TOKENS flag is set
 # Exits if COUNT_TOKENS without DRY_RUN (standalone estimation)
 #
 # Args:
 #   $1 - system_prompt_file: Path to system prompt file
 #   $2 - task_source: Path to task file OR string content
-#   $3 - context_prompt_file: Path to context file
+#   $3 - input_prompt_file: Path to input documents file
+#   $4 - context_prompt_file: Path to context file
 # Requires:
 #   COUNT_TOKENS: Boolean flag
 #   DRY_RUN: Boolean flag
@@ -106,7 +107,8 @@ build_system_prompt() {
 estimate_tokens() {
     local system_file="$1"
     local task_source="$2"
-    local context_file="$3"
+    local input_file="$3"
+    local context_file="$4"
 
     # Skip if not requested
     [[ "$COUNT_TOKENS" != true ]] && return 0
@@ -127,6 +129,17 @@ estimate_tokens() {
     tasktc=$((taskwc * 13 / 10 + 4096))
     echo "Estimated task tokens: $tasktc"
 
+    # Input documents tokens
+    local inputtc
+    if [[ -s "$input_file" ]]; then
+        local inputwc
+        inputwc=$(wc -w < "$input_file")
+        inputtc=$((inputwc * 13 / 10 + 4096))
+        echo "Estimated input documents tokens: $inputtc"
+    else
+        inputtc=0
+    fi
+
     # Context tokens
     local contexttc
     if [[ -s "$context_file" ]]; then
@@ -139,7 +152,7 @@ estimate_tokens() {
     fi
 
     # Total
-    local total_tokens=$((systc + tasktc + contexttc))
+    local total_tokens=$((systc + tasktc + inputtc + contexttc))
     echo "Estimated total input tokens: $total_tokens"
     echo ""
 
@@ -225,6 +238,7 @@ handle_dry_run_mode() {
 #
 # USER_PROMPT structure:
 #   <user>
+#     <documents>...</documents>
 #     <context>...</context>
 #     <task>...</task>
 #   </user>
@@ -232,16 +246,18 @@ handle_dry_run_mode() {
 # Args:
 #   $1 - system_prompt_file: Path to system prompt file (already contains <system-prompts> wrapper)
 #   $2 - project_root: Project root directory (or empty if no project)
-#   $3 - context_prompt_file: Path to context file
-#   $4 - task_source: Path to task file OR task string content
+#   $3 - input_prompt_file: Path to input documents file
+#   $4 - context_prompt_file: Path to context file
+#   $5 - task_source: Path to task file OR task string content
 # Sets global variables:
 #   SYSTEM_PROMPT: Final system prompt with XML structure
 #   USER_PROMPT: Final user prompt with XML structure
 build_prompts() {
     local system_file="$1"
     local project_root="$2"
-    local context_file="$3"
-    local task_source="$4"
+    local input_file="$3"
+    local context_file="$4"
+    local task_source="$5"
 
     # Read system prompts (already wrapped in <system-prompts> tags by build_system_prompt)
     local system_prompts_content
@@ -280,6 +296,15 @@ build_prompts() {
     # Start building user prompt
     USER_PROMPT="<user>"$'\n'
 
+    # Add documents section if input exists
+    if [[ -s "$input_file" ]]; then
+        local input_content
+        input_content=$(<"$input_file")
+        USER_PROMPT+=$'\n'"<documents>"$'\n'
+        USER_PROMPT+="${input_content}"$'\n'
+        USER_PROMPT+="</documents>"$'\n'
+    fi
+
     # Add context section if context exists
     if [[ -s "$context_file" ]]; then
         local context_content
@@ -302,36 +327,94 @@ build_prompts() {
 # Context Aggregation
 # =============================================================================
 
-# Aggregate context files from various sources based on mode
-# Run mode: dependencies + config patterns/files + CLI patterns/files
+# Aggregate input and context files from various sources based on mode
+# Separates primary input documents from supporting context materials
+# Run mode: config patterns/files + CLI patterns/files
 # Task mode: CLI patterns/files only
 #
 # Args:
 #   $1 - mode: "run" or "task"
-#   $2 - context_file: Path where aggregated context should be written
-#   $3 - project_root: Project root (for run mode, empty for task standalone)
+#   $2 - input_file: Path where aggregated input documents should be written
+#   $3 - context_file: Path where aggregated context should be written
+#   $4 - project_root: Project root (for run mode, empty for task standalone)
 # Requires (run mode):
+#   INPUT_PATTERN: Config input pattern
+#   INPUT_FILES: Array of config input files
 #   DEPENDS_ON: Array of workflow dependencies
 #   CONTEXT_PATTERN: Config context pattern
 #   CONTEXT_FILES: Array of config context files
 # Requires (both modes):
+#   CLI_INPUT_PATTERN: CLI input pattern
+#   CLI_INPUT_FILES: Array of CLI input files
 #   CLI_CONTEXT_PATTERN: CLI context pattern
 #   CLI_CONTEXT_FILES: Array of CLI context files
 # Side effects:
-#   Writes aggregated context to context_file
+#   Writes aggregated input documents to input_file using documentcat()
+#   Writes aggregated context to context_file using contextcat()
 aggregate_context() {
     local mode="$1"
-    local context_file="$2"
-    local project_root="$3"
+    local input_file="$2"
+    local context_file="$3"
+    local project_root="$4"
 
-    echo "Building context..."
+    echo "Building input documents and context..."
 
-    # Start with empty context
+    # Start with empty files
+    > "$input_file"
     > "$context_file"
+
+    # =============================================================================
+    # INPUT DOCUMENTS AGGREGATION (using documentcat)
+    # =============================================================================
+
+    # Run mode: Add files from config INPUT_PATTERN (project-relative)
+    if [[ "$mode" == "run" && -n "$INPUT_PATTERN" ]]; then
+        echo "  Adding input documents from config pattern: $INPUT_PATTERN"
+        (cd "$project_root" && eval "documentcat $INPUT_PATTERN") >> "$input_file"
+    fi
+
+    # Both modes: Add files from CLI --input-pattern (PWD-relative)
+    if [[ -n "$CLI_INPUT_PATTERN" ]]; then
+        echo "  Adding input documents from CLI pattern: $CLI_INPUT_PATTERN"
+        eval "documentcat $CLI_INPUT_PATTERN" >> "$input_file"
+    fi
+
+    # Run mode: Add explicit files from config INPUT_FILES (project-relative)
+    if [[ "$mode" == "run" && ${#INPUT_FILES[@]} -gt 0 ]]; then
+        echo "  Adding explicit input files from config..."
+        local resolved_files=()
+        for file in "${INPUT_FILES[@]}"; do
+            local resolved_file="$project_root/$file"
+            if [[ ! -f "$resolved_file" ]]; then
+                echo "Error: Input file not found: $file (resolved: $resolved_file)"
+                exit 1
+            fi
+            resolved_files+=("$resolved_file")
+        done
+        documentcat "${resolved_files[@]}" >> "$input_file"
+    fi
+
+    # Both modes: Add explicit files from CLI --input-file (PWD-relative)
+    if [[ ${#CLI_INPUT_FILES[@]} -gt 0 ]]; then
+        echo "  Adding explicit input files from CLI..."
+        local validated_files=()
+        for file in "${CLI_INPUT_FILES[@]}"; do
+            if [[ ! -f "$file" ]]; then
+                echo "Error: Input file not found: $file"
+                exit 1
+            fi
+            validated_files+=("$file")
+        done
+        documentcat "${validated_files[@]}" >> "$input_file"
+    fi
+
+    # =============================================================================
+    # CONTEXT AGGREGATION (using contextcat)
+    # =============================================================================
 
     # Run mode: Add workflow dependencies
     if [[ "$mode" == "run" && ${#DEPENDS_ON[@]} -gt 0 ]]; then
-        echo "  Adding dependencies..."
+        echo "  Adding context from dependencies..."
         local dep_files=()
         for dep in "${DEPENDS_ON[@]}"; do
             # Find dependency output with any extension
@@ -346,24 +429,24 @@ aggregate_context() {
             echo "    - $dep_file"
             dep_files+=("$dep_file")
         done
-        filecat "${dep_files[@]}" >> "$context_file"
+        contextcat "${dep_files[@]}" >> "$context_file"
     fi
 
     # Run mode: Add files from config CONTEXT_PATTERN (project-relative)
     if [[ "$mode" == "run" && -n "$CONTEXT_PATTERN" ]]; then
-        echo "  Adding files from config pattern: $CONTEXT_PATTERN"
-        (cd "$project_root" && eval "filecat $CONTEXT_PATTERN") >> "$context_file"
+        echo "  Adding context from config pattern: $CONTEXT_PATTERN"
+        (cd "$project_root" && eval "contextcat $CONTEXT_PATTERN") >> "$context_file"
     fi
 
     # Both modes: Add files from CLI --context-pattern (PWD-relative)
     if [[ -n "$CLI_CONTEXT_PATTERN" ]]; then
-        echo "  Adding files from CLI pattern: $CLI_CONTEXT_PATTERN"
-        eval "filecat $CLI_CONTEXT_PATTERN" >> "$context_file"
+        echo "  Adding context from CLI pattern: $CLI_CONTEXT_PATTERN"
+        eval "contextcat $CLI_CONTEXT_PATTERN" >> "$context_file"
     fi
 
     # Run mode: Add explicit files from config CONTEXT_FILES (project-relative)
     if [[ "$mode" == "run" && ${#CONTEXT_FILES[@]} -gt 0 ]]; then
-        echo "  Adding explicit files from config..."
+        echo "  Adding explicit context files from config..."
         local resolved_files=()
         for file in "${CONTEXT_FILES[@]}"; do
             local resolved_file="$project_root/$file"
@@ -373,12 +456,12 @@ aggregate_context() {
             fi
             resolved_files+=("$resolved_file")
         done
-        filecat "${resolved_files[@]}" >> "$context_file"
+        contextcat "${resolved_files[@]}" >> "$context_file"
     fi
 
     # Both modes: Add explicit files from CLI --context-file (PWD-relative)
     if [[ ${#CLI_CONTEXT_FILES[@]} -gt 0 ]]; then
-        echo "  Adding explicit files from CLI..."
+        echo "  Adding explicit context files from CLI..."
         local validated_files=()
         for file in "${CLI_CONTEXT_FILES[@]}"; do
             if [[ ! -f "$file" ]]; then
@@ -387,16 +470,21 @@ aggregate_context() {
             fi
             validated_files+=("$file")
         done
-        filecat "${validated_files[@]}" >> "$context_file"
+        contextcat "${validated_files[@]}" >> "$context_file"
     fi
 
-    # Check if any context was provided
-    if [[ ! -s "$context_file" ]]; then
-        echo "Warning: No context provided. Task will run without context."
+    # Check if any input or context was provided
+    local has_input=false
+    local has_context=false
+    [[ -s "$input_file" ]] && has_input=true
+    [[ -s "$context_file" ]] && has_context=true
+
+    if [[ "$has_input" == false && "$has_context" == false ]]; then
+        echo "Warning: No input documents or context provided. Task will run without supporting materials."
         if [[ "$mode" == "run" ]]; then
-            echo "  Use --context-file, --context-pattern, or --depends-on to add context"
+            echo "  Use --input-file, --input-pattern, --context-file, --context-pattern, or --depends-on"
         else
-            echo "  Use --context-file or --context-pattern to add context"
+            echo "  Use --input-file, --input-pattern, --context-file, or --context-pattern"
         fi
     fi
 }

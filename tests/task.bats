@@ -93,7 +93,7 @@ teardown() {
     run bash "$WORKFLOW_SCRIPT" task -i "Process this" --context-file context.txt
 
     assert_success
-    assert_output --partial "Adding explicit files from CLI"
+    assert_output --partial "Adding explicit context files from CLI"
 }
 
 @test "task: works with --context-pattern" {
@@ -104,7 +104,7 @@ teardown() {
     run bash "$WORKFLOW_SCRIPT" task -i "Analyze data" --context-pattern "data/*.txt"
 
     assert_success
-    assert_output --partial "Adding files from CLI pattern"
+    assert_output --partial "Adding context from CLI pattern"
 }
 
 @test "task: works with --output-file" {
@@ -232,7 +232,7 @@ EOF
     run bash "$WORKFLOW_SCRIPT" task -i "Test without context"
 
     assert_success
-    assert_output --partial "Warning: No context provided"
+    assert_output --partial "Warning: No input documents or context provided"
 }
 
 @test "task: fails when ANTHROPIC_API_KEY not set" {

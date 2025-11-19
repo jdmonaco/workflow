@@ -135,21 +135,38 @@ CLI_CONTEXT_FILES+=("$file")  # Relative to PWD
 3. Config CONTEXT_FILES (project-relative)
 4. CLI --context-file (PWD-relative)
 
-### Context Aggregation
+### Input and Context Aggregation
 
-**Three methods (combined):**
+**Semantic separation:**
+
+- **INPUT documents** (`INPUT_PATTERN`, `INPUT_FILES`): Primary documents to be analyzed or transformed
+- **CONTEXT materials** (`CONTEXT_PATTERN`, `CONTEXT_FILES`, `DEPENDS_ON`): Supporting information and references
+
+**Three aggregation methods (applies to both INPUT and CONTEXT):**
 
 1. **Glob patterns:** Bash glob expansion, multiple files
 2. **Explicit files:** Array of specific paths
-3. **Workflow dependencies:** Include outputs via hardlinks
+3. **Workflow dependencies:** Include outputs via hardlinks (CONTEXT only)
 
-**File processing:**
+**File processing functions:**
 
 ```bash
+documentcat() {
+    # For INPUT documents
+    # Sequential indexing: <document index="1">, <document index="2">
+    # Includes absolute source path in <source> tag
+    # Wraps content in <document_content> tags
+}
+
+contextcat() {
+    # For CONTEXT files
+    # No indexing, each file in <context-file> tag
+    # Includes absolute source path in <source> tag
+    # Wraps content in <context_content> tags
+}
+
 filecat() {
-    # Wraps file in XML tags with path and type metadata
-    # Handles binary detection, encoding issues
-    # Adds visual separators
+    # Legacy function, uses contextcat() for backward compatibility
 }
 ```
 
@@ -157,6 +174,7 @@ filecat() {
 
 ```bash
 # Reads from .workflow/output/ hardlinks
+# Dependencies always go to CONTEXT (not INPUT)
 for dep in "${DEPENDS_ON[@]}"; do
     dep_file=$(ls "$PROJECT_ROOT/.workflow/output/$dep".* 2>/dev/null)
 done
@@ -180,11 +198,58 @@ aggregate_nested_project_descriptions() {
 
 1. Load prompts from `$WORKFLOW_PROMPT_PREFIX/{name}.txt`
 2. Concatenate in order specified by `SYSTEM_PROMPTS` array
-3. Append `project.txt` if non-empty (wrapped in `<project>` tags)
+3. Wrap in `<system-prompts>` XML tags
 4. Write to `.workflow/prompts/system.txt`
 5. Use cached version as fallback if rebuild fails
 
+**XML structure:**
+
+```xml
+<system>
+  <system-prompts>
+    [Concatenated prompt files from SYSTEM_PROMPTS array]
+  </system-prompts>
+
+  <project-description>
+    [Nested project descriptions if project.txt exists]
+  </project-description>
+
+  <current-datetime>
+    [UTC timestamp]
+  </current-datetime>
+</system>
+```
+
 **Rationale:** Rebuild ensures configuration changes take effect immediately.
+
+### User Prompt Composition
+
+**XML structure:**
+
+```xml
+<user>
+  <documents>
+    [Input documents from INPUT_PATTERN and INPUT_FILES]
+    [Each wrapped in <document index="N"> with <source> and <document_content>]
+  </documents>
+
+  <context>
+    [Context files from CONTEXT_PATTERN, CONTEXT_FILES, and DEPENDS_ON]
+    [Each wrapped in <context-file> with <source> and <context_content>]
+  </context>
+
+  <task>
+    [Task content from task.txt or inline specification]
+    [Includes <output-format> if specified]
+  </task>
+</user>
+```
+
+**Section rules:**
+- `<documents>` section only appears if INPUT_* sources are configured
+- `<context>` section only appears if CONTEXT_* or DEPENDS_ON sources are configured
+- `<task>` section always present
+- Documents appear before context (follows Anthropic long-context best practices)
 
 ### API Interaction
 
@@ -401,13 +466,17 @@ Eliminates duplication between run mode (workflow.sh) and task mode (lib/task.sh
 
 **Functions:**
 
-- `build_system_prompt()` - Concatenates prompt files from SYSTEM_PROMPTS array, atomic write
-- `estimate_tokens()` - Token estimation for system, task, and context prompts
+- `build_system_prompt()` - Concatenates prompt files from SYSTEM_PROMPTS array, wraps in `<system-prompts>`, atomic write
+- `estimate_tokens()` - Token estimation for system, task, input documents, and context prompts
 - `handle_dry_run_mode()` - Saves prompts to files (workflow dir or temp) and opens in editor
-- `build_prompts()` - Combines system + project descriptions, context + task
-- `aggregate_context(mode)` - Mode-aware context aggregation from multiple sources
-  - Run mode: dependencies + config patterns/files + CLI patterns/files
-  - Task mode: CLI patterns/files only
+- `build_prompts()` - Builds hierarchical XML structure for system and user prompts
+  - System: `<system>` with `<system-prompts>`, `<project-description>`, `<current-datetime>`
+  - User: `<user>` with `<documents>`, `<context>`, `<task>`
+- `aggregate_context(mode, input_file, context_file, project_root)` - Separates input documents from context
+  - Aggregates INPUT_* sources using `documentcat()` → input_file
+  - Aggregates CONTEXT_* sources using `contextcat()` → context_file
+  - Run mode: config + CLI for both INPUT and CONTEXT, plus dependencies
+  - Task mode: CLI only for INPUT and CONTEXT
 - `execute_api_request(mode)` - Unified API execution with mode-specific output handling
   - Run mode: backs up existing output before API call
   - Task mode: displays to stdout in non-stream mode if no explicit file

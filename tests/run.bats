@@ -551,7 +551,7 @@ EOF
     run bash "$WORKFLOW_SCRIPT" run test-workflow
 
     assert_success
-    assert_output --partial "No context provided"
+    assert_output --partial "No input documents or context provided"
 }
 
 @test "run: CONTEXT_PATTERN with brace expansion" {
@@ -573,4 +573,139 @@ EOF
     run cat .workflow/test-workflow/context.txt
     assert_output --partial "Topic 1 content"
     assert_output --partial "Topic 2 content"
+}
+
+# =============================================================================
+# INPUT Document Aggregation Tests
+# =============================================================================
+
+@test "run: aggregates INPUT_PATTERN using documentcat" {
+    # Create input data files
+    mkdir -p Data
+    echo "Dataset 1 content" > Data/data1.csv
+    echo "Dataset 2 content" > Data/data2.csv
+
+    # Configure INPUT_PATTERN (project-relative)
+    echo 'INPUT_PATTERN="Data/*.csv"' >> .workflow/test-workflow/config
+
+    bash "$WORKFLOW_SCRIPT" run test-workflow
+
+    # Check input file was created and contains document structure
+    assert_file_exists ".workflow/test-workflow/input.txt"
+    run cat .workflow/test-workflow/input.txt
+
+    # Verify documentcat structure (index, metadata)
+    assert_output --partial '<document index="1">'
+    assert_output --partial '<source>'
+    assert_output --partial '<document_content>'
+    assert_output --partial "Dataset 1 content"
+    assert_output --partial "Dataset 2 content"
+}
+
+@test "run: aggregates INPUT_FILES using documentcat" {
+    # Create input files
+    mkdir -p Data
+    echo "Input document 1" > Data/doc1.json
+    echo "Input document 2" > Data/doc2.json
+
+    # Configure INPUT_FILES (project-relative)
+    cat >> .workflow/test-workflow/config <<'EOF'
+INPUT_FILES=(
+    "Data/doc1.json"
+    "Data/doc2.json"
+)
+EOF
+
+    bash "$WORKFLOW_SCRIPT" run test-workflow
+
+    # Check input file contains both documents with sequential indexing
+    assert_file_exists ".workflow/test-workflow/input.txt"
+    run cat .workflow/test-workflow/input.txt
+
+    assert_output --partial '<document index="1">'
+    assert_output --partial '<document index="2">'
+    assert_output --partial "Input document 1"
+    assert_output --partial "Input document 2"
+}
+
+@test "run: separates INPUT_* from CONTEXT_*" {
+    # Create input documents
+    mkdir -p Data
+    echo "Primary data" > Data/data.csv
+
+    # Create context files
+    mkdir -p References
+    echo "Reference material" > References/ref.md
+
+    # Configure both INPUT and CONTEXT
+    cat >> .workflow/test-workflow/config <<'EOF'
+INPUT_PATTERN="Data/*.csv"
+CONTEXT_PATTERN="References/*.md"
+EOF
+
+    bash "$WORKFLOW_SCRIPT" run test-workflow
+
+    # Check input file contains documentcat structure
+    run cat .workflow/test-workflow/input.txt
+    assert_output --partial '<document index="1">'
+    assert_output --partial "Primary data"
+
+    # Check context file contains contextcat structure
+    run cat .workflow/test-workflow/context.txt
+    assert_output --partial '<context-file>'
+    assert_output --partial "Reference material"
+}
+
+@test "run: INPUT_PATTERN works from subdirectory (project-relative)" {
+    # Create input files
+    mkdir -p Data
+    echo "Input data" > Data/data.csv
+
+    # Configure pattern relative to project root
+    echo 'INPUT_PATTERN="Data/*.csv"' >> .workflow/test-workflow/config
+
+    # Run from subdirectory
+    mkdir subdir
+    cd subdir
+
+    bash "$WORKFLOW_SCRIPT" run test-workflow
+
+    # Should still find Data/*.csv relative to project root
+    run cat ../.workflow/test-workflow/input.txt
+    assert_output --partial "Input data"
+}
+
+@test "run: CLI --input-file works (PWD-relative)" {
+    # Create input file in current directory
+    echo "CLI input data" > input-data.txt
+
+    bash "$WORKFLOW_SCRIPT" run test-workflow --input-file input-data.txt
+
+    # Check input file contains CLI data
+    run cat .workflow/test-workflow/input.txt
+    assert_output --partial "CLI input data"
+    assert_output --partial '<document index="1">'
+}
+
+@test "run: CLI --input-pattern works" {
+    # Create input files in current directory
+    mkdir -p TestData
+    echo "Pattern input 1" > TestData/test1.dat
+    echo "Pattern input 2" > TestData/test2.dat
+
+    bash "$WORKFLOW_SCRIPT" run test-workflow --input-pattern "TestData/*.dat"
+
+    # Check input file contains pattern matches
+    run cat .workflow/test-workflow/input.txt
+    assert_output --partial "Pattern input 1"
+    assert_output --partial "Pattern input 2"
+    assert_output --partial '<document index="1">'
+}
+
+@test "run: creates input.txt file" {
+    # Simple test to verify input.txt is created even if empty
+    run bash "$WORKFLOW_SCRIPT" run test-workflow
+
+    # File should exist (may be empty if no input sources configured)
+    assert_file_exists ".workflow/test-workflow/input.txt"
 }

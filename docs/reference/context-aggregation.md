@@ -1,55 +1,69 @@
-# Context Aggregation
+# Input and Context Aggregation
 
-Reference for how Workflow aggregates and manages context from multiple sources.
+Reference for how Workflow aggregates input documents and context materials from multiple sources.
 
 ## Overview
 
-Context aggregation combines content from multiple sources into a single context sent to Claude along with your task.
+Workflow distinguishes between two types of materials:
 
-## Context Sources
+- **Input Documents** (`INPUT_*`): Primary data to be analyzed or transformed
+- **Context Materials** (`CONTEXT_*`): Supporting information and references
 
-Workflow supports three aggregation methods that can be combined:
+Both support three aggregation methods that can be combined:
 
 1. **Glob patterns** - Match files by pattern
 2. **Explicit files** - Specify exact file paths
-3. **Workflow dependencies** - Include outputs from other workflows
+3. **Workflow dependencies** - Include outputs from other workflows (CONTEXT only)
 
 ## Aggregation Priority
 
-Sources are processed in this order (later sources append to earlier):
+**Input Documents** (processed first, using `documentcat()`):
 
-**Workflow Mode (`run`):**
+1. Config `INPUT_PATTERN` (project-relative, run mode only)
+2. CLI `--input-pattern` (PWD-relative, both modes)
+3. Config `INPUT_FILES` (project-relative, run mode only)
+4. CLI `--input-file` (PWD-relative, both modes)
 
-1. System prompts (`SYSTEM_PROMPTS`)
-2. Project description (`.workflow/project.txt`)
-3. Dependent workflow outputs (`DEPENDS_ON`)
-4. Glob patterns from config (`CONTEXT_PATTERN`)
-5. Glob patterns from CLI (`--context-pattern`)
-6. Files from config (`CONTEXT_FILES`)
-7. Files from CLI (`--context-file`)
+**Context Materials** (processed second, using `contextcat()`):
 
-**Task Mode (`task`):**
-
-1. System prompts
-2. Project description (if in a project)
-3. Glob patterns from CLI (`--context-pattern`)
-4. Files from CLI (`--context-file`)
+1. Workflow dependencies `DEPENDS_ON` (run mode only)
+2. Config `CONTEXT_PATTERN` (project-relative, run mode only)
+3. CLI `--context-pattern` (PWD-relative, both modes)
+4. Config `CONTEXT_FILES` (project-relative, run mode only)
+5. CLI `--context-file` (PWD-relative, both modes)
 
 ## Method 1: Glob Patterns
 
 Match files using glob patterns.
 
-### In Config
+### Input Patterns
+
+**In Config:**
 
 ```bash
 # .workflow/analysis/config
-CONTEXT_PATTERN="data/*.csv"
+INPUT_PATTERN="data/*.csv"
 ```
 
-### From CLI
+**From CLI:**
 
 ```bash
-workflow run analysis --context-pattern "data/*.csv"
+workflow run analysis --input-pattern "data/*.csv"
+```
+
+### Context Patterns
+
+**In Config:**
+
+```bash
+# .workflow/analysis/config
+CONTEXT_PATTERN="references/*.md"
+```
+
+**From CLI:**
+
+```bash
+workflow run analysis --context-pattern "references/*.md"
 ```
 
 ### Pattern Syntax
@@ -85,19 +99,37 @@ CONTEXT_PATTERN="data/*.csv notes/*.md"
 
 Specify exact file paths.
 
-### In Config
+### Input Files
+
+**In Config:**
 
 ```bash
 # .workflow/analysis/config
-CONTEXT_FILES=("README.md" "data/summary.csv" "notes/important.txt")
+INPUT_FILES=("data/dataset1.json" "data/dataset2.json")
 ```
 
-### From CLI
+**From CLI:**
+
+```bash
+workflow run analysis \
+  --input-file data/dataset1.json \
+  --input-file data/dataset2.json
+```
+
+### Context Files
+
+**In Config:**
+
+```bash
+# .workflow/analysis/config
+CONTEXT_FILES=("README.md" "notes/important.txt")
+```
+
+**From CLI:**
 
 ```bash
 workflow run analysis \
   --context-file README.md \
-  --context-file data/summary.csv \
   --context-file notes/important.txt
 ```
 

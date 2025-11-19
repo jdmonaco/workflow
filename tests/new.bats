@@ -33,10 +33,12 @@ teardown() {
     # Check config has expected template content
     run cat .workflow/test-workflow/config
     assert_output --partial "# Workflow-specific configuration"
+    assert_output --partial "INPUT_PATTERN"
+    assert_output --partial "INPUT_FILES"
     assert_output --partial "CONTEXT_PATTERN"
     assert_output --partial "CONTEXT_FILES"
     assert_output --partial "DEPENDS_ON"
-    assert_output --partial "Paths in CONTEXT_PATTERN and CONTEXT_FILES are relative to project root"
+    assert_output --partial "Paths in INPUT_* and CONTEXT_* are relative to project root"
 }
 
 @test "new: creates task.txt with skeleton" {

@@ -219,8 +219,8 @@ Override settings for specific workflows without affecting others.
 ### Example Workflow Config
 
 ```bash
-# Context aggregation (workflow-specific)
-CONTEXT_PATTERN="data/*.csv"
+# Input and context aggregation (workflow-specific)
+INPUT_PATTERN="data/*.csv"
 CONTEXT_FILES=("notes.md" "references.txt")
 DEPENDS_ON=("00-context" "01-preprocessing")
 
@@ -232,10 +232,15 @@ SYSTEM_PROMPTS=(base stats)  # Override: add stats prompt
 OUTPUT_FORMAT=json  # Override: JSON output for this workflow
 ```
 
-### Context Configuration
+### Input and Context Configuration
 
-Workflow configs commonly specify context sources:
+Workflow configs distinguish between primary input documents and supporting context:
 
+**Input Documents** (data to be analyzed or transformed):
+- `INPUT_PATTERN` - Glob pattern relative to project root
+- `INPUT_FILES` - Array of files relative to project root
+
+**Context Materials** (supporting information and references):
 - `CONTEXT_PATTERN` - Glob pattern relative to project root
 - `CONTEXT_FILES` - Array of files relative to project root
 - `DEPENDS_ON` - Array of workflow names to include outputs from
@@ -267,7 +272,9 @@ Command-line flags **always override** all config levels.
 | `--max-tokens` | `MAX_TOKENS` | `--max-tokens 8192` |
 | `--system-prompts` | `SYSTEM_PROMPTS` | `--system-prompts "base,research"` |
 | `--format-hint` | `OUTPUT_FORMAT` | `--format-hint json` |
-| `--context-file` | `CONTEXT_FILES` | `--context-file data.csv` |
+| `--input-file` | `INPUT_FILES` | `--input-file data.csv` |
+| `--input-pattern` | `INPUT_PATTERN` | `--input-pattern "data/*.csv"` |
+| `--context-file` | `CONTEXT_FILES` | `--context-file notes.md` |
 | `--context-pattern` | `CONTEXT_PATTERN` | `--context-pattern "*.md"` |
 | `--depends-on` | `DEPENDS_ON` | `--depends-on 01-analysis` |
 

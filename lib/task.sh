@@ -20,7 +20,9 @@ DRY_RUN=false
 COUNT_TOKENS=false
 SYSTEM_PROMPTS_OVERRIDE=""
 
-# Separate storage for CLI-provided context paths (relative to PWD)
+# Separate storage for CLI-provided paths (relative to PWD)
+CLI_INPUT_FILES=()
+CLI_INPUT_PATTERN=""
 CLI_CONTEXT_FILES=()
 CLI_CONTEXT_PATTERN=""
 
@@ -54,6 +56,14 @@ while [[ $# -gt 0 ]]; do
         --count-tokens)
             COUNT_TOKENS=true
             shift
+            ;;
+        --input-file)
+            CLI_INPUT_FILES+=("$2")
+            shift 2
+            ;;
+        --input-pattern)
+            CLI_INPUT_PATTERN="$2"
+            shift 2
             ;;
         --context-file)
             CLI_CONTEXT_FILES+=("$2")
@@ -197,23 +207,24 @@ build_system_prompt "$SYSTEM_PROMPT_FILE" || exit 1
 # Task Mode - Context Aggregation
 # =============================================================================
 
-# Use temporary context file
+# Use temporary files for input and context
+INPUT_PROMPT_FILE=$(mktemp)
 CONTEXT_PROMPT_FILE=$(mktemp)
-trap "rm -f $CONTEXT_PROMPT_FILE" EXIT
+trap "rm -f $INPUT_PROMPT_FILE $CONTEXT_PROMPT_FILE" EXIT
 
-aggregate_context "task" "$CONTEXT_PROMPT_FILE" "$PROJECT_ROOT"
+aggregate_context "task" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE" "$PROJECT_ROOT"
 
 # =============================================================================
 # Task Mode - API Request Setup - Build Final Prompts
 # =============================================================================
 
-build_prompts "$SYSTEM_PROMPT_FILE" "$PROJECT_ROOT" "$CONTEXT_PROMPT_FILE" "$TASK_PROMPT"
+build_prompts "$SYSTEM_PROMPT_FILE" "$PROJECT_ROOT" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE" "$TASK_PROMPT"
 
 # =============================================================================
 # Token Estimation (if requested)
 # =============================================================================
 
-estimate_tokens "$SYSTEM_PROMPT_FILE" "$TASK_PROMPT" "$CONTEXT_PROMPT_FILE"
+estimate_tokens "$SYSTEM_PROMPT_FILE" "$TASK_PROMPT" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE"
 
 # =============================================================================
 # Dry-Run Mode - Save Prompts and Inspect

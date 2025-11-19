@@ -304,6 +304,8 @@ if [[ -f "$WORKFLOW_DIR/config" ]]; then
             MAX_TOKENS) [[ -n "$value" ]] && MAX_TOKENS="$value" && CONFIG_SOURCE_MAP[MAX_TOKENS]="workflow" ;;
             OUTPUT_FORMAT) [[ -n "$value" ]] && OUTPUT_FORMAT="$value" && CONFIG_SOURCE_MAP[OUTPUT_FORMAT]="workflow" ;;
             SYSTEM_PROMPTS) [[ -n "$value" ]] && SYSTEM_PROMPTS=($value) && CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="workflow" ;;
+            INPUT_PATTERN) [[ -n "$value" ]] && INPUT_PATTERN="$value" ;;
+            INPUT_FILES) [[ -n "$value" ]] && INPUT_FILES=($value) ;;
             CONTEXT_PATTERN) [[ -n "$value" ]] && CONTEXT_PATTERN="$value" ;;
             CONTEXT_FILES) [[ -n "$value" ]] && CONTEXT_FILES=($value) ;;
             DEPENDS_ON) [[ -n "$value" ]] && DEPENDS_ON=($value) ;;
@@ -320,6 +322,8 @@ COUNT_TOKENS=false
 SYSTEM_PROMPTS_OVERRIDE=""
 
 # Separate storage for CLI-provided paths (relative to PWD)
+CLI_INPUT_FILES=()
+CLI_INPUT_PATTERN=""
 CLI_CONTEXT_FILES=()
 CLI_CONTEXT_PATTERN=""
 
@@ -341,6 +345,14 @@ while [[ $# -gt 0 ]]; do
         --count-tokens)
             COUNT_TOKENS=true
             shift
+            ;;
+        --input-file)
+            CLI_INPUT_FILES+=("$2")  # Store CLI paths separately
+            shift 2
+            ;;
+        --input-pattern)
+            CLI_INPUT_PATTERN="$2"  # Store CLI pattern separately
+            shift 2
             ;;
         --context-file)
             CLI_CONTEXT_FILES+=("$2")  # Store CLI paths separately
@@ -393,6 +405,7 @@ fi
 
 # File paths (all relative to PROJECT_ROOT/.workflow/)
 TASK_PROMPT_FILE="$WORKFLOW_DIR/task.txt"
+INPUT_PROMPT_FILE="$WORKFLOW_DIR/input.txt"
 CONTEXT_PROMPT_FILE="$WORKFLOW_DIR/context.txt"
 OUTPUT_FILE="$WORKFLOW_DIR/output.${OUTPUT_FORMAT}"
 OUTPUT_LINK="$PROJECT_ROOT/.workflow/output/${WORKFLOW_NAME}.${OUTPUT_FORMAT}"
@@ -412,19 +425,19 @@ build_system_prompt "$SYSTEM_PROMPT_FILE" || exit 1
 # Context Aggregation
 # =============================================================================
 
-aggregate_context "run" "$CONTEXT_PROMPT_FILE" "$PROJECT_ROOT"
+aggregate_context "run" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE" "$PROJECT_ROOT"
 
 # =============================================================================
 # API Request Setup - Build Final Prompts
 # =============================================================================
 
-build_prompts "$SYSTEM_PROMPT_FILE" "$PROJECT_ROOT" "$CONTEXT_PROMPT_FILE" "$TASK_PROMPT_FILE"
+build_prompts "$SYSTEM_PROMPT_FILE" "$PROJECT_ROOT" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE" "$TASK_PROMPT_FILE"
 
 # =============================================================================
 # Token Estimation (if requested)
 # =============================================================================
 
-estimate_tokens "$SYSTEM_PROMPT_FILE" "$TASK_PROMPT_FILE" "$CONTEXT_PROMPT_FILE"
+estimate_tokens "$SYSTEM_PROMPT_FILE" "$TASK_PROMPT_FILE" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE"
 
 # =============================================================================
 # Dry-Run Mode - Save Prompts and Inspect

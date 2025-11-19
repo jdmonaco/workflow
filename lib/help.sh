@@ -190,9 +190,13 @@ Execute a workflow with full context aggregation.
 Arguments:
     <name>         Workflow name (required)
 
-Context Options:
+Input Options (primary documents to analyze):
+    --input-file <file>       Add input document (repeatable)
+    --input-pattern <glob>    Add input files matching pattern
+
+Context Options (supporting materials and references):
     --context-file <file>     Add context file (repeatable)
-    --context-pattern <glob>  Add files matching pattern
+    --context-pattern <glob>  Add context files matching pattern
     --depends-on <workflow>   Include output from another workflow
 
 API Options:
@@ -227,9 +231,13 @@ Arguments:
 Task Specification:
     -i, --inline <text>       Inline task specification
 
-Context Options:
+Input Options (primary documents to analyze):
+    --input-file <file>       Add input document (repeatable)
+    --input-pattern <glob>    Add input files matching pattern
+
+Context Options (supporting materials and references):
     --context-file <file>     Add context file (repeatable)
-    --context-pattern <glob>  Add files matching pattern
+    --context-pattern <glob>  Add context files matching pattern
 
 API Options:
     --model <model>           Override model
