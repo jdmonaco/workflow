@@ -176,65 +176,61 @@ build_current_date_block() {
 # Token Estimation
 # =============================================================================
 
-# Estimate token count for system, task, input documents, and context prompts
-# Only estimates if COUNT_TOKENS flag is set
-# Exits if COUNT_TOKENS without DRY_RUN (standalone estimation)
+# Estimate token counts from JSON content blocks and optionally call Anthropic API for exact counts
+# Uses simple heuristic: ~4 chars per token (reasonable for English)
 #
-# Args:
-#   $1 - system_prompt_file: Path to system prompt file
-#   $2 - task_source: Path to task file OR string content
-#   $3 - input_prompt_file: Path to input documents file
-#   $4 - context_prompt_file: Path to context file
 # Requires:
+#   SYSTEM_BLOCKS: Array of system content blocks
+#   CONTEXT_BLOCKS: Array of context content blocks
+#   DEPENDENCY_BLOCKS: Array of dependency content blocks
+#   INPUT_BLOCKS: Array of input document content blocks
+#   TASK_BLOCK: Task content block
 #   COUNT_TOKENS: Boolean flag
 #   DRY_RUN: Boolean flag
 # Returns:
 #   0 normally, or exits if COUNT_TOKENS && !DRY_RUN
 estimate_tokens() {
-    local system_file="$1"
-    local task_source="$2"
-    local input_file="$3"
-    local context_file="$4"
-
     # Skip if not requested
     [[ "$COUNT_TOKENS" != true ]] && return 0
 
-    # System tokens
-    local syswc systc
-    syswc=$(wc -w < "$system_file")
-    systc=$((syswc * 13 / 10 + 4096))
+    echo "Estimating tokens from JSON content blocks..."
+    echo ""
+
+    # System tokens (from SYSTEM_BLOCKS array)
+    local system_json
+    system_json=$(printf '%s\n' "${SYSTEM_BLOCKS[@]}" | jq -s '.')
+    local system_chars
+    system_chars=$(echo "$system_json" | wc -c)
+    local systc=$((system_chars / 4))
     echo "Estimated system tokens: $systc"
 
-    # Task tokens (handle file or string)
-    local taskwc tasktc
-    if [[ -f "$task_source" ]]; then
-        taskwc=$(wc -w < "$task_source")
-    else
-        taskwc=$(echo "$task_source" | wc -w)
-    fi
-    tasktc=$((taskwc * 13 / 10 + 4096))
+    # Task tokens (from TASK_BLOCK)
+    local task_chars
+    task_chars=$(echo "$TASK_BLOCK" | wc -c)
+    local tasktc=$((task_chars / 4))
     echo "Estimated task tokens: $tasktc"
 
-    # Input documents tokens
-    local inputtc
-    if [[ -s "$input_file" ]]; then
-        local inputwc
-        inputwc=$(wc -w < "$input_file")
-        inputtc=$((inputwc * 13 / 10 + 4096))
-        echo "Estimated input documents tokens: $inputtc"
-    else
-        inputtc=0
+    # Context tokens (from CONTEXT_BLOCKS and DEPENDENCY_BLOCKS)
+    local context_chars=0
+    for block in "${CONTEXT_BLOCKS[@]}"; do
+        context_chars=$((context_chars + $(echo "$block" | wc -c)))
+    done
+    for block in "${DEPENDENCY_BLOCKS[@]}"; do
+        context_chars=$((context_chars + $(echo "$block" | wc -c)))
+    done
+    local contexttc=$((context_chars / 4))
+    if [[ $contexttc -gt 0 ]]; then
+        echo "Estimated context tokens: $contexttc"
     fi
 
-    # Context tokens
-    local contexttc
-    if [[ -s "$context_file" ]]; then
-        local contextwc
-        contextwc=$(wc -w < "$context_file")
-        contexttc=$((contextwc * 13 / 10 + 4096))
-        echo "Estimated context tokens: $contexttc"
-    else
-        contexttc=0
+    # Input tokens (from INPUT_BLOCKS)
+    local input_chars=0
+    for block in "${INPUT_BLOCKS[@]}"; do
+        input_chars=$((input_chars + $(echo "$block" | wc -c)))
+    done
+    local inputtc=$((input_chars / 4))
+    if [[ $inputtc -gt 0 ]]; then
+        echo "Estimated input documents tokens: $inputtc"
     fi
 
     # Total (heuristic)
@@ -324,7 +320,7 @@ estimate_tokens() {
 # Dry-Run Mode Handling
 # =============================================================================
 
-# Handle dry-run mode: save prompts to files and open in editor
+# Handle dry-run mode: save JSON blocks and API request to files and open in editor
 # Only activates if DRY_RUN flag is set
 #
 # Args:
@@ -333,8 +329,11 @@ estimate_tokens() {
 # Requires:
 #   DRY_RUN: Boolean flag
 #   COUNT_TOKENS: Boolean flag
-#   SYSTEM_PROMPT: Final system prompt string
-#   USER_PROMPT: Final user prompt string
+#   SYSTEM_BLOCKS: Array of system content blocks
+#   CONTEXT_BLOCKS: Array of context content blocks
+#   DEPENDENCY_BLOCKS: Array of dependency content blocks
+#   INPUT_BLOCKS: Array of input document content blocks
+#   TASK_BLOCK: Task content block
 # Returns:
 #   Exits script (does not return)
 handle_dry_run_mode() {
@@ -344,29 +343,19 @@ handle_dry_run_mode() {
     # Skip if not in dry-run mode
     [[ "$DRY_RUN" != true ]] && return 0
 
-    local dry_run_system
-    local dry_run_user
     local dry_run_json_request
     local dry_run_json_blocks
 
     if [[ "$mode" == "run" ]]; then
         # Run mode: Save to workflow directory
-        dry_run_system="$workflow_dir/dry-run-system.txt"
-        dry_run_user="$workflow_dir/dry-run-user.txt"
         dry_run_json_request="$workflow_dir/dry-run-request.json"
         dry_run_json_blocks="$workflow_dir/dry-run-blocks.json"
     else
         # Task mode: Save to temp files with cleanup trap
-        dry_run_system=$(mktemp -t dry-run-system.XXXXXX)
-        dry_run_user=$(mktemp -t dry-run-user.XXXXXX)
         dry_run_json_request=$(mktemp -t dry-run-request.XXXXXX.json)
         dry_run_json_blocks=$(mktemp -t dry-run-blocks.XXXXXX.json)
-        trap "rm -f '$dry_run_system' '$dry_run_user' '$dry_run_json_request' '$dry_run_json_blocks'" EXIT
+        trap "rm -f '$dry_run_json_request' '$dry_run_json_blocks'" EXIT
     fi
-
-    # Save XML prompts (for readability)
-    echo "$SYSTEM_PROMPT" > "$dry_run_system"
-    echo "$USER_PROMPT" > "$dry_run_user"
 
     # Assemble content blocks (same logic as execute_api_request)
     local system_blocks_json
@@ -421,10 +410,8 @@ handle_dry_run_mode() {
             total_blocks: ($system | length) + ($user | length)
         }' > "$dry_run_json_blocks"
 
-    echo "Dry-run mode: Prompts and JSON payload saved for inspection"
-    echo "  System prompt (XML):  $dry_run_system"
-    echo "  User prompt (XML):    $dry_run_user"
-    echo "  API request (JSON):   $dry_run_json_request"
+    echo "Dry-run mode: JSON payload saved for inspection"
+    echo "  API request (JSON):    $dry_run_json_request"
     echo "  Content blocks (JSON): $dry_run_json_blocks"
     echo ""
 
@@ -435,7 +422,7 @@ handle_dry_run_mode() {
     fi
 
     # Open in editor
-    edit_files "$dry_run_system" "$dry_run_user" "$dry_run_json_request" "$dry_run_json_blocks"
+    edit_files "$dry_run_json_request" "$dry_run_json_blocks"
     exit 0
 }
 
@@ -443,38 +430,20 @@ handle_dry_run_mode() {
 # Prompt Building
 # =============================================================================
 
-# Build final system and user prompts for API request
-# Creates hierarchical XML structure following Anthropic best practices
-#
-# SYSTEM_PROMPT structure:
-#   <system>
-#     <system-prompts>...</system-prompts>
-#     <project-description>...</project-description>
-#     <current-datetime>...</current-datetime>
-#   </system>
-#
-# USER_PROMPT structure:
-#   <user>
-#     <documents>...</documents>
-#     <context>...</context>
-#     <task>...</task>
-#   </user>
+# Build final prompts for API request
+# Assembles JSON content blocks only (no XML strings)
 #
 # Args:
-#   $1 - system_prompt_file: Path to system prompt file (already contains <system-prompts> wrapper)
+#   $1 - system_prompt_file: Path to system prompt file (for system-prompts block building)
 #   $2 - project_root: Project root directory (or empty if no project)
-#   $3 - input_prompt_file: Path to input documents file
-#   $4 - context_prompt_file: Path to context file
-#   $5 - task_source: Path to task file OR task string content
-# Sets global variables:
-#   SYSTEM_PROMPT: Final system prompt with XML structure
-#   USER_PROMPT: Final user prompt with XML structure
+#   $3 - task_source: Path to task file OR task string content
+# Side effects:
+#   Builds SYSTEM_BLOCKS array (system-prompts, project-description, current-date)
+#   Builds TASK_BLOCK
 build_prompts() {
     local system_file="$1"
     local project_root="$2"
-    local input_file="$3"
-    local context_file="$4"
-    local task_source="$5"
+    local task_source="$3"
 
     # =============================================================================
     # Build System Message Blocks (for JSON API)
@@ -491,34 +460,10 @@ build_prompts() {
     build_current_date_block
 
     # =============================================================================
-    # Build System Message XML (for debugging and token estimation)
+    # Build User Message Blocks (for JSON API)
     # =============================================================================
 
-    # Read system prompts (already wrapped in <system-prompts> tags by build_system_prompt)
-    local system_prompts_content
-    system_prompts_content=$(<"$system_file")
-
-    # Start building complete system prompt
-    SYSTEM_PROMPT="<system>"$'\n'
-    SYSTEM_PROMPT+="${system_prompts_content}"$'\n'
-
-    # Add aggregated project descriptions from nested hierarchy
-    if [[ -n "$project_root" ]] && aggregate_nested_project_descriptions "$project_root"; then
-        local project_desc_cache="$project_root/.workflow/prompts/project.txt"
-        local project_desc
-        project_desc=$(<"$project_desc_cache")
-        SYSTEM_PROMPT+=$'\n'"<project-description>"$'\n'"${project_desc}"$'\n'"</project-description>"$'\n'
-    fi
-
-    # Add current date (changed from datetime to prevent minute-by-minute cache invalidation)
-    local current_date
-    current_date=$(date -u +"%Y-%m-%d")
-    SYSTEM_PROMPT+=$'\n'"<current-date>${current_date}</current-date>"$'\n'
-
-    # Close system prompt
-    SYSTEM_PROMPT+=$'\n'"</system>"
-
-    # Build user prompt with XML structure
+    # Get task content
     local task_content
     if [[ -f "$task_source" ]]; then
         # Task is a file
@@ -527,42 +472,6 @@ build_prompts() {
         # Task is inline string
         task_content="$task_source"
     fi
-
-    # Start building user prompt
-    USER_PROMPT="<user>"$'\n'
-
-    # Add documents section if input exists
-    if [[ -s "$input_file" ]]; then
-        local input_content
-        input_content=$(<"$input_file")
-        USER_PROMPT+=$'\n'"<documents>"$'\n'
-        USER_PROMPT+="${input_content}"$'\n'
-        USER_PROMPT+="</documents>"$'\n'
-    fi
-
-    # Add context section if context exists
-    if [[ -s "$context_file" ]]; then
-        local context_content
-        context_content=$(<"$context_file")
-        USER_PROMPT+=$'\n'"<context>"$'\n'
-        USER_PROMPT+="${context_content}"$'\n'
-        USER_PROMPT+="</context>"$'\n'
-    fi
-
-    # Add task section
-    USER_PROMPT+=$'\n'"<task>"$'\n'
-    USER_PROMPT+="${task_content}"$'\n'
-    USER_PROMPT+="</task>"$'\n'
-
-    # Close user prompt
-    USER_PROMPT+=$'\n'"</user>"
-
-    # =============================================================================
-    # Build User Message Blocks (for JSON API)
-    # =============================================================================
-
-    # Assemble user blocks in order: context → dependencies → input → task
-    # (CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, INPUT_BLOCKS already populated by aggregate_context)
 
     # Build task block (most volatile, no cache_control)
     TASK_BLOCK=$(jq -n \
@@ -628,7 +537,7 @@ build_and_track_document_block() {
 }
 
 # Aggregate input and context files from various sources based on mode
-# Builds both XML text files (for debugging) and JSON content blocks (for API)
+# Builds JSON content blocks for API
 # Aggregation order (stable → volatile): context → dependencies → input
 # Within each category: FILES → PATTERN → CLI
 # Run mode: config patterns/files + CLI patterns/files
@@ -636,9 +545,7 @@ build_and_track_document_block() {
 #
 # Args:
 #   $1 - mode: "run" or "task"
-#   $2 - input_file: Path where aggregated input documents XML should be written
-#   $3 - context_file: Path where aggregated context XML should be written
-#   $4 - project_root: Project root (for run mode, empty for task standalone)
+#   $2 - project_root: Project root (for run mode, empty for task standalone)
 # Requires (run mode):
 #   INPUT_PATTERN: Config input pattern
 #   INPUT_FILES: Array of config input files
@@ -651,19 +558,13 @@ build_and_track_document_block() {
 #   CLI_CONTEXT_PATTERN: CLI context pattern
 #   CLI_CONTEXT_FILES: Array of CLI context files
 # Side effects:
-#   Writes aggregated XML to input_file and context_file
-#   Populates CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, and INPUT_BLOCKS arrays
+#   Populates CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, INPUT_BLOCKS arrays
+#   Populates DOCUMENT_INDEX_MAP array (for citations)
 aggregate_context() {
     local mode="$1"
-    local input_file="$2"
-    local context_file="$3"
-    local project_root="$4"
+    local project_root="$2"
 
     echo "Building input documents and context..."
-
-    # Start with empty XML files
-    > "$input_file"
-    > "$context_file"
 
     # Initialize document index tracking (for citations)
     # Only document blocks (context and input) get indices
@@ -685,10 +586,6 @@ aggregate_context() {
                 exit 1
             fi
 
-            # Add to XML file for debugging (raw content)
-            cat "$resolved_file" >> "$context_file"
-            echo -e "\n---\n" >> "$context_file"
-
             # Build and track document block
             build_and_track_document_block "$resolved_file" "context" "$ENABLE_CITATIONS" "doc_index"
         done
@@ -703,10 +600,6 @@ aggregate_context() {
         for file in "${pattern_files[@]}"; do
             local abs_file="$project_root/$file"
             if [[ -f "$abs_file" ]]; then
-                # Add to XML file for debugging (raw content)
-                cat "$abs_file" >> "$context_file"
-                echo -e "\n---\n" >> "$context_file"
-
                 # Build and track document block
                 build_and_track_document_block "$abs_file" "context" "$ENABLE_CITATIONS" "doc_index"
             fi
@@ -722,10 +615,6 @@ aggregate_context() {
                 exit 1
             fi
 
-            # Add to XML file for debugging (raw content)
-            cat "$file" >> "$context_file"
-            echo -e "\n---\n" >> "$context_file"
-
             # Build and track document block
             build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index"
         done
@@ -739,10 +628,6 @@ aggregate_context() {
 
         for file in "${pattern_files[@]}"; do
             if [[ -f "$file" ]]; then
-                # Add to XML file for debugging (raw content)
-                cat "$file" >> "$context_file"
-                echo -e "\n---\n" >> "$context_file"
-
                 # Build and track document block
                 build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index"
             fi
@@ -774,10 +659,6 @@ aggregate_context() {
             fi
             echo "    - $dep_file"
 
-            # Add to XML file for debugging (raw content)
-            cat "$dep_file" >> "$context_file"
-            echo -e "\n---\n" >> "$context_file"
-
             # Build JSON content block (text type, no citations for dependencies)
             local block
             block=$(build_content_block "$dep_file" "dependency" "false" "workflow" "$dep")
@@ -806,10 +687,6 @@ aggregate_context() {
                 exit 1
             fi
 
-            # Add to XML file for debugging (raw content)
-            cat "$resolved_file" >> "$input_file"
-            echo -e "\n---\n" >> "$input_file"
-
             # Build and track document block
             build_and_track_document_block "$resolved_file" "input" "$ENABLE_CITATIONS" "doc_index"
         done
@@ -824,10 +701,6 @@ aggregate_context() {
         for file in "${pattern_files[@]}"; do
             local abs_file="$project_root/$file"
             if [[ -f "$abs_file" ]]; then
-                # Add to XML file for debugging (raw content)
-                cat "$abs_file" >> "$input_file"
-                echo -e "\n---\n" >> "$input_file"
-
                 # Build and track document block
                 build_and_track_document_block "$abs_file" "input" "$ENABLE_CITATIONS" "doc_index"
             fi
@@ -843,10 +716,6 @@ aggregate_context() {
                 exit 1
             fi
 
-            # Add to XML file for debugging (raw content)
-            cat "$file" >> "$input_file"
-            echo -e "\n---\n" >> "$input_file"
-
             # Build and track document block
             build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index"
         done
@@ -860,10 +729,6 @@ aggregate_context() {
 
         for file in "${pattern_files[@]}"; do
             if [[ -f "$file" ]]; then
-                # Add to XML file for debugging (raw content)
-                cat "$file" >> "$input_file"
-                echo -e "\n---\n" >> "$input_file"
-
                 # Build and track document block
                 build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index"
             fi
@@ -883,8 +748,8 @@ aggregate_context() {
     # Check if any input or context was provided
     local has_input=false
     local has_context=false
-    [[ -s "$input_file" ]] && has_input=true
-    [[ -s "$context_file" ]] && has_context=true
+    [[ ${#INPUT_BLOCKS[@]} -gt 0 ]] && has_input=true
+    [[ ${#CONTEXT_BLOCKS[@]} -gt 0 || ${#DEPENDENCY_BLOCKS[@]} -gt 0 ]] && has_context=true
 
     if [[ "$has_input" == false && "$has_context" == false ]]; then
         echo "Warning: No input documents or context provided. Task will run without supporting materials."
@@ -907,15 +772,18 @@ aggregate_context() {
 # =============================================================================
 
 # Execute API request with mode-specific output handling
-# Validates API key, escapes prompts, and executes streaming or single-shot request
+# Validates API key and executes streaming or single-shot request
 #
 # Args:
 #   $1 - mode: "run" or "task"
 #   $2 - output_file: Path to output file
 #   $3 - output_file_path: Explicit output file path (task mode, optional)
 # Requires:
-#   SYSTEM_PROMPT: Final system prompt
-#   USER_PROMPT: Final user prompt
+#   SYSTEM_BLOCKS: Array of system content blocks
+#   CONTEXT_BLOCKS: Array of context content blocks
+#   DEPENDENCY_BLOCKS: Array of dependency content blocks
+#   INPUT_BLOCKS: Array of input document content blocks
+#   TASK_BLOCK: Task content block
 #   ANTHROPIC_API_KEY: API key
 #   MODEL: Model name
 #   MAX_TOKENS: Token limit
@@ -964,13 +832,6 @@ execute_api_request() {
     # Convert to JSON array
     user_blocks_json=$(printf '%s\n' "${all_user_blocks[@]}" | jq -s '.')
 
-    # =============================================================================
-    # Backward Compatibility: Also escape string prompts for debugging
-    # =============================================================================
-
-    SYSTEM_JSON=$(escape_json "$SYSTEM_PROMPT")
-    USER_JSON=$(escape_json "$USER_PROMPT")
-
     # Run mode: Backup any previous output files before API call
     if [[ "$mode" == "run" && -f "$output_file" ]]; then
         echo "Backing up previous output file..."
@@ -1018,6 +879,33 @@ execute_api_request() {
         if [[ "$mode" == "task" && -z "$output_file_path" ]]; then
             cat "$output_file"
         fi
+    fi
+
+    # =============================================================================
+    # Save JSON Files for Reference (run mode only)
+    # =============================================================================
+
+    if [[ "$mode" == "run" ]]; then
+        # Save system blocks
+        echo "$system_blocks_json" | jq '.' > "$SYSTEM_BLOCKS_FILE" 2>/dev/null || true
+
+        # Save user blocks
+        echo "$user_blocks_json" | jq '.' > "$USER_BLOCKS_FILE" 2>/dev/null || true
+
+        # Save complete request payload
+        jq -n \
+            --arg model "$MODEL" \
+            --argjson max_tokens "$MAX_TOKENS" \
+            --argjson temperature "$TEMPERATURE" \
+            --argjson system "$system_blocks_json" \
+            --argjson user_content "$user_blocks_json" \
+            '{
+                model: $model,
+                max_tokens: $max_tokens,
+                temperature: $temperature,
+                system: $system,
+                messages: [{role: "user", content: $user_content}]
+            }' > "$REQUEST_JSON_FILE" 2>/dev/null || true
     fi
 
     # Cleanup temp files

@@ -1118,3 +1118,4 @@ Ctrl+C during streaming:
 - CLI context augments (not replaces) config context
 - Hardlinks updated atomically for safe concurrent access
 - Token estimation is approximate (actual may vary ±5%)
+- Don't run the full test suite any more than needed. Don't run it multiple times to process the output differently.

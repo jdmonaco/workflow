@@ -413,15 +413,14 @@ fi
 # Run Mode - Setup Paths
 # =============================================================================
 
-# File paths - XML text files for debugging (relative to PROJECT_ROOT/.workflow/)
+# File paths - Source files and JSON blocks (relative to PROJECT_ROOT/.workflow/)
 TASK_PROMPT_FILE="$WORKFLOW_DIR/task.txt"
-INPUT_PROMPT_FILE="$WORKFLOW_DIR/input.txt"
-CONTEXT_PROMPT_FILE="$WORKFLOW_DIR/context.txt"
 
-# File paths - JSON block files for API (relative to PROJECT_ROOT/.workflow/)
-JSON_BLOCKS_FILE="$WORKFLOW_DIR/content_blocks.json"
-JSON_REQUEST_FILE="$WORKFLOW_DIR/request.json"
-DOCUMENT_MAP_FILE="$WORKFLOW_DIR/document_map.json"
+# JSON block files for API
+SYSTEM_BLOCKS_FILE="$WORKFLOW_DIR/system-blocks.json"
+USER_BLOCKS_FILE="$WORKFLOW_DIR/user-blocks.json"
+REQUEST_JSON_FILE="$WORKFLOW_DIR/request.json"
+DOCUMENT_MAP_FILE="$WORKFLOW_DIR/document-map.json"
 
 # File paths - Output and system
 OUTPUT_FILE="$WORKFLOW_DIR/output.${OUTPUT_FORMAT}"
@@ -449,19 +448,19 @@ build_system_prompt "$SYSTEM_PROMPT_FILE" || exit 1
 # Context Aggregation
 # =============================================================================
 
-aggregate_context "run" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE" "$PROJECT_ROOT"
+aggregate_context "run" "$PROJECT_ROOT"
 
 # =============================================================================
 # API Request Setup - Build Final Prompts
 # =============================================================================
 
-build_prompts "$SYSTEM_PROMPT_FILE" "$PROJECT_ROOT" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE" "$TASK_PROMPT_FILE"
+build_prompts "$SYSTEM_PROMPT_FILE" "$PROJECT_ROOT" "$TASK_PROMPT_FILE"
 
 # =============================================================================
 # Token Estimation (if requested)
 # =============================================================================
 
-estimate_tokens "$SYSTEM_PROMPT_FILE" "$TASK_PROMPT_FILE" "$INPUT_PROMPT_FILE" "$CONTEXT_PROMPT_FILE"
+estimate_tokens
 
 # =============================================================================
 # Dry-Run Mode - Save Prompts and Inspect

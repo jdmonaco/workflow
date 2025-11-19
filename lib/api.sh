@@ -260,10 +260,11 @@ anthropic_execute_stream() {
 
             case "$event_type" in
                 "content_block_delta")
-                    # Check delta type
+                    # Check delta type (may not be present in all responses)
                     delta_type=$(echo "$json_data" | jq -r '.delta.type // empty')
 
-                    if [[ "$delta_type" == "text_delta" ]]; then
+                    # Handle text deltas (both with and without explicit type)
+                    if [[ -z "$delta_type" || "$delta_type" == "text_delta" ]]; then
                         # Extract and print text incrementally
                         delta_text=$(echo "$json_data" | jq -r '.delta.text // empty')
                         if [[ -n "$delta_text" ]]; then
