@@ -231,7 +231,7 @@ aggregate_nested_project_descriptions() {
 
 **Date format change:** Changed from datetime to date-only to prevent minute-by-minute cache invalidation.
 
-**Optional XML conversion:** After execution, `convert_json_to_xml()` creates XML files (system-blocks.xml, etc.) if `yq` is available. These are convenience views only; JSON files are canonical.
+**Optional XML conversion:** After execution, `convert_json_to_xml()` creates pseudo-XML files (system-blocks.xml, etc.) using a custom converter that detects and preserves XML-like content in JSON string values. These are convenience views only; JSON files are canonical.
 
 ### User Prompt Composition
 
@@ -518,7 +518,7 @@ fi
 - `build_text_content_block()` - Creates JSON content block from file with embedded XML metadata
 - `build_document_content_block()` - Placeholder for future PDF support
 - `detect_file_type()` - Detects text vs document/PDF files
-- `convert_json_to_xml()` - Optional post-processing to create XML files via yq
+- `convert_json_to_xml()` - Optional post-processing to create pseudo-XML files (custom converter)
 
 **Project discovery:**
 
