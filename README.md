@@ -1,6 +1,6 @@
 # A CLI Tool for AI Workflows in the Terminal
 
-**Version:** 0.1.0 (pre-release)
+**Version:** 0.2.0 (pre-release)
 
 A flexible, configurable CLI tool for building and managing AI workflows for research and project development using the Anthropic API.
 

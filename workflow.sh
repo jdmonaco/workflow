@@ -2,7 +2,7 @@
 set -e
 
 # Version
-WORKFLOW_VERSION="0.1.0"
+WORKFLOW_VERSION="0.2.0"
 
 # =============================================================================
 # Workflow - AI-Assisted Research and Project Development Tool
