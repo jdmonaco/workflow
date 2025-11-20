@@ -210,7 +210,17 @@ estimate_tokens() {
     local tasktc=$((task_chars / 4))
     echo "Estimated task tokens: $tasktc"
 
-    # Context tokens (from CONTEXT_BLOCKS and DEPENDENCY_BLOCKS)
+    # PDF tokens (from CONTEXT_PDF_BLOCKS and INPUT_PDF_BLOCKS)
+    # Conservative estimate: ~2000 tokens per page
+    # Use pdfinfo if available to get actual page count, otherwise estimate from file size
+    local pdftc=0
+    local pdf_count=$((${#CONTEXT_PDF_BLOCKS[@]} + ${#INPUT_PDF_BLOCKS[@]}))
+    if [[ $pdf_count -gt 0 ]]; then
+        echo "Estimated PDF tokens: ~2000 tokens per page (conservative)"
+        echo "  Note: Use pdfinfo (poppler-utils) for accurate page counts"
+    fi
+
+    # Context tokens (from CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, and CONTEXT_PDF_BLOCKS)
     local context_chars=0
     for block in "${CONTEXT_BLOCKS[@]}"; do
         context_chars=$((context_chars + $(echo "$block" | wc -c)))
@@ -218,15 +228,25 @@ estimate_tokens() {
     for block in "${DEPENDENCY_BLOCKS[@]}"; do
         context_chars=$((context_chars + $(echo "$block" | wc -c)))
     done
+    # Add PDF blocks to context count
+    for block in "${CONTEXT_PDF_BLOCKS[@]}"; do
+        context_chars=$((context_chars + $(echo "$block" | wc -c)))
+        pdftc=$((pdftc + 2000))  # Rough estimate, will be refined by API
+    done
     local contexttc=$((context_chars / 4))
     if [[ $contexttc -gt 0 ]]; then
         echo "Estimated context tokens: $contexttc"
     fi
 
-    # Input tokens (from INPUT_BLOCKS)
+    # Input tokens (from INPUT_BLOCKS and INPUT_PDF_BLOCKS)
     local input_chars=0
     for block in "${INPUT_BLOCKS[@]}"; do
         input_chars=$((input_chars + $(echo "$block" | wc -c)))
+    done
+    # Add PDF blocks to input count
+    for block in "${INPUT_PDF_BLOCKS[@]}"; do
+        input_chars=$((input_chars + $(echo "$block" | wc -c)))
+        pdftc=$((pdftc + 2000))  # Rough estimate, will be refined by API
     done
     local inputtc=$((input_chars / 4))
     if [[ $inputtc -gt 0 ]]; then
@@ -249,7 +269,7 @@ estimate_tokens() {
     fi
 
     # Total (heuristic)
-    local total_tokens=$((systc + tasktc + inputtc + contexttc + imagetc))
+    local total_tokens=$((systc + tasktc + inputtc + contexttc + pdftc + imagetc))
     echo "Estimated total input tokens (heuristic): $total_tokens"
     echo ""
 
@@ -270,6 +290,13 @@ estimate_tokens() {
             system_blocks_json=$(printf '%s\n' "${SYSTEM_BLOCKS[@]}" | jq -s '.')
 
             local -a all_user_blocks=()
+            # Optimized order: PDFs first, then text, then images, then task
+            for block in "${CONTEXT_PDF_BLOCKS[@]}"; do
+                all_user_blocks+=("$block")
+            done
+            for block in "${INPUT_PDF_BLOCKS[@]}"; do
+                all_user_blocks+=("$block")
+            done
             for block in "${CONTEXT_BLOCKS[@]}"; do
                 all_user_blocks+=("$block")
             done
@@ -559,7 +586,39 @@ build_and_track_document_block() {
         return 0
     fi
 
-    # Handle text/document files (existing logic)
+    # Handle PDF document files separately (optimized ordering: PDFs before text)
+    if [[ "$file_type" == "document" ]]; then
+        echo "    Processing PDF document: $(basename "$file")" >&2
+
+        # Build document content block (no cache control yet, will be added at section boundary)
+        local block
+        block=$(build_document_content_block "$file" "false")
+        if [[ -z "$block" ]]; then
+            echo "    Warning: Failed to process PDF: $file" >&2
+            return 1
+        fi
+
+        # Add to appropriate PDF array (PDFs processed before text documents)
+        if [[ "$category" == "context" ]]; then
+            CONTEXT_PDF_BLOCKS+=("$block")
+        elif [[ "$category" == "input" ]]; then
+            INPUT_PDF_BLOCKS+=("$block")
+        fi
+
+        # PDFs are citable - track in document index
+        local current_index="${!doc_index_var}"
+        local title
+        title=$(extract_title_from_file "$file")
+
+        DOCUMENT_INDEX_MAP+=("{\"index\": $current_index, \"source\": \"$file\", \"title\": \"$title\"}")
+
+        # Increment index
+        eval "$doc_index_var=\$(( $current_index + 1 ))"
+
+        return 0
+    fi
+
+    # Handle text files (existing logic)
     local block
     if [[ -n "$meta_key" && -n "$meta_value" ]]; then
         block=$(build_content_block "$file" "$category" "$enable_citations" "$meta_key" "$meta_value")
@@ -587,7 +646,9 @@ build_and_track_document_block() {
 
 # Aggregate input and context files from various sources based on mode
 # Builds JSON content blocks for API
-# Aggregation order (stable → volatile): context → dependencies → input → images
+# Optimized ordering (per PDF API guidelines): PDFs before text for better processing
+# Aggregation order (stable → volatile):
+#   context PDFs → input PDFs → context text → dependencies → input text → images
 # Within each category: FILES → PATTERN → CLI
 # Run mode: config patterns/files + CLI patterns/files
 # Task mode: CLI patterns/files only
@@ -608,14 +669,24 @@ build_and_track_document_block() {
 #   CLI_CONTEXT_PATTERN: CLI context pattern
 #   CLI_CONTEXT_FILES: Array of CLI context files
 # Side effects:
-#   Populates CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, INPUT_BLOCKS, IMAGE_BLOCKS arrays
-#   Populates DOCUMENT_INDEX_MAP array (for citations, text files only)
+#   Populates CONTEXT_PDF_BLOCKS, INPUT_PDF_BLOCKS (PDFs, citable)
+#   Populates CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, INPUT_BLOCKS (text, citable)
+#   Populates IMAGE_BLOCKS (images, NOT citable)
+#   Populates DOCUMENT_INDEX_MAP array (for citations, all context/input docs)
 aggregate_context() {
     local mode="$1"
     local project_root="$2"
     local workflow_dir="$3"
 
     echo "Building input documents and context..."
+
+    # Initialize content block arrays
+    CONTEXT_PDF_BLOCKS=()
+    INPUT_PDF_BLOCKS=()
+    CONTEXT_BLOCKS=()
+    DEPENDENCY_BLOCKS=()
+    INPUT_BLOCKS=()
+    IMAGE_BLOCKS=()
 
     # Initialize document index tracking (for citations)
     # Only document blocks (context and input) get indices
@@ -800,14 +871,30 @@ aggregate_context() {
     fi
 
     # =============================================================================
+    # PDF CACHE CONTROL (Optimized ordering: PDFs processed first)
+    # =============================================================================
+
+    # Add cache_control after PDF section (all PDFs: context + input)
+    # This creates a cache breakpoint after PDFs, before text documents
+    if [[ ${#INPUT_PDF_BLOCKS[@]} -gt 0 ]]; then
+        # Add to last input PDF if any
+        local last_idx=$((${#INPUT_PDF_BLOCKS[@]} - 1))
+        INPUT_PDF_BLOCKS[$last_idx]=$(echo "${INPUT_PDF_BLOCKS[$last_idx]}" | jq '. + {cache_control: {type: "ephemeral"}}')
+    elif [[ ${#CONTEXT_PDF_BLOCKS[@]} -gt 0 ]]; then
+        # Otherwise add to last context PDF
+        local last_idx=$((${#CONTEXT_PDF_BLOCKS[@]} - 1))
+        CONTEXT_PDF_BLOCKS[$last_idx]=$(echo "${CONTEXT_PDF_BLOCKS[$last_idx]}" | jq '. + {cache_control: {type: "ephemeral"}}')
+    fi
+
+    # =============================================================================
     # Summary
     # =============================================================================
 
     # Check if any input or context was provided
     local has_input=false
     local has_context=false
-    [[ ${#INPUT_BLOCKS[@]} -gt 0 || ${#IMAGE_BLOCKS[@]} -gt 0 ]] && has_input=true
-    [[ ${#CONTEXT_BLOCKS[@]} -gt 0 || ${#DEPENDENCY_BLOCKS[@]} -gt 0 ]] && has_context=true
+    [[ ${#INPUT_BLOCKS[@]} -gt 0 || ${#INPUT_PDF_BLOCKS[@]} -gt 0 || ${#IMAGE_BLOCKS[@]} -gt 0 ]] && has_input=true
+    [[ ${#CONTEXT_BLOCKS[@]} -gt 0 || ${#CONTEXT_PDF_BLOCKS[@]} -gt 0 || ${#DEPENDENCY_BLOCKS[@]} -gt 0 ]] && has_context=true
 
     if [[ "$has_input" == false && "$has_context" == false ]]; then
         echo "Warning: No input documents or context provided. Task will run without supporting materials."
@@ -816,6 +903,12 @@ aggregate_context() {
         else
             echo "  Use --input-file, --input-pattern, --context-file, or --context-pattern"
         fi
+    fi
+
+    # Report PDF count if any
+    local total_pdfs=$((${#CONTEXT_PDF_BLOCKS[@]} + ${#INPUT_PDF_BLOCKS[@]}))
+    if [[ $total_pdfs -gt 0 ]]; then
+        echo "Included $total_pdfs PDF document(s) in request"
     fi
 
     # Report image count if any
@@ -871,11 +964,23 @@ execute_api_request() {
     local system_blocks_json
     system_blocks_json=$(printf '%s\n' "${SYSTEM_BLOCKS[@]}" | jq -s '.')
 
-    # Assemble user content blocks array in order: context → dependencies → input → task
+    # Assemble user content blocks array
+    # Optimized order (per PDF API guidelines): PDFs → text → images → task
+    # Order: context PDFs → input PDFs → context text → dependencies → input text → images → task
     local user_blocks_json
     local -a all_user_blocks=()
 
-    # Add context blocks (if any)
+    # Add context PDF blocks first (if any) - optimized ordering
+    for block in "${CONTEXT_PDF_BLOCKS[@]}"; do
+        all_user_blocks+=("$block")
+    done
+
+    # Add input PDF blocks (if any) - optimized ordering
+    for block in "${INPUT_PDF_BLOCKS[@]}"; do
+        all_user_blocks+=("$block")
+    done
+
+    # Add context text blocks (if any)
     for block in "${CONTEXT_BLOCKS[@]}"; do
         all_user_blocks+=("$block")
     done
@@ -885,7 +990,7 @@ execute_api_request() {
         all_user_blocks+=("$block")
     done
 
-    # Add input blocks (if any)
+    # Add input text blocks (if any)
     for block in "${INPUT_BLOCKS[@]}"; do
         all_user_blocks+=("$block")
     done

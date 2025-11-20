@@ -649,6 +649,45 @@ build_image_content_block() {
         }'
 }
 
+# =============================================================================
+# PDF Document Validation and Processing
+# =============================================================================
+
+# Validate PDF file against API limits
+# Arguments:
+#   $1 - PDF file path
+# Returns:
+#   0 if valid, 1 if invalid
+# Prints error message to stderr if invalid
+validate_pdf_file() {
+    local file="$1"
+
+    # Check file exists
+    if [[ ! -f "$file" ]]; then
+        echo "Error: PDF file not found: $file" >&2
+        return 1
+    fi
+
+    # Check file is readable
+    if [[ ! -r "$file" ]]; then
+        echo "Error: PDF file not readable: $file" >&2
+        return 1
+    fi
+
+    # Check file size (32MB limit for PDF API)
+    local file_size
+    file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null)
+    local max_size=$((32 * 1024 * 1024))  # 32MB
+
+    if [[ $file_size -gt $max_size ]]; then
+        local size_mb=$((file_size / 1024 / 1024))
+        echo "Error: PDF file exceeds 32MB limit: $file (${size_mb}MB)" >&2
+        return 1
+    fi
+
+    return 0
+}
+
 # Build a content block from a file (document or text type)
 # Context and input files use "document" type (for citations support)
 # Dependencies and other blocks use "text" type
@@ -743,15 +782,15 @@ build_content_block() {
     fi
 }
 
-# Build a document content block (placeholder for future PDF support)
+# Build a document content block for PDF files
 # Arguments:
-#   $1 - File path
-#   $2 - Optional metadata (JSON object string)
+#   $1 - PDF file path
+#   $2 - Enable cache control: "true" or "false" (default: false)
 # Returns:
-#   JSON content block object
+#   JSON content block object with base64-encoded PDF
 build_document_content_block() {
     local file="$1"
-    local metadata="${2:-{}}"
+    local enable_cache="${2:-false}"
 
     if [[ ! -f "$file" ]]; then
         echo "{}" >&2
@@ -762,21 +801,48 @@ build_document_content_block() {
     local abs_path
     abs_path=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
 
-    # For now, return error for non-text files
-    # Future: implement base64 encoding for PDFs/images
-    echo "Error: Document/PDF support not yet implemented" >&2
+    # Validate PDF file
+    if ! validate_pdf_file "$abs_path"; then
+        echo "{}" >&2
+        return 1
+    fi
 
-    # Return placeholder structure
-    jq -n \
-        --arg type "document" \
-        --arg source "$abs_path" \
-        --argjson metadata "$metadata" \
-        '{
-            type: $type,
-            source: $source,
-            metadata: ($metadata + {source: $source}),
-            error: "Document support not yet implemented"
-        }'
+    # Base64 encode the PDF file
+    local base64_data
+    base64_data=$(base64 < "$abs_path" | tr -d '\n')
+
+    # Build JSON content block using jq
+    # Use printf to avoid issues with large base64 strings
+    if [[ "$enable_cache" == "true" ]]; then
+        printf '%s' "$base64_data" | jq -Rs \
+            --arg type "document" \
+            --arg source_type "base64" \
+            --arg media_type "application/pdf" \
+            '{
+                type: $type,
+                source: {
+                    type: $source_type,
+                    media_type: $media_type,
+                    data: .
+                },
+                cache_control: {
+                    type: "ephemeral"
+                }
+            }'
+    else
+        printf '%s' "$base64_data" | jq -Rs \
+            --arg type "document" \
+            --arg source_type "base64" \
+            --arg media_type "application/pdf" \
+            '{
+                type: $type,
+                source: {
+                    type: $source_type,
+                    media_type: $media_type,
+                    data: .
+                }
+            }'
+    fi
 }
 
 # =============================================================================

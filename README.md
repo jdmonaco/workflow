@@ -9,7 +9,7 @@ A flexible, configurable CLI tool for building and managing AI workflows for res
 - 🎯 **Git-like Structure:** Uses `.workflow/` directories with automatic project root discovery, allowing you to run workflow commands from anywhere within your project tree.
 - 🔧 **Flexible Configuration:** Multi-tier cascade with pass-through inheritance (global → ancestors → project → workflow → CLI), enabling centralized defaults with granular overrides.
 - 🔗 **Workflow Dependencies:** Chain workflows together with `--depends-on` for sequential processing, automatically passing outputs as context to dependent workflows.
-- 📦 **Context Aggregation:** Powerful context management using glob patterns, explicit file lists, or workflow outputs, giving Claude comprehensive project awareness.
+- 📦 **Context Aggregation:** Powerful context management using glob patterns, explicit file lists, or workflow outputs. Supports text files, PDFs, and images (via Vision API), giving Claude comprehensive project awareness.
 - 🚀 **Portable:** Modular bash-based tool works anywhere in your project tree, with automatic project root discovery just like git.
 - 💾 **Safe Output:** Automatic timestamped backups of all workflow outputs with hardlinked copies for convenient access, ensuring no work is ever lost.
 - ⚡ **Dual Execution Modes:** Choose between persistent workflows for iterative development or lightweight one-off tasks for quick queries, each optimized for its use case.

@@ -141,6 +141,7 @@ CLI_CONTEXT_FILES+=("$file")  # Relative to PWD
 
 - **INPUT documents** (`INPUT_PATTERN`, `INPUT_FILES`): Primary documents to be analyzed or transformed
 - **CONTEXT materials** (`CONTEXT_PATTERN`, `CONTEXT_FILES`, `DEPENDS_ON`): Supporting information and references
+- **PDFs**: Automatically detected from INPUT/CONTEXT sources (PDF API support)
 - **IMAGES**: Automatically detected from INPUT/CONTEXT sources (Vision API support)
 
 **Three aggregation methods (applies to both INPUT and CONTEXT):**
@@ -148,6 +149,16 @@ CLI_CONTEXT_FILES+=("$file")  # Relative to PWD
 1. **Glob patterns:** Bash glob expansion, multiple files
 2. **Explicit files:** Array of specific paths
 3. **Workflow dependencies:** Include outputs via hardlinks (CONTEXT only)
+
+**Automatic PDF detection:**
+
+Files with `.pdf` extension are automatically processed for PDF API:
+- Validated against 32MB size limit
+- Base64-encoded for API
+- Added to CONTEXT_PDF_BLOCKS or INPUT_PDF_BLOCKS (citable, optimized ordering)
+- Placed BEFORE text documents in API request (per PDF optimization guidelines)
+- Citable (PDFs get document indices for citations)
+- Token estimation: ~2000 tokens per page (conservative)
 
 **Automatic image detection:**
 
@@ -228,38 +239,53 @@ aggregate_nested_project_descriptions() {
 
 **JSON content blocks (canonical):**
 
-Each file becomes its own content block in the order: context → dependencies → input → task
+Each file becomes its own content block in optimized order: context PDFs → input PDFs → context text → dependencies → input text → images → task
 
 ```json
 [
-  // Context files (each file is a separate block)
+  // Context PDF documents (each PDF is a separate block)
+  {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "..."}},
+  {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "..."}, "cache_control": {"type": "ephemeral"}},
+
+  // Input PDF documents (each PDF is a separate block)
+  {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "..."}, "cache_control": {"type": "ephemeral"}},
+
+  // Context text files (each file is a separate block)
   {"type": "text", "text": "<metadata type=\"context\" source=\"...\"></metadata>\n\n[file content]"},
   {"type": "text", "text": "<metadata type=\"context\" source=\"...\"></metadata>\n\n[file content]", "cache_control": {"type": "ephemeral"}},
 
   // Dependencies (each workflow output is a separate block)
   {"type": "text", "text": "<metadata type=\"dependency\" workflow=\"name\" source=\"...\"></metadata>\n\n[file content]", "cache_control": {"type": "ephemeral"}},
 
-  // Input documents (each file is a separate block)
+  // Input text documents (each file is a separate block)
   {"type": "text", "text": "<metadata type=\"input\" source=\"...\"></metadata>\n\n[file content]"},
   {"type": "text", "text": "<metadata type=\"input\" source=\"...\"></metadata>\n\n[file content]", "cache_control": {"type": "ephemeral"}},
+
+  // Images (Vision API)
+  {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "..."}, "cache_control": {"type": "ephemeral"}},
 
   // Task (single block, no cache_control - most volatile)
   {"type": "text", "text": "[task content]"}
 ]
 ```
 
-**Aggregation order (stable → volatile):**
+**Aggregation order (optimized for PDF processing):**
 
-1. **Context files:** CONTEXT_FILES → CONTEXT_PATTERN → CLI_CONTEXT_FILES → CLI_CONTEXT_PATTERN
-2. **Dependencies:** DEPENDS_ON workflow outputs
-3. **Input documents:** INPUT_FILES → INPUT_PATTERN → CLI_INPUT_FILES → CLI_INPUT_PATTERN
-4. **Task:** Always last
+1. **Context PDF documents:** CONTEXT_FILES + CONTEXT_PATTERN + CLI (PDFs only, filtered first)
+2. **Input PDF documents:** INPUT_FILES + INPUT_PATTERN + CLI (PDFs only, filtered first)
+3. **Context text files:** CONTEXT_FILES → CONTEXT_PATTERN → CLI_CONTEXT_FILES → CLI_CONTEXT_PATTERN (text only)
+4. **Dependencies:** DEPENDS_ON workflow outputs
+5. **Input text documents:** INPUT_FILES → INPUT_PATTERN → CLI_INPUT_FILES → CLI_INPUT_PATTERN (text only)
+6. **Images:** Detected from all INPUT/CONTEXT sources (Vision API)
+7. **Task:** Always last
 
 **Cache breakpoints:** Maximum of 4 breakpoints placed at semantic boundaries:
-- End of context files section
-- End of dependencies section
-- End of input documents section
+- End of PDF documents section (all PDFs: context + input)
+- End of text documents section (context + dependencies + input)
+- End of images section
 - Task has no cache_control (most volatile)
+
+**PDF-first ordering rationale:** Per Anthropic PDF API optimization guidelines, placing PDF documents before text documents improves processing performance and accuracy.
 
 **Metadata embedding:** Each file's metadata (type, source, workflow name) is embedded as XML tags at the start of the text content, not as separate JSON fields (Anthropic API doesn't accept extra fields).
 
