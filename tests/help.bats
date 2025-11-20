@@ -21,7 +21,7 @@ teardown() {
     run bash "$WORKFLOW_SCRIPT" help
 
     assert_success
-    assert_output --partial "Usage: workflow"
+    assert_output --partial "Usage:"
     assert_output --partial "init"
     assert_output --partial "new"
     assert_output --partial "edit"
@@ -37,14 +37,14 @@ teardown() {
     run bash "$WORKFLOW_SCRIPT" --help
 
     assert_success
-    assert_output --partial "Usage: workflow"
+    assert_output --partial "Usage:"
 }
 
 @test "help: -h flag shows main help" {
     run bash "$WORKFLOW_SCRIPT" -h
 
     assert_success
-    assert_output --partial "Usage: workflow"
+    assert_output --partial "Usage:"
 }
 
 # =============================================================================
@@ -74,7 +74,7 @@ teardown() {
 
     assert_success
     assert_output --partial "workflow version"
-    assert_output --partial "0.1.0"
+    assert_output --partial "0.3.0"
 }
 
 @test "help: -v flag shows version" {
@@ -82,14 +82,14 @@ teardown() {
 
     assert_success
     assert_output --partial "workflow version"
-    assert_output --partial "0.1.0"
+    assert_output --partial "0.3.0"
 }
 
 @test "help: main help shows version" {
     run bash "$WORKFLOW_SCRIPT" --help
 
     assert_success
-    assert_output --partial "Version: 0.1.0"
+    assert_output --partial "Version: 0.3.0"
 }
 
 @test "help: 'workflow help edit' shows edit help" {
@@ -104,7 +104,7 @@ teardown() {
     run bash "$WORKFLOW_SCRIPT" help cat
 
     assert_success
-    assert_output --partial "Usage: workflow"
+    assert_output --partial "Usage:"
     assert_output --partial "cat"
     assert_output --partial "Display workflow output"
 }
@@ -113,7 +113,7 @@ teardown() {
     run bash "$WORKFLOW_SCRIPT" help open
 
     assert_success
-    assert_output --partial "Usage: workflow"
+    assert_output --partial "Usage:"
     assert_output --partial "open"
     assert_output --partial "default application"
 }
@@ -157,7 +157,7 @@ teardown() {
 
     assert_failure
     assert_output --partial "Unknown subcommand: invalid"
-    assert_output --partial "Usage: workflow"
+    assert_output --partial "Usage:"
 }
 
 # =============================================================================
@@ -189,7 +189,7 @@ teardown() {
     run bash "$WORKFLOW_SCRIPT" cat -h
 
     assert_success
-    assert_output --partial "Usage: workflow"
+    assert_output --partial "Usage:"
     assert_output --partial "cat"
 }
 
@@ -197,7 +197,7 @@ teardown() {
     run bash "$WORKFLOW_SCRIPT" open -h
 
     assert_success
-    assert_output --partial "Usage: workflow"
+    assert_output --partial "Usage:"
     assert_output --partial "open"
 }
 

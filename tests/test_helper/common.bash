@@ -10,7 +10,7 @@ source_workflow_functions() {
     # Source with set +e temporarily to avoid issues
     set +e
     # Use eval to source only function definitions
-    eval "$(grep -E '^(sanitize|filecat|find_project_root|list_workflows|extract_parent_config)\(\)' -A 200 "$script_path" | sed '/^[a-z_]*() {/,/^}/!d')"
+    eval "$(grep -E '^(sanitize|find_project_root|list_workflows|extract_parent_config)\(\)' -A 200 "$script_path" | sed '/^[a-z_]*() {/,/^}/!d')"
     set -e
 }
 

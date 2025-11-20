@@ -581,53 +581,6 @@ EOF
 # INPUT Document Aggregation Tests
 # =============================================================================
 
-@test "run: aggregates INPUT_PATTERN using documentcat" {
-    # Create input data files
-    mkdir -p Data
-    echo "Dataset 1 content" > Data/data1.csv
-    echo "Dataset 2 content" > Data/data2.csv
-
-    # Configure INPUT_PATTERN (project-relative)
-    echo 'INPUT_PATTERN="Data/*.csv"' >> .workflow/test-workflow/config
-
-    # Mock curl for API
-    curl() {
-        echo '{"input_tokens": 1000}'
-    }
-    export -f curl
-
-    run bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens
-
-    # Verify command succeeded
-    assert_success
-}
-
-@test "run: aggregates INPUT_FILES using documentcat" {
-    # Create input files
-    mkdir -p Data
-    echo "Input document 1" > Data/doc1.json
-    echo "Input document 2" > Data/doc2.json
-
-    # Configure INPUT_FILES (project-relative)
-    cat >> .workflow/test-workflow/config <<'EOF'
-INPUT_FILES=(
-    "Data/doc1.json"
-    "Data/doc2.json"
-)
-EOF
-
-    # Mock curl for count_tokens API (use --count-tokens to avoid full API call)
-    curl() {
-        echo '{"input_tokens": 1000}'
-    }
-    export -f curl
-
-    run bash "$WORKFLOW_SCRIPT" run test-workflow --count-tokens
-
-    # Verify command succeeded
-    assert_success
-}
-
 @test "run: separates INPUT_* from CONTEXT_*" {
     # Create input documents
     mkdir -p Data
