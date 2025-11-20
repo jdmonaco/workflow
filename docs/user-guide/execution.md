@@ -293,31 +293,50 @@ workflow run research \
 
 The tool automatically detects file types and processes each appropriately. PDF and Office files are processed first for optimal performance, followed by text documents and images.
 
-### Context Sources (Priority Order)
+### Context Sources (Aggregation Order)
+
+Content is aggregated in this specific order for optimal processing:
 
 For **workflow mode (`run`)**:
 
-1. **System prompts** - From `$WORKFLOW_PROMPT_PREFIX/` directory
-2. **Project description** - From `.workflow/project.txt` (if non-empty)
-3. **Dependent workflow outputs** - Via `--depends-on` or `DEPENDS_ON` config
-4. **Context patterns from config** - `CONTEXT_PATTERN` in workflow config
-5. **Context patterns from CLI** - `--context-pattern` flags
-6. **Context files from config** - `CONTEXT_FILES` in workflow config
-7. **Context files from CLI** - `--context-file` flags
+1. **System prompts:** From `$WORKFLOW_PROMPT_PREFIX/` directory
+2. **Project description:** From `.workflow/project.txt` (if non-empty)
+3. **Context files and patterns:**
+   - Config `CONTEXT_FILES` (project-relative)
+   - Config `CONTEXT_PATTERN` (project-relative)
+   - CLI `--context-file` flags (PWD-relative)
+   - CLI `--context-pattern` flags (PWD-relative)
+4. **Workflow dependencies:** Via `--depends-on` or `DEPENDS_ON` config
+5. **Input files and patterns:**
+   - Config `INPUT_FILES` (project-relative)
+   - Config `INPUT_PATTERN` (project-relative)
+   - CLI `--input-file` flags (PWD-relative)
+   - CLI `--input-pattern` flags (PWD-relative)
+6. **Images:** Automatically detected from context/input sources
+7. **Task prompt:** The actual task description
 
 For **task mode (`task`)**:
 
-1. **System prompts** - From `$WORKFLOW_PROMPT_PREFIX/` directory
-2. **Project description** - From `.workflow/project.txt` (if in a project)
-3. **Context patterns from CLI** - `--context-pattern` flags
-4. **Context files from CLI** - `--context-file` flags
+1. **System prompts:** From `$WORKFLOW_PROMPT_PREFIX/` directory
+2. **Project description:** From `.workflow/project.txt` (if in a project)
+3. **Context files and patterns:**
+   - CLI `--context-file` flags (PWD-relative)
+   - CLI `--context-pattern` flags (PWD-relative)
+4. **Input files and patterns:**
+   - CLI `--input-file` flags (PWD-relative)
+   - CLI `--input-pattern` flags (PWD-relative)
+5. **Images:** Automatically detected from context/input sources
+6. **Task prompt:** The actual task description
+
+!!! note "PDF-First Optimization"
+    Within context and input sources, PDF documents are automatically placed before text documents for optimal Claude API processing. The order becomes: Context PDFs → Input PDFs → Context Text → Dependencies → Input Text → Images → Task.
 
 ### File Path Resolution
 
 **Workflow mode:**
 
-- Config file paths (CONTEXT_PATTERN, CONTEXT_FILES) are relative to **project root**
-- CLI paths (`--context-file`, `--context-pattern`) are relative to **PWD**
+- Config paths (CONTEXT_FILES, CONTEXT_PATTERN, INPUT_FILES, INPUT_PATTERN) are relative to **project root**
+- CLI paths (--context-file, --context-pattern, --input-file, --input-pattern) are relative to **PWD**
 
 **Task mode:**
 
