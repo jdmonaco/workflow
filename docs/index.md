@@ -6,7 +6,7 @@
 
 **Version:** 0.2.0 (pre-release)
 
-Workflow enables reproducible AI workflows for research, development, and analysis with flexible configuration cascades, native document processing (PDFs, Office, images), workflow chaining and dependencies, and sophisticated context management with cost-optimized prompt caching.
+Workflow is a bash-based command-line tool that lets you easily create and run reproducible AI workflows for research, development, and analysis. Key features include flexible configuration cascades, native document processing (PDFs, Office, images), workflow chaining and dependencies, and sophisticated context management with cost-optimized prompt caching.
 
 ## Key Features
 
