@@ -325,29 +325,6 @@ diff .workflow/02-generate-docs/output.md \
 
 ## Advanced Techniques
 
-### Using Custom System Prompts
-
-Create a specialized prompt for code documentation:
-
-```bash
-cat > .workflow/prompts/code-documenter.txt << 'EOF'
-You are a technical documentation specialist. When analyzing code and creating
-documentation, prioritize:
-- Clarity and precision
-- Practical examples
-- Following language-specific conventions
-- Including edge cases and common pitfalls
-
-Format all output in clean, professional markdown.
-EOF
-```
-
-Update project config to use this prompt:
-
-```bash
-echo "SYSTEM_PROMPTS=base,code-documenter" >> .workflow/config
-```
-
 ### Using Glob Patterns
 
 If you had multiple Python files:
@@ -363,7 +340,7 @@ Request JSON output:
 ```bash
 wfw run 01-analyze-code \
   --context-file string_utils.py \
-  --format-hint json \
+  --output-format json \
   --stream
 ```
 

@@ -49,7 +49,7 @@ extract_config() {
 # =============================================================================
 
 # Global config directory and file paths
-GLOBAL_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/workflow"
+GLOBAL_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/wireflow"
 GLOBAL_CONFIG_FILE="$GLOBAL_CONFIG_DIR/config"
 
 # Ensure global config directory and file exist
@@ -403,10 +403,10 @@ PROMPT_EOF
 
     # Create global config file
     cat > "$GLOBAL_CONFIG_FILE" <<'EOF'
-# Global Workflow Configuration
+# Global WireFlow Configuration
 # ~/.config/wireflow/config
 #
-# This file sets default values for all workflow projects.
+# This file sets default values for all wireflow projects.
 # Configuration cascade: global → project → workflow → CLI flags
 #
 # Each tier inherits from the previous tier when values are empty.
@@ -458,7 +458,7 @@ WIREFLOW_PROMPT_PREFIX="$HOME/.config/wireflow/prompts"
 # =============================================================================
 
 # Task file directory (contains named task .txt files)
-# Used by 'workflow task NAME' subcommand
+# Used by 'wireflow task NAME' subcommand
 # Built-in task templates are created automatically on first use
 WIREFLOW_TASK_PREFIX="$HOME/.config/wireflow/tasks"
 

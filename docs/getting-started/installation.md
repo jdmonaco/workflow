@@ -1,10 +1,10 @@
 # Installation
 
-This guide will walk you through installing and setting up the Workflow CLI tool.
+This guide will walk you through installing and setting up the WireFlow CLI tool.
 
 ## Prerequisites
 
-Before installing Workflow, ensure you have the following:
+Before installing WireFlow, ensure you have the following:
 
 - **Bash 4.0+:** The tool is written as a bash script
 - **curl:** For downloading files and making API calls
@@ -26,7 +26,7 @@ If you don't have an Anthropic API key yet:
 
 ## Optional Dependencies
 
-Workflow supports various document types with optional dependencies:
+WireFlow supports various document types with optional dependencies:
 
 ### PDF Documents
 
@@ -86,7 +86,7 @@ ln -s /usr/bin/soffice ~/.local/bin/soffice
 ```
 
 !!! note "Graceful Degradation"
-    If LibreOffice is not installed, Workflow will skip Office files with a warning message and continue processing other documents. The tool will work fine without it if you only use PDF, text, and image files.
+    If LibreOffice is not installed, WireFlow will skip Office files with a warning message and continue processing other documents. The tool will work fine without it if you only use PDF, text, and image files.
 
 ### Image Files (.jpg, .png, .gif, .webp)
 
@@ -116,10 +116,10 @@ cd wireflow
 
 # Create symlink to add to PATH
 # Option A: User-local installation (~/.local/bin)
-ln -s "$(pwd)/wireflow.sh" ~/.local/bin/workflow
+ln -s "$(pwd)/wireflow.sh" ~/.local/bin/wfw
 
 # Option B: User bin directory (~/bin)
-ln -s "$(pwd)/wireflow.sh" ~/bin/workflow
+ln -s "$(pwd)/wireflow.sh" ~/bin/wfw
 
 # Verify installation
 wfw help
@@ -145,12 +145,12 @@ git clone https://github.com/jdmonaco/wireflow.git
 cd wireflow
 
 # Create symlink in system directory
-sudo ln -s "$(pwd)/wireflow.sh" /usr/local/bin/workflow
+sudo ln -s "$(pwd)/wireflow.sh" /usr/local/bin/wfw
 ```
 
 ### Why Clone Instead of Single-File Download?
 
-Workflow is a modular tool that includes:
+WireFlow is a modular tool that includes:
 
 - `wireflow.sh` - Main script
 - `lib/` - Library modules (core, config, help, task, utils, api)
@@ -180,10 +180,10 @@ echo 'export ANTHROPIC_API_KEY="sk-ant-..."' >> ~/.bashrc
 
 #### Option 2: Global Configuration File (Recommended)
 
-On first use, Workflow automatically creates `~/.config/wireflow/config` where you can store your API key:
+On first use, WireFlow automatically creates `~/.config/wireflow/config` where you can store your API key:
 
 ```bash
-# Run any workflow command to trigger auto-creation
+# Run any wireflow command to trigger auto-creation
 wfw help
 
 # Edit the global config
@@ -201,7 +201,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 ### Optional: Custom System Prompts
 
-By default, Workflow creates a base system prompt at `~/.config/wireflow/prompts/base.txt`. If you want to use a custom prompt directory:
+By default, WireFlow creates a base system prompt at `~/.config/wireflow/prompts/base.txt`. If you want to use a custom prompt directory:
 
 ```bash
 export WIREFLOW_PROMPT_PREFIX="$HOME/custom/prompts"
@@ -229,14 +229,14 @@ WIREFLOW_TASK_PREFIX=$HOME/.config/wireflow/tasks
 
 ## First-Run Auto-Configuration
 
-The first time you run any `workflow` command, it will automatically:
+The first time you run any `wireflow` command, it will automatically:
 
 1. Create `~/.config/wireflow/` directory
 2. Create a default `config` file with sensible defaults
 3. Create `prompts/` subdirectory
 4. Create a default `prompts/base.txt` system prompt
 
-This means you can start using Workflow immediately after setting your API key!
+This means you can start using WireFlow immediately after setting your API key!
 
 ## Verification
 
@@ -257,7 +257,7 @@ You should see your global configuration values displayed.
 
 ## Next Steps
 
-Now that Workflow is installed, you're ready to:
+Now that WireFlow is installed, you're ready to:
 
 1. Follow the [Quick Start Guide](quickstart.md) for a 5-minute introduction
 2. Create your [First Workflow](first-workflow.md) with detailed walkthrough
@@ -267,9 +267,9 @@ Now that Workflow is installed, you're ready to:
 
 ### Command Not Found
 
-If you get `workflow: command not found`, ensure:
+If you get `wfw: command not found`, ensure:
 
-- The script is executable: `chmod +x ~/bin/workflow`
+- The script is executable: `chmod +x ~/bin/wfw`
 - `~/bin` is in your PATH: `echo $PATH`
 - You've reloaded your shell: `source ~/.bashrc`
 
