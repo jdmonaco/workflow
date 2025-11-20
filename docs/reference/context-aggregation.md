@@ -15,22 +15,35 @@ Both support three aggregation methods that can be combined:
 2. **Explicit files** - Specify exact file paths
 3. **Workflow dependencies** - Include outputs from other workflows (CONTEXT only)
 
-## Aggregation Priority
+## Aggregation Order
 
-**Input Documents** (processed first, using `documentcat()`):
+Content is aggregated in this specific order (stable → volatile):
 
-1. Config `INPUT_PATTERN` (project-relative, run mode only)
-2. CLI `--input-pattern` (PWD-relative, both modes)
-3. Config `INPUT_FILES` (project-relative, run mode only)
-4. CLI `--input-file` (PWD-relative, both modes)
+**Context Materials** (processed first):
 
-**Context Materials** (processed second, using `contextcat()`):
-
-1. Workflow dependencies `DEPENDS_ON` (run mode only)
+1. Config `CONTEXT_FILES` (project-relative, run mode only)
 2. Config `CONTEXT_PATTERN` (project-relative, run mode only)
-3. CLI `--context-pattern` (PWD-relative, both modes)
-4. Config `CONTEXT_FILES` (project-relative, run mode only)
-5. CLI `--context-file` (PWD-relative, both modes)
+3. CLI `--context-file` (PWD-relative, both modes)
+4. CLI `--context-pattern` (PWD-relative, both modes)
+
+**Workflow Dependencies** (processed second, run mode only):
+
+1. `DEPENDS_ON` workflow outputs from `.workflow/output/` directory
+
+**Input Documents** (processed third):
+
+1. Config `INPUT_FILES` (project-relative, run mode only)
+2. Config `INPUT_PATTERN` (project-relative, run mode only)
+3. CLI `--input-file` (PWD-relative, both modes)
+4. CLI `--input-pattern` (PWD-relative, both modes)
+
+**Document Type Ordering:**
+
+Within context and input sources, documents are automatically ordered for optimal processing:
+1. PDF documents (context PDFs, then input PDFs) - processed first
+2. Text documents (context text, dependencies, input text)
+3. Images (detected from all sources) - Vision API
+4. Task prompt - always last
 
 ## Method 1: Glob Patterns
 

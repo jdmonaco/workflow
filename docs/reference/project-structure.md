@@ -222,20 +222,28 @@ Optional directory for workflow-specific context files.
 
 **Note:** Not commonly used - most projects reference files from project root
 
-### `<name>/output/`
+### `<name>/`
 
-Output directory for workflow responses.
+Workflow directory containing all workflow-specific files.
 
-**Created by:** First `workflow run <name>`
+**Created by:** `workflow new <name>` and `workflow run <name>`
 
 **Contents:**
 
-- `<name>.<format>` - Latest output
-- `<name>-TIMESTAMP.<format>` - Previous versions
+- `config` - Workflow configuration
+- `task.txt` - Task description/prompt
+- `context/` - Optional context files directory
+- `cache/` - Cached processed files (images, Office→PDF conversions)
+- `output.<format>` - Latest output
+- `output-TIMESTAMP.<format>` - Previous versions (automatic backups)
+- `system-blocks.json` - JSON system content blocks (for debugging)
+- `user-blocks.json` - JSON user content blocks (for debugging)
+- `request.json` - Full API request JSON (dry-run mode)
+- `document-map.json` - Citation index mapping (if citations enabled)
 
-**Hardlink:** Also accessible at `.workflow/output/<name>.<format>`
+**Hardlink:** Output also accessible at `.workflow/output/<name>.<format>`
 
-**Automatic backups:** Each run backs up previous output with timestamp
+**Automatic backups:** Each run backs up previous output with timestamp before overwriting
 
 ## Global Configuration
 
