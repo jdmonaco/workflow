@@ -24,6 +24,85 @@ If you don't have an Anthropic API key yet:
 !!! warning "Keep Your API Key Secure"
     Never commit your API key to version control or share it publicly. Use environment variables or the global configuration file to store it securely.
 
+## Optional Dependencies
+
+Workflow supports various document types with optional dependencies:
+
+### PDF Documents
+
+**Built-in support:** PDF files are automatically processed using the Claude API, which jointly analyzes both the text content and visual elements (diagrams, charts, images) from each page of the PDF. No additional dependencies required.
+
+### Microsoft Office Files (.docx, .pptx)
+
+**Requires LibreOffice:** Office files are automatically converted to PDF for processing. This requires the `soffice` command-line tool from LibreOffice.
+
+#### Installing LibreOffice
+
+**macOS:**
+```bash
+brew install --cask libreoffice
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get install libreoffice
+```
+
+**Linux (Fedora/RHEL):**
+```bash
+sudo dnf install libreoffice
+```
+
+**Or download directly:** [https://www.libreoffice.org/download/download-libreoffice/](https://www.libreoffice.org/download/download-libreoffice/)
+
+#### Setting Up soffice Symlink
+
+After installing LibreOffice, you need to create a symlink to the `soffice` command so it's available on your PATH:
+
+**macOS:**
+```bash
+# Create symlink in user bin directory
+ln -s /Applications/LibreOffice.app/Contents/MacOS/soffice ~/.local/bin/soffice
+
+# Or if LibreOffice is in ~/Applications
+ln -s ~/Applications/LibreOffice.app/Contents/MacOS/soffice ~/.local/bin/soffice
+
+# Verify it works
+soffice --version
+```
+
+**Linux:**
+
+On most Linux distributions, the `soffice` command is automatically added to PATH during installation. Verify with:
+
+```bash
+soffice --version
+```
+
+If not found, create a symlink:
+
+```bash
+ln -s /usr/bin/soffice ~/.local/bin/soffice
+```
+
+!!! note "Graceful Degradation"
+    If LibreOffice is not installed, Workflow will skip Office files with a warning message and continue processing other documents. The tool will work fine without it if you only use PDF, text, and image files.
+
+### Image Files (.jpg, .png, .gif, .webp)
+
+**Built-in support:** Images are automatically processed using the Claude Vision API. No additional dependencies required, though ImageMagick is recommended for optimal image resizing:
+
+**macOS:**
+```bash
+brew install imagemagick
+```
+
+**Linux:**
+```bash
+sudo apt-get install imagemagick  # Ubuntu/Debian
+sudo dnf install imagemagick      # Fedora/RHEL
+```
+
 ## Installation Methods
 
 ### Method 1: Clone Repository (Recommended)

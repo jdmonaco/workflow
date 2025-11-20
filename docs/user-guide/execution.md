@@ -232,6 +232,67 @@ Outside a project, task mode uses only:
 
 Context is gathered from multiple sources and sent to the API along with your task.
 
+### Supported Document Types
+
+Workflow automatically detects and processes various file types when used as context or input documents:
+
+#### Text Files
+All text-based files (`.md`, `.txt`, `.py`, `.js`, etc.) are processed directly. These are the most common document types.
+
+#### PDF Documents
+PDF files are automatically processed using the **Claude API**, which jointly analyzes both the text content and visual elements (diagrams, charts, images) from each page.
+
+- No additional dependencies required
+- PDFs are processed before text documents for optimal performance
+- Both text and visuals are analyzed together
+- Maximum size: 32MB per PDF
+- Fully citable with document indices
+
+Example:
+```bash
+workflow run analysis --input-file report.pdf --context-file references.pdf
+```
+
+#### Microsoft Office Files (.docx, .pptx)
+Office files are automatically converted to PDF for processing using LibreOffice's `soffice` command.
+
+- Requires LibreOffice installation (see [Installation Guide](../getting-started/installation.md#microsoft-office-files-docx-pptx))
+- Converted PDFs are cached in `.workflow/<name>/cache/office/`
+- Cache is validated by modification time (regenerates only if source is newer)
+- Gracefully skips with warning if LibreOffice not available
+- Fully citable using original Office filename
+
+Example:
+```bash
+workflow run summary --input-file presentation.pptx --context-file notes.docx
+```
+
+#### Image Files (.jpg, .png, .gif, .webp)
+Images are processed using the **Claude Vision API**.
+
+- No additional dependencies required (ImageMagick recommended for resizing)
+- Images larger than 1568px on long edge are automatically resized
+- Maximum size: 5MB per image
+- NOT citable (images don't receive document indices)
+
+Example:
+```bash
+workflow run analyze-diagram --input-file flowchart.png --context-file screenshot.jpg
+```
+
+#### Mixing Document Types
+You can freely mix different document types in a single workflow:
+
+```bash
+workflow run research \
+  --input-pattern "data/*.pdf" \
+  --context-file notes.docx \
+  --context-file diagram.png \
+  --context-file references.md
+```
+
+The tool automatically detects file types and processes each appropriately. PDF and Office files are processed first for optimal performance, followed by text documents and images.
+
 ### Context Sources (Priority Order)
 
 For **workflow mode (`run`)**:
