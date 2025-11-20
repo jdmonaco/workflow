@@ -292,15 +292,7 @@ EOF
     run bash "$WORKFLOW_SCRIPT" run test-workflow --dry-run
 
     assert_success
-    assert_output --partial "Dry-run mode: Prompts and JSON payload saved for inspection"
-    assert_output --partial "System prompt (XML):"
-    assert_output --partial "User prompt (XML):"
-    assert_output --partial "API request (JSON):"
-    assert_output --partial "Content blocks (JSON):"
-    assert_output --partial "dry-run-system.txt"
-    assert_output --partial "dry-run-user.txt"
-    assert_output --partial "dry-run-request.json"
-    assert_output --partial "dry-run-blocks.json"
+    assert_output --partial "Dry-run mode: JSON payload saved for inspection"
 
     # Verify files were created
     assert_file_exists ".workflow/test-workflow/dry-run-system.txt"

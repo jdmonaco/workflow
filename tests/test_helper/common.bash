@@ -35,7 +35,7 @@ setup_test_env() {
     # Mock global config directory (isolate from user's real config)
     export HOME="$TEST_TEMP_DIR/home"
     export XDG_CONFIG_HOME="$TEST_TEMP_DIR/home/.config"
-    export GLOBAL_CONFIG_DIR="$XDG_CONFIG_HOME/workflow"
+    export GLOBAL_CONFIG_DIR="$XDG_CONFIG_HOME/wireflow"
     mkdir -p "$HOME"
 
     # Create mock system prompts

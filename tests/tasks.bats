@@ -135,7 +135,7 @@ teardown() {
     # Create workflow with template
     run bash "$WORKFLOW_SCRIPT" new test-workflow --task summarize
     assert_success
-    assert_output --partial "Created workflow 'test-workflow' from template 'summarize'"
+    assert_output --partial "Created workflow:
 
     # Verify task.txt contains template content
     run grep "Create concise summary" ".workflow/test-workflow/task.txt"

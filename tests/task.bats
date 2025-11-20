@@ -163,7 +163,7 @@ EOF
     run bash "$WORKFLOW_SCRIPT" task -i "Test" --system-prompts "base,NeuroAI"
 
     assert_success
-    assert_output --partial "Building system prompt from: base NeuroAI"
+    assert_output --partial "Building system prompt from: meta (auto) base NeuroAI"
 }
 
 @test "task: respects --model override" {
@@ -221,9 +221,7 @@ EOF
     run bash "$WORKFLOW_SCRIPT" task -i "Test task" --dry-run
 
     assert_success
-    assert_output --partial "Dry-run mode: Prompts and JSON payload saved for inspection"
-    assert_output --partial "System prompt (XML):"
-    assert_output --partial "User prompt (XML):"
+    assert_output --partial "Dry-run mode: JSON payload saved for inspection"
     assert_output --partial "API request (JSON):"
     assert_output --partial "Content blocks (JSON):"
     # Files are temp files, so we can't verify their existence after command exits

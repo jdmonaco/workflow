@@ -147,8 +147,13 @@ new_workflow() {
         source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
         load_global_config
 
-        if [[ -z "$WIREFLOW_TASK_PREFIX" || ! -d "$WIREFLOW_TASK_PREFIX" ]]; then
-            echo "Error: WIREFLOW_TASK_PREFIX not configured"
+        # Set default if not configured
+        if [[ -z "$WIREFLOW_TASK_PREFIX" ]]; then
+            WIREFLOW_TASK_PREFIX="$HOME/.config/wireflow/tasks"
+        fi
+
+        if [[ ! -d "$WIREFLOW_TASK_PREFIX" ]]; then
+            echo "Error: WIREFLOW_TASK_PREFIX directory not found: $WIREFLOW_TASK_PREFIX"
             echo "Cannot use task template. Creating with default skeleton instead."
             template_task=""  # Fall through to default
         else

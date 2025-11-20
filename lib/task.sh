@@ -186,7 +186,7 @@ if [[ -n "$TASK_NAME" ]]; then
 
     # If not found in custom location, try default location as fallback
     if [[ ! -f "$TASK_FILE" ]]; then
-        local default_task_file="$HOME/.config/wireflow/tasks/${TASK_NAME}.txt"
+        default_task_file="$HOME/.config/wireflow/tasks/${TASK_NAME}.txt"
         if [[ -f "$default_task_file" ]]; then
             TASK_FILE="$default_task_file"
             echo "Using built-in task template: $TASK_NAME" >&2
