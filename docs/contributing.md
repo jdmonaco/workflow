@@ -358,6 +358,8 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 - [User Guide](user-guide/initialization.md) - Complete usage documentation
 - [Reference](reference/cli-reference.md) - Technical reference
+- [Architecture](development/architecture.md) - System design and architecture patterns
+- [Implementation](development/implementation.md) - Technical implementation details
 - [GitHub Issues](https://github.com/jdmonaco/workflow/issues) - Bug tracker
 
 ---
