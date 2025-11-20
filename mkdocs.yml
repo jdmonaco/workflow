@@ -39,10 +39,10 @@ nav:
 
   - User Guide:
     - Initialization: user-guide/initialization.md
-    - Creating Workflows: user-guide/workflows.md
-    - Execution: user-guide/execution.md
     - Configuration: user-guide/configuration.md
+    - Creating Workflows: user-guide/workflows.md
     - System Prompts: user-guide/system-prompts.md
+    - Execution: user-guide/execution.md
     - Examples: user-guide/examples.md
 
   - Reference:
@@ -54,7 +54,11 @@ nav:
     - Streaming Modes: reference/streaming.md
 
   - Troubleshooting: troubleshooting.md
-  - Contributing: contributing.md
+
+  - Contributing:
+    - Overview: contributing/index.md
+    - Architecture: contributing/architecture.md
+    - Implementation: contributing/implementation.md
 
 markdown_extensions:
   - pymdownx.highlight:

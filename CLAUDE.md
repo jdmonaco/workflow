@@ -8,9 +8,9 @@ Quick reference for development workflows and processes.
 
 This guide focuses on development processes and workflows. For deeper technical details, see:
 
-- **[docs/development/architecture.md](docs/development/architecture.md)** - System design, architecture patterns, and design decisions
-- **[docs/development/implementation.md](docs/development/implementation.md)** - Technical implementation details, module reference, and code-level specifics
-- **[dev/CACHE-CONTROL-CHECKLIST.md](dev/CACHE-CONTROL-CHECKLIST.md)** - Cache control implementation verification (not tracked in git)
+- **[docs/contributing/architecture.md](docs/contributing/architecture.md)**: System design, architecture patterns, and design decisions
+- **[docs/contributing/implementation.md](docs/contributing/implementation.md)**: Technical implementation details, module reference, and code-level specifics
+- **[dev/CACHE-CONTROL-CHECKLIST.md](dev/CACHE-CONTROL-CHECKLIST.md)**: Cache control implementation verification (not tracked in git)
 
 ## Testing Workflows
 
@@ -65,10 +65,10 @@ When making interface changes (new features, behavior changes):
 **Required updates:**
 
 1. Code implementation and tests
-2. `lib/help.sh` - CLI help text
-3. `docs/` - User-facing documentation
-4. README.md and docs/index.md - Keep synchronized
-5. docs/development/architecture.md or docs/development/implementation.md - Technical details
+2. `lib/help.sh`: CLI help text
+3. `docs/`: User-facing documentation
+4. README.md and docs/index.md: Keep synchronized
+5. docs/contributing/architecture.md or docs/contributing/implementation.md: Technical details
 6. Code comments and library headers
 
 **Checklist:**
@@ -77,10 +77,10 @@ When making interface changes (new features, behavior changes):
 - [ ] Update help text
 - [ ] Update relevant docs pages
 - [ ] Update README.md if user-facing
-- [ ] Update docs/development/architecture.md or docs/development/implementation.md with technical details
+- [ ] Update docs/contributing/architecture.md or docs/contributing/implementation.md with technical details
 - [ ] Update code comments
 - [ ] Verify README.md ↔ docs/index.md sync
-- [ ] Test with `mkdocs serve` (no warnings)
+- [ ] Test with `mkdocs serve` (no warnings - activate venv first: `source venv/bin/activate`)
 
 ### Documentation Hierarchy
 
@@ -91,9 +91,9 @@ docs/getting-started/   → Installation, tutorials
 docs/user-guide/        → Complete usage guide
 docs/reference/         → CLI and technical reference
 lib/help.sh             → CLI help text
-CLAUDE.md                          → Development workflows (this file)
-docs/development/architecture.md   → System architecture and design
-docs/development/implementation.md → Technical implementation details
+CLAUDE.md                            → Development workflows (this file)
+docs/contributing/architecture.md   → System architecture and design
+docs/contributing/implementation.md → Technical implementation details
 Code comments           → Inline documentation
 ```
 
@@ -107,16 +107,16 @@ Code comments           → Inline documentation
 
 **All subcommand listings must use this order:**
 
-1. `init` - Project initialization
-2. `new` - Create workflows
-3. `edit` - Edit workflows/config
-4. `config` - View/manage configuration
-5. `run` - Execute workflows
-6. `task` - Quick execution
-7. `cat` - View output
-8. `open` - View output in app
-9. `list` - List workflows
-10. `help` - Documentation
+1. `init`: Project initialization
+2. `new`: Create workflows
+3. `edit`: Edit workflows/config
+4. `config`: View/manage configuration
+5. `run`: Execute workflows
+6. `task`: Quick execution
+7. `cat`: View output
+8. `open`: View output in app
+9. `list`: List workflows
+10. `help`: Documentation
 
 **Rationale:**
 - Follows natural workflow progression (setup → prepare → execute → review → utility)
@@ -164,7 +164,7 @@ Code comments           → Inline documentation
 ```
 
 **Avoid:**
-- `**Heading** - Description` (old dash style)
+- `**Heading** - Description` (old dash style - use colons instead)
 - Emojis outside Key Features
 - Inconsistent punctuation
 - 2-space indentation for nested bullets (use 4 spaces)

@@ -116,7 +116,7 @@ workflow run 02-analysis --depends-on 01-context --stream
 - **[User Guide](user-guide/initialization.md):** Complete guide to using workflow effectively
 - **[Reference](reference/cli-reference.md):** Comprehensive CLI and feature reference
 - **[Troubleshooting](troubleshooting.md):** Common issues and solutions
-- **[Contributing](contributing.md):** Contribution guidelines
+- **[Contributing](contributing/index.md):** Contribution guidelines
 
 ## Requirements
 
