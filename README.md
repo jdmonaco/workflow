@@ -1,8 +1,8 @@
-# A CLI Tool for AI Workflows in the Terminal
+# Workflow: Reproducible AI Workflows for Research and Development
 
 **Version:** 0.2.0 (pre-release)
 
-A flexible, configurable CLI tool for building and managing AI workflows for research and project development using the Anthropic API.
+A terminal-based tool for building reproducible AI workflows for research, development, and analysis, featuring flexible configuration cascades, comprehensive document processing (PDFs, Office files, images), workflow dependencies and chaining, and intelligent context management.
 
 ## Features
 
