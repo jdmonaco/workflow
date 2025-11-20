@@ -129,7 +129,12 @@ create_test_blocks() {
         # Save the -d payload argument for inspection
         while [[ $# -gt 0 ]]; do
             if [[ "$1" == "-d" ]]; then
-                echo "$2" > "$TEST_TEMP_DIR/payload.json"
+                if [[ "$2" == "@-" ]]; then
+                    # Read from stdin when using @-
+                    cat > "$TEST_TEMP_DIR/payload.json"
+                else
+                    echo "$2" > "$TEST_TEMP_DIR/payload.json"
+                fi
                 break
             fi
             shift
