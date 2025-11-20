@@ -87,9 +87,9 @@ Override model, temperature, or tokens:
 
 ```bash
 workflow run 01-analysis \
-  --model claude-3-5-sonnet-20241022 \
-  --temperature 0.5 \
-  --max-tokens 8192
+    --model claude-3-5-sonnet-20241022 \
+    --temperature 0.5 \
+    --max-tokens 8192
 ```
 
 ### Custom System Prompts
@@ -157,7 +157,7 @@ Long form:
 
 ```bash
 workflow task --inline "Extract key action items from the meeting notes" \
-  --context-file meeting.md
+    --context-file meeting.md
 ```
 
 ### Named Tasks
@@ -285,10 +285,10 @@ You can freely mix different document types in a single workflow:
 
 ```bash
 workflow run research \
-  --input-pattern "data/*.pdf" \
-  --context-file notes.docx \
-  --context-file diagram.png \
-  --context-file references.md
+    --input-pattern "data/*.pdf" \
+    --context-file notes.docx \
+    --context-file diagram.png \
+    --context-file references.md
 ```
 
 The tool automatically detects file types and processes each appropriately. PDF and Office files are processed first for optimal performance, followed by text documents and images.
@@ -302,16 +302,16 @@ For **workflow mode (`run`)**:
 1. **System prompts:** From `$WORKFLOW_PROMPT_PREFIX/` directory
 2. **Project description:** From `.workflow/project.txt` (if non-empty)
 3. **Context files and patterns:**
-   - Config `CONTEXT_FILES` (project-relative)
-   - Config `CONTEXT_PATTERN` (project-relative)
-   - CLI `--context-file` flags (PWD-relative)
-   - CLI `--context-pattern` flags (PWD-relative)
+     - Config `CONTEXT_FILES` (project-relative)
+     - Config `CONTEXT_PATTERN` (project-relative)
+     - CLI `--context-file` flags (PWD-relative)
+     - CLI `--context-pattern` flags (PWD-relative)
 4. **Workflow dependencies:** Via `--depends-on` or `DEPENDS_ON` config
 5. **Input files and patterns:**
-   - Config `INPUT_FILES` (project-relative)
-   - Config `INPUT_PATTERN` (project-relative)
-   - CLI `--input-file` flags (PWD-relative)
-   - CLI `--input-pattern` flags (PWD-relative)
+     - Config `INPUT_FILES` (project-relative)
+     - Config `INPUT_PATTERN` (project-relative)
+     - CLI `--input-file` flags (PWD-relative)
+     - CLI `--input-pattern` flags (PWD-relative)
 6. **Images:** Automatically detected from context/input sources
 7. **Task prompt:** The actual task description
 
@@ -320,11 +320,11 @@ For **task mode (`task`)**:
 1. **System prompts:** From `$WORKFLOW_PROMPT_PREFIX/` directory
 2. **Project description:** From `.workflow/project.txt` (if in a project)
 3. **Context files and patterns:**
-   - CLI `--context-file` flags (PWD-relative)
-   - CLI `--context-pattern` flags (PWD-relative)
+     - CLI `--context-file` flags (PWD-relative)
+     - CLI `--context-pattern` flags (PWD-relative)
 4. **Input files and patterns:**
-   - CLI `--input-file` flags (PWD-relative)
-   - CLI `--input-pattern` flags (PWD-relative)
+     - CLI `--input-file` flags (PWD-relative)
+     - CLI `--input-pattern` flags (PWD-relative)
 5. **Images:** Automatically detected from context/input sources
 6. **Task prompt:** The actual task description
 
@@ -364,9 +364,9 @@ Files are processed in the order specified. For narrative context, order careful
 
 ```bash
 workflow run draft \
-  --context-file 00-outline.md \
-  --context-file 01-introduction.md \
-  --context-file 02-methods.md
+    --context-file 00-outline.md \
+    --context-file 01-introduction.md \
+    --context-file 02-methods.md
 ```
 
 ## Streaming vs Batch Mode
@@ -488,8 +488,8 @@ workflow run 02-clean-data --depends-on 01-raw-data --stream
 workflow run 03-exploratory --depends-on 02-clean-data --stream
 workflow run 03-statistical --depends-on 02-clean-data --stream
 workflow run 04-final-report \
-  --depends-on 03-exploratory,03-statistical \
-  --stream
+    --depends-on 03-exploratory,03-statistical \
+    --stream
 ```
 
 ## Output Management
@@ -634,8 +634,8 @@ workflow task -i "What are the main findings?" --context-file results.json
 
 # Quick comparison
 workflow task -i "Compare these approaches" \
-  --context-file approach-a.md \
-  --context-file approach-b.md
+    --context-file approach-a.md \
+    --context-file approach-b.md
 ```
 
 ## Error Handling
