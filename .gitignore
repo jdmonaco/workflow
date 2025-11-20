@@ -1,6 +1,7 @@
 # Local-only files
 CLAUDE.local.md
 .claude/
+examples/
 venv/
 dev/
 notes/
@@ -17,4 +18,3 @@ site/
 __pycache__/
 *.pyc
 *.pyo
-examples/
