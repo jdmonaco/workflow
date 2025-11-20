@@ -31,8 +31,8 @@ lib/
 └── api.sh              # Anthropic API interaction (streaming and batch)
 tests/
 ├── test_helper/        # Bats support libraries (git submodules)
-├── *.bats             # Test files (205 tests)
-└── common.sh          # Shared test utilities
+├── *.bats             # Test files (253 tests)
+└── common.bash        # Shared test utilities
 ```
 
 ### Project Structure
@@ -53,8 +53,13 @@ project-root/
 │       ├── config                # Workflow configuration
 │       ├── task.txt              # Task prompt
 │       ├── context/              # Optional context files
+│       ├── cache/                # Cached processed files (images, Office→PDF)
 │       ├── output.<format>       # Primary output
-│       └── output-TIMESTAMP.<format>  # Backup outputs
+│       ├── output-TIMESTAMP.<format>  # Backup outputs
+│       ├── system-blocks.json    # JSON system content blocks (for debugging)
+│       ├── user-blocks.json      # JSON user content blocks (for debugging)
+│       ├── request.json          # Full API request JSON (dry-run mode)
+│       └── document-map.json     # Citation index mapping (if enabled)
 └── (project files...)
 ```
 
@@ -291,11 +296,10 @@ Each file becomes its own content block in optimized order: context PDFs → inp
 6. **Images:** Detected from all INPUT/CONTEXT sources (Vision API)
 7. **Task:** Always last
 
-**Cache breakpoints:** Maximum of 4 breakpoints placed at semantic boundaries:
-- End of PDF documents section (all PDFs: context + input)
-- End of text documents section (context + dependencies + input)
-- End of images section
-- Task has no cache_control (most volatile)
+**Cache breakpoints:** Strategic placement for optimal caching (see Prompt Caching section for details):
+- System blocks: After system prompts, after date block
+- User blocks: After PDFs (if exist), after text docs OR images (whichever is last)
+- Task has no cache_control (most volatile, re-processed every run)
 
 **PDF-first ordering rationale:** Per Anthropic PDF API optimization guidelines, placing PDF documents before text documents improves processing performance and accuracy.
 
@@ -305,6 +309,27 @@ Each file becomes its own content block in optimized order: context PDFs → inp
 - Content blocks created for all configured sources
 - Empty arrays if no sources configured
 - Task block always present
+
+**Content block arrays:**
+
+All content is organized into typed arrays for proper ordering and cache management:
+
+| Array | Purpose | Citable | Ordering |
+|-------|---------|---------|----------|
+| `SYSTEM_BLOCKS` | System prompts, project description, date | N/A | First in request |
+| `CONTEXT_PDF_BLOCKS` | PDF files from context sources | Yes | 1st in user array |
+| `INPUT_PDF_BLOCKS` | PDF files from input sources | Yes | 2nd in user array |
+| `CONTEXT_BLOCKS` | Text files from context sources | Yes | 3rd in user array |
+| `DEPENDENCY_BLOCKS` | Workflow dependency outputs | Yes | 4th in user array |
+| `INPUT_BLOCKS` | Text files from input sources | Yes | 5th in user array |
+| `IMAGE_BLOCKS` | Images from all sources | No | 6th in user array |
+| `TASK_BLOCK` | Task prompt (single block) | N/A | Last in user array |
+| `DOCUMENT_INDEX_MAP` | Citation tracking for citable docs | N/A | Saved to document-map.json |
+
+**Citability:**
+- PDFs (context and input): Citable with document indices
+- Text files (context, dependency, input): Citable with document indices
+- Images: NOT citable (no document indices assigned)
 
 ### API Interaction
 
@@ -402,7 +427,7 @@ Calls Anthropic's `/v1/messages/count_tokens` endpoint for exact counts.
 
 ```bash
 # Primary location
-output_file=".workflow/$workflow_name/output/$workflow_name.$format"
+output_file=".workflow/$workflow_name/output.$format"
 
 # Create hardlink
 ln "$output_file" ".workflow/output/$workflow_name.$format"
@@ -441,14 +466,33 @@ fi
 
 **Cache breakpoint strategy:**
 
-1. **System prompts** (most stable) - `cache_control: {type: "ephemeral"}`
-2. **Project descriptions** (stable) - `cache_control: {type: "ephemeral"}`
-3. **Context files** (medium stability) - cache_control on last block
-4. **Dependencies** (medium stability) - cache_control on last block
-5. **Input documents** (volatile) - cache_control on last block
-6. **Task** (most volatile) - no cache_control
+Cache breakpoints (`cache_control: {type: "ephemeral"}`) are placed strategically to maximize cost reduction while respecting the 4-breakpoint limit.
 
-**Aggregation order:** Stable → volatile within each category:
+**System blocks array:**
+1. After aggregated system prompts (most stable)
+2. After date block
+
+Result: System prompts and project descriptions are fully cached for all workflow runs in the same project on the same day.
+
+**User content blocks array:**
+
+The strategy adapts based on what content is present:
+
+1. **If PDFs exist:** Place breakpoint after last PDF block (INPUT_PDF_BLOCKS or CONTEXT_PDF_BLOCKS)
+2. **Always:** Place breakpoint after last text document OR last image block (whichever comes last)
+    - If images exist: after last image block
+    - If no images: after last text block (INPUT_BLOCKS, CONTEXT_BLOCKS, or DEPENDENCY_BLOCKS)
+3. **If no PDFs:** Move the "would-be PDF breakpoint" to after text documents (before images)
+    - Result: Text documents and images cached separately
+4. **If no context/input documents:** No breakpoints in user array
+    - Result: Task is re-processed on every run (expected behavior)
+
+**Adaptive breakpoint logic:**
+- PDFs present: [PDFs w/ breakpoint] → [text docs] → [images w/ breakpoint] → task
+- No PDFs, have docs: [text docs w/ breakpoint] → [images w/ breakpoint] → task
+- Only task: task (no breakpoints, re-processed each run)
+
+**Aggregation order within categories:** Stable → volatile
 - Context: CONTEXT_FILES → CONTEXT_PATTERN → CLI_CONTEXT_FILES → CLI_CONTEXT_PATTERN
 - Input: INPUT_FILES → INPUT_PATTERN → CLI_INPUT_FILES → CLI_INPUT_PATTERN
 
@@ -470,9 +514,9 @@ fi
 1. Check `$VISUAL` (highest priority)
 2. Check `$EDITOR`
 3. Platform-specific defaults (`uname -s`):
-   - Darwin (macOS): `vim` → `nano` → `vi`
-   - Linux: `vim` → `nano` → `vi`
-   - Windows/WSL: `vim` → `nano` → `code` → `vi`
+    - Darwin (macOS): `vim` → `nano` → `vi`
+    - Linux: `vim` → `nano` → `vi`
+    - Windows/WSL: `vim` → `nano` → `code` → `vi`
 4. Common editor detection: `command -v vim nvim emacs nano code subl atom vi`
 5. Fallback: `vi` (POSIX standard)
 
@@ -561,9 +605,19 @@ fi
 - `list_workflows()` - List workflow directories
 - `escape_json()` - JSON string escaping for API payloads
 - `build_text_content_block()` - Creates JSON content block from file with embedded XML metadata
-- `build_document_content_block()` - Placeholder for future PDF support
-- `detect_file_type()` - Detects text vs document/PDF vs image files
+- `build_document_content_block()` - Creates PDF content block with base64 encoding
+- `detect_file_type()` - Detects text vs document/PDF vs office vs image files
 - `convert_json_to_xml()` - Optional post-processing to create pseudo-XML files (custom converter)
+
+**PDF document functions:**
+
+- `validate_pdf_file()` - Check file size against 32MB limit
+- `build_document_content_block()` - Base64 encode PDF and create content block
+
+**Microsoft Office conversion functions:**
+
+- `check_soffice_available()` - Detect LibreOffice installation
+- `convert_office_to_pdf()` - Convert .docx/.pptx to PDF with mtime-based caching
 
 **Vision API image functions:**
 
@@ -623,43 +677,45 @@ Eliminates duplication between run mode (workflow.sh) and task mode (lib/task.sh
 **Functions:**
 
 - `build_system_prompt()` - Builds JSON content blocks for system prompts
-  - Concatenates prompt files from SYSTEM_PROMPTS array
-  - Creates JSON block with cache_control for system prompts
-  - Populates SYSTEM_BLOCKS array
-  - Writes concatenated text to `.workflow/prompts/system.txt` for caching
+    - Concatenates prompt files from SYSTEM_PROMPTS array
+    - Creates JSON block with cache_control for system prompts
+    - Populates SYSTEM_BLOCKS array
+    - Writes concatenated text to `.workflow/prompts/system.txt` for caching
 - `build_project_description_block()` - Creates cached JSON block for project descriptions
 - `build_current_date_block()` - Creates uncached JSON block for current date
 - `estimate_tokens()` - Dual token estimation (heuristic + API)
-  - No parameters (reads from JSON arrays in memory)
-  - Heuristic character-based estimation for quick feedback
-  - Image tokens: 1600 per image (conservative estimate for ~1.15 megapixels)
-  - Calls `anthropic_count_tokens()` for exact API count (when API key available)
-  - Displays comparison between heuristic and actual counts
+    - No parameters (reads from JSON arrays in memory)
+    - Heuristic character-based estimation for quick feedback
+    - Image tokens: 1600 per image (conservative estimate for ~1.15 megapixels)
+    - Calls `anthropic_count_tokens()` for exact API count (when API key available)
+    - Displays comparison between heuristic and actual counts
 - `handle_dry_run_mode()` - Saves JSON payloads for inspection
-  - Saves 2 files: JSON request, JSON blocks breakdown
-  - Opens in editor for inspection
-  - Exits without making API call
+    - Saves 2 files: JSON request, JSON blocks breakdown
+    - Opens in editor for inspection
+    - Exits without making API call
 - `build_prompts(system_file, project_root, task_source)` - Builds JSON structures
-  - Calls block-building functions to populate SYSTEM_BLOCKS
-  - Creates TASK_BLOCK for user message
-  - No XML construction (JSON-first architecture)
+    - Calls block-building functions to populate SYSTEM_BLOCKS
+    - Creates TASK_BLOCK for user message
+    - No XML construction (JSON-first architecture)
 - `aggregate_context(mode, project_root, workflow_dir)` - Builds JSON content blocks
-  - Order: context → dependencies → input → images (stable → volatile)
-  - Within each: FILES → PATTERN → CLI (stable → volatile)
-  - Text files → CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, or INPUT_BLOCKS (citable)
-  - Image files → IMAGE_BLOCKS (Vision API, not citable)
-  - Automatic image processing: validation, resizing, caching, base64 encoding
-  - Adds cache_control at end of each section (4 total breakpoints)
-  - Embeds metadata as XML tags in block text content
-  - Saves document-map.json for citations processing (text files only)
+    - Order: context PDFs → input PDFs → context text → dependencies → input text → images (stable → volatile)
+    - Within each: FILES → PATTERN → CLI (stable → volatile)
+    - PDF files → CONTEXT_PDF_BLOCKS or INPUT_PDF_BLOCKS (citable)
+    - Text files → CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, or INPUT_BLOCKS (citable)
+    - Image files → IMAGE_BLOCKS (Vision API, not citable)
+    - Automatic image processing: validation, resizing, caching, base64 encoding
+    - Automatic Office conversion: .docx/.pptx → PDF with caching
+    - Adds cache_control strategically (see Prompt Caching section)
+    - Embeds metadata as XML tags in block text content
+    - Saves document-map.json for citations processing (all citable docs)
 - `execute_api_request(mode, output_file, output_file_path)` - Unified API execution
-  - Assembles content blocks arrays (SYSTEM_BLOCKS + CONTEXT_BLOCKS + DEPENDENCY_BLOCKS + INPUT_BLOCKS + IMAGE_BLOCKS + TASK_BLOCK)
-  - Order: text documents → images → task (per Vision API best practices)
-  - Writes JSON arrays to temporary files
-  - Passes files to API functions (avoids bash parameter parsing issues)
-  - Run mode: backs up existing output before API call, saves JSON files after completion
-  - Task mode: displays to stdout in non-stream mode if no explicit file
-  - Cleans up temporary files
+    - Assembles content blocks arrays in optimized order
+    - Order: context PDFs → input PDFs → context text → dependencies → input text → images → task
+    - Writes JSON arrays to temporary files
+    - Passes files to API functions (avoids bash parameter parsing issues)
+    - Run mode: backs up existing output before API call, saves JSON files after completion
+    - Task mode: displays to stdout in non-stream mode if no explicit file
+    - Cleans up temporary files
 
 **Design rationale:**
 
