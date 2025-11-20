@@ -10,6 +10,13 @@ old/
 # Workflows
 .workflow/
 
+# Temp/backup files
+temp/
+tmp/
+.temp
+.tmp
+.bak
+
 # MkDocs build output
 site/
 .cache/
