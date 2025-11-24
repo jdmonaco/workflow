@@ -2,18 +2,11 @@
 # Workflow Core Functions
 # =============================================================================
 # Core workflow subcommand implementations for the workflow CLI tool.
-# This file is sourced by wireflow.sh.
 # Dependencies: lib/utils.sh, lib/config.sh, lib/edit.sh
 # =============================================================================
 
-# Source utility and config functions if not already loaded
+# Source utility functions if not already loaded
 SCRIPT_LIB_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-if ! declare -f sanitize > /dev/null; then
-    source "$SCRIPT_LIB_DIR/utils.sh"
-fi
-if ! declare -f load_global_config > /dev/null; then
-    source "$SCRIPT_LIB_DIR/config.sh"
-fi
 if ! declare -f edit_files > /dev/null; then
     source "$SCRIPT_LIB_DIR/edit.sh"
 fi
@@ -22,168 +15,711 @@ fi
 # Init Subcommand - Initialize Project
 # =============================================================================
 init_project() {
-    local target_dir="${1:-.}"
+    local dir
+    dir="$(absolute_path "${1:-$(pwd)}")"
 
-    # Check if already initialized
-    if [[ -d "$target_dir/.workflow" ]]; then
-        echo "Error: Project already initialized at $target_dir"
-        echo "Found existing .workflow/ directory"
+    # Check if inside an existing wireflow directory
+    if [[ "$dir" =~ /\.workflow(/|$) ]]; then
+        echo "Error: Can't initialize inside a wireflow directory" >&2
+        echo "Current project root: $(display_absolute_path "${dir%\/.workflow*}")" >&2
         exit 1
     fi
 
-    # Check for parent project
-    PARENT_ROOT=$(cd "$target_dir" && find_project_root 2>/dev/null) || true
-    if [[ -n "$PARENT_ROOT" ]]; then
-        echo "Initializing nested project inside existing project at:"
-        echo "  $PARENT_ROOT"
+    # Check if project exists and obtain consent to reset config
+    if [[ -d "$dir/.workflow" ]]; then
+        echo "Warning: A project already exists at:"
+        echo "  $(display_absolute_path "$dir")"
         echo ""
-        echo "This will:"
-        echo "  - Create a separate workflow namespace"
-        echo "  - Inherit configuration from full ancestor cascade"
-        echo "  - Use 'workflow config' to see effective configuration"
-        read -p "Continue? [y/N] " -n 1 -r
-        echo
-        [[ ! $REPLY =~ ^[Yy]$ ]] && exit 0
+        echo "Continuing will:"
+        echo "  - Preserve existing project description file"
+        echo "  - Reset the project configuration by:"
+        echo "      1. Backing up existing project config file"
+        echo "      2. Creating a new default config file"
+        echo ""
+        prompt_to_continue_or_exit "Reset project config?"
+    fi
+
+    # Check for parent and obtain consent to create a nested project
+    local parent_dir="$(dirname "$dir")"
+    local parent_root=""
+    if [[ -d "$parent_dir" ]]; then
+        parent_root=$(cd "$parent_dir" && find_project_root 2>/dev/null) || true
+    fi
+    if [[ -n "$parent_root" ]]; then
+        echo "Warning: Found a parent project located at:"
+        echo "  $(display_absolute_path "$parent_root")"
+        echo ""
+        echo "Continuing will:"
+        echo "  - Create a nested project with a separate workflow namespace"
+        echo "  - Pass through config settings from the parent project"
+        echo ""
+        prompt_to_continue_or_exit "Use '$SCRIPT_NAME config' to see effective configuration."
+    fi
+
+    # Set directory paths
+    local project_dir="$dir"
+    local wireflow_dir="$project_dir/.workflow"
+
+    # Create initial project config with cascade pass-through by default
+    mkdir -p "$wireflow_dir"
+    local project_config="$wireflow_dir/config"
+    if [[ -e "$project_config" ]]; then
+        mv "$project_config" "${project_config}.bak" &>/dev/null || {
+            echo "Error: Failed to backup project config" >&2
+            echo "Exiting..." >&2
+            exit 1
+        }
+        echo "Backed up previous config:"
+        echo "  $(display_normalized_path "${project_config}.bak")"
         echo ""
     fi
 
-    # Create .workflow structure
-    mkdir -p "$target_dir/.workflow/prompts"
-    mkdir -p "$target_dir/.workflow/output"
-
-    # Create config file with transparent pass-through
-    local parent_note=""
-    [[ -n "$PARENT_ROOT" ]] && parent_note="# Nested under parent project: $PARENT_ROOT"$'\n'
-
-    cat > "$target_dir/.workflow/config" <<CONFIG_EOF
-# Project-level workflow configuration
-${parent_note}
-# Configuration cascade: global → ancestor projects → this project → workflow
-# Leave values empty to inherit from cascade, or set explicit values to override.
+    # Write the project config header
+    cat > "$project_config" <<CONFIG_EOF
+# Project-level wireflow configuration
 #
-# Run 'workflow config' to see current effective configuration.
-#
-# API Configuration (leave empty to inherit, recommended):
-MODEL=
-TEMPERATURE=
-MAX_TOKENS=
-SYSTEM_PROMPTS=()
-OUTPUT_FORMAT=
+# Leave values empty to inherit from parent levels.
+# Run 'wfw config' to view effective configuration.
+
+# ============================================================================
+# Configuration Parameters
+# ============================================================================
+
 CONFIG_EOF
 
-    # Create empty project description file
-    touch "$target_dir/.workflow/project.txt"
+    # Write default project settings (empty) to the config file
+    cat_default_project_config >> "$project_config"
 
-    echo "Initialized workflow project: $target_dir/.workflow/"
-    echo "Created:"
-    echo "  $target_dir/.workflow/config"
-    echo "  $target_dir/.workflow/project.txt"
-    echo "  $target_dir/.workflow/prompts/"
-    echo "  $target_dir/.workflow/output/"
+    # Write the project config footer, with explanatory usage details
+    cat >> "$project_config" <<CONFIG_EOF
+
+# ============================================================================
+# Configuration Guide
+# ============================================================================
+#
+# Configuration Cascade:
+#   builtin defaults → global config → project config → workflow config → CLI
+#
+# Scalar Variables (most settings):
+#   Leave EMPTY to inherit:        MODEL=
+#   Set VALUE to override:         MODEL=claude-opus-4
+#
+# Array Variables (SYSTEM_PROMPTS, CONTEXT_FILES):
+# ┌──────────────────────────┬─────────────────────────────────────┐
+# │ Syntax                   │ Behavior                            │
+# ├──────────────────────────┼─────────────────────────────────────┤
+# │ CONTEXT_FILES=           │ Inherit from parent (pass-through)  │
+# │ CONTEXT_FILES=()         │ Clear (reset to empty)              │
+# │ CONTEXT_FILES=(file.pdf) │ Replace (override parent)           │
+# │ CONTEXT_FILES+=(add.pdf) │ Append (add to parent)              │
+# └──────────────────────────┴─────────────────────────────────────┘
+#
+# Multi-line arrays (use quotes for filenames with spaces):
+#   CONTEXT_FILES=(
+#       "references/first paper.pdf"
+#       "data/experiment results.csv"
+#   )
+#
+# Examples:
+#   # Override model for this project
+#   MODEL=claude-opus-4
+#
+#   # Set project-specific prompts
+#   SYSTEM_PROMPTS=(base neuroai-research)
+#
+#   # Add project context files
+#   CONTEXT_FILES=(
+#       "project-background.md"
+#       "related-work.pdf"
+#   )
+CONFIG_EOF
+
+    # Ensure project description file exists
+    local project_file="$wireflow_dir/project.txt"
+    touch "$project_file"
+
+    # Display summary report
+    echo "Initialized project:"
+    echo "  Project root:    $(display_absolute_path "$project_dir")"
+    echo "  Wireflow folder: $(display_absolute_path "$wireflow_dir")"
+    echo "  Config file:     $(display_absolute_path "$project_config")"
+    echo "  Project file:    $(display_absolute_path "$project_file")"
     echo ""
-    echo "Opening project description and config in editor..."
-
-    # Open both files for interactive editing
-    edit_files "$target_dir/.workflow/project.txt" "$target_dir/.workflow/config"
-
-    target_dir_abs=$(cd "$target_dir" && pwd)
-
-    echo ""
-    echo "Next steps:"
-    echo "  1. cd $target_dir_abs"
-    echo "  2. workflow new WORKFLOW_NAME"
+    echo "Run '$SCRIPT_NAME edit' to setup the project."
 }
 
 # =============================================================================
 # New Subcommand - Create Workflow
 # =============================================================================
 new_workflow() {
-    local workflow_name="$1"
-    shift
+    local name="${1:-$WORKFLOW_NAME}"
+    local workflow_dir="${2:-$WORKFLOW_DIR}"
+    local from_task="${3:-$NEW_FROM_TASK}"
+    local project_root="${4:-$PROJECT_ROOT}"
 
-    # Parse options
-    local template_task=""
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --task)
-                template_task="$2"
-                shift 2
-                ;;
-            *)
-                echo "Error: Unknown option: $1"
-                show_quick_help_new
-                exit 1
-                ;;
-        esac
-    done
+    # Check if workflow exists and obtain consent to reset config
+    if [[ -d "$workflow_dir" ]]; then
+        echo "Warning: Workflow already exists at:"
+        echo "  $(display_absolute_path "$workflow_dir")"
+        echo ""
+        echo "Continuing will:"
+        echo "  - Preserve existing workflow task file"
+        echo "  - Reset the workflow configuration by:"
+        echo "      1. Backing up existing workflow config file"
+        echo "      2. Creating a new default config file"
+        echo ""
+        prompt_to_continue_or_exit "Reset workflow config?"
+    fi
 
-    if [[ -z "$workflow_name" ]]; then
-        echo "Error: Workflow name required"
-        show_quick_help_new
+    # Create the workflow directory if needed
+    mkdir -p "$workflow_dir"
+    if [[ ! -d "$workflow_dir" ]]; then
+        echo "Error: Failed to create workflow directory:" >&2
+        echo "  $(display_absolute_path "$workflow_dir")" >&2
         exit 1
     fi
 
-    # Find project root
-    PROJECT_ROOT=$(find_project_root) || {
-        echo "Error: Not in workflow project (no .workflow/ directory found)"
-        echo "Run 'workflow init' to initialize a project first"
-        exit 1
-    }
+    # Set workflow files paths
+    local config_file="$workflow_dir/config"
+    local task_file="$workflow_dir/task.txt"
 
-    WORKFLOW_DIR="$PROJECT_ROOT/.workflow/$workflow_name"
+    # Create task file from specified task template
+    if [[ -n "$from_task" ]]; then
+        local template_task_file="$WIREFLOW_TASK_PREFIX/${from_task}.txt"
+        local builtin_task_file="$BUILTIN_WIREFLOW_TASK_PREFIX/${from_task}.txt"
+        local checked_builtin=false
+        local resolved_task_file
 
-    # Check if workflow already exists
-    if [[ -d "$WORKFLOW_DIR" ]]; then
-        echo "Error: Workflow '$workflow_name' already exists"
-        exit 1
-    fi
-
-    # Create workflow directory
-    mkdir -p "$WORKFLOW_DIR"
-
-    # Create task file (from template or default skeleton)
-    if [[ -n "$template_task" ]]; then
-        # Load global config to get WIREFLOW_TASK_PREFIX
-        source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
-        load_global_config
-
-        # Set default if not configured
-        if [[ -z "$WIREFLOW_TASK_PREFIX" ]]; then
-            WIREFLOW_TASK_PREFIX="$HOME/.config/wireflow/tasks"
+        if [[ -f "$template_task_file" && -s "$template_task_file" ]]; then
+            resolved_task_file="$template_task_file"
+        elif [[ "$template_task_file" != "$builtin_task_file" ]] && \
+             [[ -f "$builtin_task_file" && -s "$builtin_task_file" ]]; then
+            resolved_task_file="$builtin_task_file"
+            checked_builtin=true
         fi
 
-        if [[ ! -d "$WIREFLOW_TASK_PREFIX" ]]; then
-            echo "Error: WIREFLOW_TASK_PREFIX directory not found: $WIREFLOW_TASK_PREFIX"
-            echo "Cannot use task template. Creating with default skeleton instead."
-            template_task=""  # Fall through to default
-        else
-            local template_file="$WIREFLOW_TASK_PREFIX/${template_task}.txt"
+        if [[ -z "$resolved_task_file" ]]; then
+            echo "Error: Task template '$from_task' not found. Searched:" >&2
+            echo "  $(display_absolute_path "$WIREFLOW_TASK_PREFIX")" >&2
+            if [[ "$checked_builtin" == "true" ]]; then
+                echo "  $(display_absolute_path "$BUILTIN_WIREFLOW_TASK_PREFIX") (builtin)" >&2
+            fi
+            echo "" >&2
+            echo "Run '$SCRIPT_NAME tasks' to list available task templates." >&2
+            echo "Run '$SCRIPT_NAME --version' to create the default templates." >&2
+            exit 1
+        fi
 
-            # If not found in custom location, try default location as fallback
-            if [[ ! -f "$template_file" ]]; then
-                local default_template_file="$HOME/.config/wireflow/tasks/${template_task}.txt"
-                if [[ -f "$default_template_file" ]]; then
-                    template_file="$default_template_file"
-                else
-                    echo "Error: Task template not found: $template_task" >&2
-                    echo "  Searched: $WIREFLOW_TASK_PREFIX" >&2
-                    echo "  Searched: $HOME/.config/wireflow/tasks (fallback)" >&2
-                    echo ""
-                    echo "Available templates:"
-                    list_tasks
-                    exit 1
+        # Copy template to workflow directory as initial task file
+        cp "$resolved_task_file" "$task_file" 2>/dev/null || {
+            echo "Error: Failed to copy template task file" >&2
+            exit 1
+        }
+    fi
+
+    # Create task file with default skeleton, if needed
+    if [[ -f "$task_file" && -s "$task_file" ]]; then
+        echo "Found task file:"
+        echo "  $(display_normalized_path "$task_file")"
+        echo ""
+    else
+        cat > "$task_file" <<TASK_SKELETON_EOF
+<user-task>
+  <metadata>
+    <name>$name</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Brief 1-2 sentence overview of this workflow's purpose
+    </description>
+    <guidance>
+      High-level strategic guidance for approaching this task
+    </guidance>
+    <instructions>
+      Detailed step-by-step instructions or requirements
+    </instructions>
+    <output-format>
+      Specific formatting requirements or structure for the output
+    </output-format>
+  </content>
+</user-task>
+TASK_SKELETON_EOF
+    fi
+
+    # Backup existing workflow config if it exists
+    if [[ -e "$config_file" ]]; then
+        mv "$config_file" "${config_file}.bak" &>/dev/null || {
+            echo "Error: Failed to backup workflow config" >&2
+            echo "Exiting..." >&2
+            exit 1
+        }
+        echo "Backed up previous config:"
+        echo "  $(display_normalized_path "${config_file}.bak")"
+        echo ""
+    fi
+
+    # Write default workflow config file header
+    cat > "$config_file" <<WORKFLOW_CONFIG_EOF
+# Workflow configuration for: $name
+#
+# Leave values empty to inherit from project.
+# Run 'wfw config $name' to view effective configuration.
+
+# ============================================================================
+# Configuration Parameters
+# ============================================================================
+
+WORKFLOW_CONFIG_EOF
+
+    # Write default workflow settings (empty) to the config file
+    cat_default_workflow_config >> "$config_file"
+
+    # Write default workflow config file footer, with explanatory details
+    cat >> "$config_file" <<WORKFLOW_CONFIG_EOF
+
+# ============================================================================
+# Configuration Guide
+# ============================================================================
+#
+# Configuration Cascade:
+#   builtin → global → project → workflow → CLI (you are here: workflow)
+#
+# Scalar Variables (most settings):
+#   Leave EMPTY to inherit:        TEMPERATURE=
+#   Set VALUE to override:         TEMPERATURE=0.7
+#
+# Array Variables (SYSTEM_PROMPTS, CONTEXT_FILES, INPUT_FILES, DEPENDS_ON):
+# ┌──────────────────────────┬─────────────────────────────────────┐
+# │ Syntax                   │ Behavior                            │
+# ├──────────────────────────┼─────────────────────────────────────┤
+# │ CONTEXT_FILES=           │ Inherit from project (pass-through) │
+# │ CONTEXT_FILES=()         │ Clear (reset to empty)              │
+# │ CONTEXT_FILES=(file.pdf) │ Replace (override project)          │
+# │ CONTEXT_FILES+=(add.pdf) │ Append (add to project)             │
+# └──────────────────────────┴─────────────────────────────────────┘
+#
+# Multi-line arrays (use quotes for filenames with spaces):
+#   INPUT_FILES=(
+#       "data/input1.txt"
+#       "data/input2.txt"
+#   )
+#
+# Common Patterns:
+#   # Add workflow-specific prompt to project's prompts
+#   SYSTEM_PROMPTS+=(grant-writing)
+#
+#   # Add workflow-specific context to project's files
+#   CONTEXT_FILES+=(NSF\ requirements.pdf)
+#
+#   # Use completely different files for this workflow
+#   CONTEXT_FILES=(workflow-specific.md)
+#
+#   # Clear inherited context, start fresh
+#   CONTEXT_FILES=()
+WORKFLOW_CONFIG_EOF
+
+    # Show summary report
+    if [[ -n "$from_task" ]]; then
+        echo "New workflow ('$name' using '$from_task' template):"
+    else
+        echo "New workflow ('$name'):"
+    fi
+    echo "  Project root:  $(display_normalized_path "$project_root")"
+    echo "  Config file:   $(display_normalized_path "$config_file")"
+    echo "  Task file:     $(display_normalized_path "$task_file")"
+    echo ""
+    echo "Run '$SCRIPT_NAME edit $name' to setup the workflow."
+}
+
+# =============================================================================
+# Edit Subcommand - Edit Project or Existing Workflow
+# =============================================================================
+edit_project() {
+    local project_root="${1:-$PROJECT_ROOT}"
+    local wireflow_dir="${2:-$WIREFLOW_DIR}"
+
+    # Show user what files will be edited before proceeding
+    prompt_to_continue_or_exit "Editing project: $(display_normalized_path "$project_root")"
+
+    # Collect the files to be edited
+    local files_to_edit=("config" "project.txt")
+
+    # Bring up the interactive editor in the wireflow directory
+    (
+        cd "$wireflow_dir"
+        edit_files "${files_to_edit[@]}"
+    )
+}
+
+edit_workflow() {
+    local name="${1:-$WORKFLOW_NAME}"
+    local workflow_dir="${2:-$WORKFLOW_DIR}"
+    local project_root="${3:-$PROJECT_ROOT}"
+    local output_dir="${4:-$OUTPUT_DIR}"
+
+    # Show user what files will be edited before proceeding
+    prompt_to_continue_or_exit "Editing workflow: '$name' (project:$(display_normalized_path "$project_root"))"
+
+    # Collect the files to be edited
+    local files_to_edit=("config" "task.txt")
+    local output_file
+    output_file=$(ls -1 "$output_dir/${name}.*" 2>/dev/null | head -1)
+    if [[ -n "$output_file" ]]; then
+        local output_path
+        output_path="$(relative_path "$output_file" "$workflow_dir")"
+        files_to_edit+=("$output_path")
+    fi
+
+    # Bring up the interactive editor in the workflow directory
+    (
+        cd "$workflow_dir"
+        edit_files "${files_to_edit[@]}"
+    )
+}
+
+# =============================================================================
+# Config Subcommand - Display and Edit Configuration
+# =============================================================================
+config_project() {
+    # Show project
+    show_project_location && echo ""
+
+    # Show config cascade paths report
+    show_config_paths && echo ""
+
+    # Show effective config report, with source mapping
+    show_effective_config
+}
+
+config_workflow() {
+    # Ensure workflow directory exists and set paths
+    check_workflow_dir
+
+    # Load the workflow-specific config
+    load_workflow_config
+
+    # Format and display header
+    show_workflow_location && echo ""
+
+    # Show config cascade paths report
+    show_config_paths && echo ""
+
+    # Show effective config report, with source mapping
+    show_effective_config
+}
+
+# =============================================================================
+# Run Subcommand - Dispatch to Run-Mode Execution
+# =============================================================================
+
+# Execute workflow in run mode
+# Arguments:
+#   $1 - Workflow name
+#   $@ - Execution options
+cmd_run() {
+    local workflow_name="$1"
+    
+    if [[ -z "$workflow_name" ]]; then
+        echo "Error: Workflow name required" >&2
+        show_quick_help_run
+        return 1
+    fi
+    
+    shift
+    
+    # Workflow-specific paths
+    WORKFLOW_NAME="$workflow_name"
+    WORKFLOW_DIR="$RUN_DIR/$WORKFLOW_NAME"
+    WORKFLOW_CONFIG="$WORKFLOW_DIR/config"
+    
+    # Check workflow directory exists
+    if ! check_workflow_dir; then
+        echo "Error: Workflow not found: '$WORKFLOW_NAME'" >&2
+        echo >&2
+        echo "Run '$SCRIPT_NAME list' to see available workflows." >&2
+        echo "Run '$SCRIPT_NAME new $WORKFLOW_NAME' to create it." >&2
+        return 1
+    fi
+    
+    # Load workflow configuration
+    if load_workflow_config; then
+        echo "Loaded '$WORKFLOW_NAME' config"
+    fi
+    
+    # Show workflow location
+    show_workflow_location
+    
+    # Execute workflow with remaining arguments
+    execute_run_mode "$@"
+}
+
+# =============================================================================
+# List Subcommand - List All Workflows
+# =============================================================================
+cmd_list() {
+    local project_root="${1:-$PROJECT_ROOT}"
+    local run_root="${2:-$RUN_DIR}"
+    local output_dir="${3:-$OUTPUT_DIR}"
+    local indent="${4:-  }"
+
+    # Capture workflow list to avoid calling list_workflows twice
+    local workflow_list
+    workflow_list=$(list_workflows) || true
+
+    # Show workflow status report
+    show_project_location
+    echo ""
+    echo "Workflows:"
+    if [[ -n "$workflow_list" ]]; then
+        echo "$workflow_list" | while read -r workflow; do
+            # Check if workflow has required files
+            local workflow_dir="$run_root/$workflow"
+            local status=""
+            if [[ ! -f "$workflow_dir/task.txt" ]]; then
+                status=" [incomplete - missing task.txt]"
+            elif [[ ! -f "$workflow_dir/config" ]]; then
+                status=" [incomplete - missing config]"
+            else
+                # Check for output file
+                local output_file=$(ls "$output_dir/$workflow".* 2>/dev/null | head -1)
+                if [[ -n "$output_file" ]]; then
+                    # Get modification time (cross-platform)
+                    local output_time
+                    if [[ "$(uname)" == "Darwin" ]]; then
+                        output_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$output_file" 2>/dev/null)
+                    else
+                        output_time=$(stat -c "%y" "$output_file" 2>/dev/null | cut -d'.' -f1)
+                    fi
+                    [[ -n "$output_time" ]] && status=" [last run: $output_time]"
                 fi
             fi
+            printf "$indent%-11s%s\n" "$workflow" "$status"
+        done
+    else
+        echo "$indent(no workflows found)"
+        echo ""
+        echo "Run '$SCRIPT_NAME new NAME' to create a new workflow."
+    fi
+    echo ""
+}
 
-            # Copy template to workflow task.txt
-            cp "$template_file" "$WORKFLOW_DIR/task.txt"
-            echo "Created workflow '$workflow_name' from template '$template_task'"
+# =============================================================================
+# Task Template Management Functions
+# =============================================================================
+
+# Resolve task file path with fallback to builtin
+# Arguments:
+#   $1 - Task name
+# Returns:
+#   stdout - Resolved task file path
+#   exit code - 0 if found, 1 if not found
+resolve_task_file() {
+    local task_name="$1"
+    local custom_file="$WIREFLOW_TASK_PREFIX/${task_name}.txt"
+    local builtin_file="$BUILTIN_WIREFLOW_TASK_PREFIX/${task_name}.txt"
+
+    # Check custom location first
+    if [[ -f "$custom_file" && -s "$custom_file" ]]; then
+        echo "$custom_file"
+        return 0
+    fi
+
+    # Fallback to builtin
+    if [[ -f "$builtin_file" && -s "$builtin_file" ]]; then
+        echo "$builtin_file"
+        return 0
+    fi
+
+    return 1
+}
+
+# Extract task description from file
+# Arguments:
+#   $1 - Task file path
+# Returns:
+#   stdout - Task description (truncated to 64 chars)
+extract_task_description() {
+    local task_file="$1"
+    local description
+
+    # Try to extract from <description> tags first
+    description=$(awk '/<description>/,/<\/description>/ {
+        if (!/description>/ && NF) {print; exit}
+    }' "$task_file" | sed 's/^[[:space:]]*//')
+
+    # Fallback to first non-empty line
+    if [[ -z "$description" ]]; then
+        description=$(grep -v '^[[:space:]]*$' "$task_file" | head -n1 |
+                     sed 's/^#\s*//' | sed 's/^[[:space:]]*//')
+    fi
+
+    # Truncate to 64 characters
+    if [[ ${#description} -gt 64 ]]; then
+        description="${description:0:64}..."
+    fi
+
+    echo "$description"
+}
+
+# List tasks from a directory
+# Arguments:
+#   $1 - Directory path
+#   $2 - Section title (optional)
+# Returns:
+#   exit code - 0 if tasks found, 1 if none found
+list_tasks_from_dir() {
+    local dir="$1"
+    local title="$2"
+
+    [[ ! -d "$dir" ]] && return 1
+
+    local -a task_files=("$dir"/*.txt)
+    [[ ! -e "${task_files[0]}" ]] && return 1
+
+    # Adapt column width for task names (minimum 15)
+    local namelen
+    local maxlen=0
+    local minwidth=12
+    for file in "${task_files[@]}"; do
+        base="$(basename "$file")"
+        namelen="$(echo "${base%.txt}" | wc -m)"
+        if [[ $namelen -gt $maxlen ]]; then
+            maxlen=$namelen
+        fi
+    done
+    namejust=$(test $maxlen -lt $minwidth && echo $minwidth || echo $maxlen)
+
+    # Print section title if provided
+    if [[ -n "$title" ]]; then
+        echo "$title"
+        echo
+    fi
+
+    # List each task with description
+    for task_file in "${task_files[@]}"; do
+        local task_name=$(basename "$task_file" .txt)
+        local description=$(extract_task_description "$task_file")
+        printf "  %-${namejust}s %s\n" "$task_name" "$description"
+    done
+
+    return 0
+}
+
+# List available task templates
+list_tasks() {
+    echo "Available tasks:"
+    echo
+
+    local has_custom=false
+    local has_builtin=false
+
+    # List custom tasks
+    if [[ "$WIREFLOW_TASK_PREFIX" != "$BUILTIN_WIREFLOW_TASK_PREFIX" ]]; then
+        if list_tasks_from_dir "$WIREFLOW_TASK_PREFIX"; then
+            has_custom=true
         fi
     fi
 
-    # Create default skeleton if no template specified or template failed
-    if [[ -z "$template_task" || ! -f "$WORKFLOW_DIR/task.txt" ]]; then
-        cat > "$WORKFLOW_DIR/task.txt" <<'TASK_SKELETON_EOF'
+    # List builtin tasks (separate section if custom tasks exist)
+    if [[ -d "$BUILTIN_WIREFLOW_TASK_PREFIX" ]]; then
+        if [[ $has_custom == true ]]; then
+            echo
+            if list_tasks_from_dir "$BUILTIN_WIREFLOW_TASK_PREFIX" "Built-in templates (fallback):"; then
+                has_builtin=true
+                echo
+            fi
+        else
+            if list_tasks_from_dir "$BUILTIN_WIREFLOW_TASK_PREFIX"; then
+                has_builtin=true
+            fi
+        fi
+    fi
+
+    # Show message if no tasks found
+    if [[ $has_custom == false && $has_builtin == false ]]; then
+        echo "  (no task templates found)"
+    fi
+
+    # Show locations
+    echo
+    [[ $has_custom == true ]] && echo "Custom:   $(display_absolute_path "$WIREFLOW_TASK_PREFIX")"
+    [[ $has_builtin == true ]] && echo "Built-in: $(display_absolute_path "$BUILTIN_WIREFLOW_TASK_PREFIX")"
+
+    # Show usage
+    echo
+    echo "Usage:"
+    echo "  $SCRIPT_NAME tasks              # List task templates"
+    echo "  $SCRIPT_NAME tasks show <name>  # Preview template"
+    echo "  $SCRIPT_NAME tasks edit <name>  # Edit template"
+    echo "  $SCRIPT_NAME task <name> [opts] # Execute template"
+}
+
+# Show task template in pager (or pipe to console)
+show_task() {
+    local task_name="$1"
+
+    if [[ -z "$task_name" ]]; then
+        echo "Error: Task name required" >&2
+        echo "Usage: $SCRIPT_NAME tasks show <name>" >&2
+        return 1
+    fi
+
+    # Resolve task file
+    local task_file
+    if ! task_file=$(resolve_task_file "$task_name"); then
+        echo "Error: Task not found: '$task_name'" >&2
+        echo >&2
+
+        # Show helpful diagnostics
+        if [[ ! -d "$WIREFLOW_TASK_PREFIX" ]]; then
+            echo "Warning: Task directory not found:" >&2
+            echo "  $(display_absolute_path "$WIREFLOW_TASK_PREFIX")" >&2
+            echo >&2
+        fi
+
+        echo "Run '$SCRIPT_NAME tasks' to list available tasks." >&2
+        return 1
+    fi
+
+    # Display in pager
+    if command -v less &>/dev/null; then
+        less "$task_file"
+    else
+        cat "$task_file"
+    fi
+}
+
+# Edit task template in editor
+edit_task() {
+    local task_name="$1"
+
+    if [[ -z "$task_name" ]]; then
+        echo "Error: Task name required" >&2
+        echo "Usage: $SCRIPT_NAME tasks edit <name>" >&2
+        return 1
+    fi
+
+    # Resolve task file (prefer custom location for editing)
+    local task_file
+    if task_file=$(resolve_task_file "$task_name"); then
+        # Task exists - edit it
+        edit_files "$task_file"
+        return
+    fi
+
+    # Task doesn't exist - create in custom location
+    if [[ ! -d "$WIREFLOW_TASK_PREFIX" ]]; then
+        echo "Creating task directory: $(display_absolute_path "$WIREFLOW_TASK_PREFIX")"
+        mkdir -p "$WIREFLOW_TASK_PREFIX"
+    fi
+
+    task_file="$WIREFLOW_TASK_PREFIX/${task_name}.txt"
+
+    echo "Creating new task template: $task_name"
+
+    # Create template with basic structure
+    cat > "$task_file" <<'EOF'
 <description>
   Brief 1-2 sentence overview of this workflow's purpose
 </description>
@@ -199,427 +735,102 @@ new_workflow() {
 <output-format>
   Specific formatting requirements or structure for the output
 </output-format>
-TASK_SKELETON_EOF
-    fi
-
-    # Create workflow config file
-    cat > "$WORKFLOW_DIR/config" <<WORKFLOW_CONFIG_EOF
-# Workflow-specific configuration
-# Configuration cascade: global → ancestor projects → project → this workflow
-#
-# Run 'workflow config <name>' to see current effective configuration.
-
-# Input and context aggregation methods (uncomment and configure as needed):
-# Note: Paths in INPUT_* and CONTEXT_* are relative to project root
-
-# INPUT: Primary documents to analyze (wrapped in <documents> tag)
-# Method 1: Glob pattern (single pattern, supports brace expansion)
-# INPUT_PATTERN="Data/*.csv"
-# INPUT_PATTERN="Data/{Experiment1,Experiment2}/*.json"
-
-# Method 2: Explicit file list
-# INPUT_FILES=(
-#     "Data/dataset1.json"
-#     "Data/dataset2.json"
-# )
-
-# CONTEXT: Supporting materials and references (wrapped in <context> tag)
-# Method 1: Glob pattern (single pattern, supports brace expansion)
-# CONTEXT_PATTERN="References/*.md"
-# CONTEXT_PATTERN="References/{Topic1,Topic2}/*.md"
-
-# Method 2: Explicit file list
-# CONTEXT_FILES=(
-#     "References/doc1.md"
-#     "References/doc2.md"
-# )
-
-# Method 3: Workflow dependencies (outputs from other workflows)
-# DEPENDS_ON=(
-#     "00-workshop-context"
-#     "01-outline-draft"
-# )
-
-# API overrides (leave empty to inherit from cascade, recommended):
-MODEL=
-TEMPERATURE=
-MAX_TOKENS=
-SYSTEM_PROMPTS=()
-OUTPUT_FORMAT=
-WORKFLOW_CONFIG_EOF
-
-    # Show creation message (if not already shown from template)
-    if [[ -z "$template_task" ]]; then
-        echo "Created workflow: $workflow_name"
-    fi
-
-    echo "  $WORKFLOW_DIR/task.txt"
-    echo "  $WORKFLOW_DIR/config"
-    echo ""
-    echo "Opening task and config files in editor..."
-
-    # Open both files for interactive editing
-    edit_files "$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config"
-}
-
-# =============================================================================
-# Edit Subcommand - Edit Existing Workflow
-# =============================================================================
-edit_workflow() {
-    local workflow_name="$1"
-
-    # Find project root
-    PROJECT_ROOT=$(find_project_root) || {
-        echo "Error: Not in workflow project (no .workflow/ directory found)"
-        echo "Run 'workflow init' to initialize a project first"
-        exit 1
-    }
-
-    # If no workflow name provided, edit project files
-    if [[ -z "$workflow_name" ]]; then
-        echo "Editing project configuration..."
-        edit_files "$PROJECT_ROOT/.workflow/project.txt" "$PROJECT_ROOT/.workflow/config"
-        return 0
-    fi
-
-    # Otherwise, edit workflow files
-    WORKFLOW_DIR="$PROJECT_ROOT/.workflow/$workflow_name"
-
-    # Check if workflow exists
-    if [[ ! -d "$WORKFLOW_DIR" ]]; then
-        echo "Error: Workflow '$workflow_name' not found"
-        echo "Available workflows:"
-        if list_workflows; then
-            list_workflows | sed 's/^/  /'
-        else
-            echo "  (none)"
-        fi
-        echo ""
-        echo "Create new workflow with: workflow new $workflow_name"
-        exit 1
-    fi
-
-    echo "Editing workflow: $workflow_name"
-
-    # Check for output file and include it first if it exists
-    local files_to_edit=()
-    local output_file
-    # Output file is at .workflow/output/<workflow_name>.*
-    output_file=$(find "$PROJECT_ROOT/.workflow/output" -maxdepth 1 -type f -name "${workflow_name}.*" 2>/dev/null | head -1)
-    if [[ -n "$output_file" ]]; then
-        files_to_edit+=("$output_file")
-    fi
-
-    # Add task and config
-    files_to_edit+=("$WORKFLOW_DIR/task.txt" "$WORKFLOW_DIR/config")
-
-    edit_files "${files_to_edit[@]}"
-}
-
-# =============================================================================
-# List Subcommand - List All Workflows
-# =============================================================================
-list_workflows_cmd() {
-    # Find project root
-    PROJECT_ROOT=$(find_project_root) || {
-        echo "Error: Not in workflow project (no .workflow/ directory found)"
-        echo "Run 'workflow init' to initialize a project first"
-        exit 1
-    }
-
-    echo "Workflows in $PROJECT_ROOT:"
-    echo ""
-
-    # Capture workflow list to avoid calling list_workflows twice
-    local workflow_list
-    workflow_list=$(list_workflows) || true
-
-    if [[ -n "$workflow_list" ]]; then
-        echo "$workflow_list" | while read -r workflow; do
-            # Check if workflow has required files
-            local status=""
-            if [[ ! -f "$PROJECT_ROOT/.workflow/$workflow/task.txt" ]]; then
-                status=" [incomplete - missing task.txt]"
-            elif [[ ! -f "$PROJECT_ROOT/.workflow/$workflow/config" ]]; then
-                status=" [incomplete - missing config]"
-            else
-                # Check for output file
-                local output_file=$(ls "$PROJECT_ROOT/.workflow/output/$workflow".* 2>/dev/null | head -1)
-                if [[ -n "$output_file" ]]; then
-                    # Get modification time (cross-platform)
-                    local output_time
-                    if [[ "$(uname)" == "Darwin" ]]; then
-                        output_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$output_file" 2>/dev/null)
-                    else
-                        output_time=$(stat -c "%y" "$output_file" 2>/dev/null | cut -d'.' -f1)
-                    fi
-                    [[ -n "$output_time" ]] && status=" [last run: $output_time]"
-                fi
-            fi
-            echo "  $workflow$status"
-        done
-    else
-        echo "  (no workflows found)"
-        echo ""
-        echo "Create a new workflow with: workflow new NAME"
-    fi
-
-    echo ""
-}
-
-# =============================================================================
-# Task Template Management Functions
-# =============================================================================
-
-# List available task templates
-list_tasks() {
-    # Load global config to get WIREFLOW_TASK_PREFIX
-    source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
-    load_global_config
-
-    echo "Available task templates:"
-    echo ""
-
-    local shown_tasks=()
-    local default_task_dir="$HOME/.config/wireflow/tasks"
-    local has_custom_tasks=false
-    local has_builtin_tasks=false
-
-    # Set default if not configured
-    if [[ -z "$WIREFLOW_TASK_PREFIX" ]]; then
-        WIREFLOW_TASK_PREFIX="$default_task_dir"
-    fi
-
-    # List from custom location first
-    if [[ -d "$WIREFLOW_TASK_PREFIX" ]]; then
-        local task_files=("$WIREFLOW_TASK_PREFIX"/*.txt)
-        if [[ -e "${task_files[0]}" ]]; then
-            has_custom_tasks=true
-            for task_file in "${task_files[@]}"; do
-                local task_name=$(basename "$task_file" .txt)
-                shown_tasks+=("$task_name")
-
-                # Extract description (first non-empty line from <description> tags, truncated to 64 chars)
-                local description=$(awk '/<description>/,/<\/description>/ {if (!/description>/ && NF) {print; exit}}' "$task_file" | sed 's/^[[:space:]]*//')
-                if [[ -z "$description" ]]; then
-                    description=$(grep -v '^[[:space:]]*$' "$task_file" | head -n1 | sed 's/^#\s*//' | sed 's/^[[:space:]]*//')
-                fi
-                # Truncate to 64 characters
-                if [[ ${#description} -gt 64 ]]; then
-                    description="${description:0:64}..."
-                fi
-
-                printf "  %-15s %s\n" "$task_name" "$description"
-            done
-        fi
-    fi
-
-    # List from default location (built-ins), excluding already shown
-    if [[ -d "$default_task_dir" && "$default_task_dir" != "$WIREFLOW_TASK_PREFIX" ]]; then
-        local builtin_files=("$default_task_dir"/*.txt)
-        if [[ -e "${builtin_files[0]}" ]]; then
-            has_builtin_tasks=true
-            if [[ $has_custom_tasks == true ]]; then
-                echo ""
-                echo "Built-in templates (fallback):"
-            fi
-
-            for task_file in "${builtin_files[@]}"; do
-                local task_name=$(basename "$task_file" .txt)
-
-                # Skip if already shown from custom location
-                local already_shown=false
-                for shown in "${shown_tasks[@]}"; do
-                    if [[ "$shown" == "$task_name" ]]; then
-                        already_shown=true
-                        break
-                    fi
-                done
-                [[ $already_shown == true ]] && continue
-
-                # Extract description (first non-empty line from <description> tags, truncated to 64 chars)
-                local description=$(awk '/<description>/,/<\/description>/ {if (!/description>/ && NF) {print; exit}}' "$task_file" | sed 's/^[[:space:]]*//')
-                if [[ -z "$description" ]]; then
-                    description=$(grep -v '^[[:space:]]*$' "$task_file" | head -n1 | sed 's/^#\s*//' | sed 's/^[[:space:]]*//')
-                fi
-                # Truncate to 64 characters
-                if [[ ${#description} -gt 64 ]]; then
-                    description="${description:0:64}..."
-                fi
-
-                printf "  %-15s %s\n" "$task_name" "$description"
-            done
-        fi
-    fi
-
-    if [[ $has_custom_tasks == false && $has_builtin_tasks == false ]]; then
-        echo "  (no task templates found)"
-    fi
-
-    echo ""
-    if [[ $has_custom_tasks == true ]]; then
-        echo "Custom: $WIREFLOW_TASK_PREFIX"
-    fi
-    if [[ $has_builtin_tasks == true ]]; then
-        echo "Built-in: $default_task_dir"
-    fi
-    echo ""
-    echo "Usage:"
-    echo "  workflow tasks                # List task templates"
-    echo "  workflow tasks show <name>    # Preview template in pager"
-    echo "  workflow tasks edit <name>    # Edit template"
-    echo "  workflow task <name> [opts]   # Execute template"
-}
-
-# Show task template in pager
-show_task() {
-    local task_name="$1"
-
-    if [[ -z "$task_name" ]]; then
-        echo "Error: Task name required"
-        echo "Usage: workflow task show NAME"
-        return 1
-    fi
-
-    # Load global config to get WIREFLOW_TASK_PREFIX
-    source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
-    load_global_config
-
-    # Set default if not configured
-    local default_task_dir="$HOME/.config/wireflow/tasks"
-    if [[ -z "$WIREFLOW_TASK_PREFIX" ]]; then
-        WIREFLOW_TASK_PREFIX="$default_task_dir"
-    fi
-
-    if [[ ! -d "$WIREFLOW_TASK_PREFIX" ]]; then
-        echo "Error: WIREFLOW_TASK_PREFIX directory not found: $WIREFLOW_TASK_PREFIX"
-        echo "Set WIREFLOW_TASK_PREFIX in ~/.config/wireflow/config"
-        return 1
-    fi
-
-    local task_file="$WIREFLOW_TASK_PREFIX/${task_name}.txt"
-
-    # If not found in custom location, try default location as fallback
-    if [[ ! -f "$task_file" ]]; then
-        local default_task_file="$HOME/.config/wireflow/tasks/${task_name}.txt"
-        if [[ -f "$default_task_file" ]]; then
-            task_file="$default_task_file"
-        else
-            echo "Error: Task template not found: $task_name" >&2
-            echo "  Searched: $WIREFLOW_TASK_PREFIX" >&2
-            echo "  Searched: $HOME/.config/wireflow/tasks (fallback)" >&2
-            echo ""
-            echo "Available templates:"
-            list_tasks
-            return 1
-        fi
-    fi
-
-    # Display in pager
-    echo "Task template: $task_name"
-    echo "Location: $task_file"
-    echo ""
-    echo "═══════════════════════════════════════════════════════════"
-    echo ""
-
-    # Use less if available, otherwise cat
-    if command -v less &> /dev/null; then
-        less "$task_file"
-    else
-        cat "$task_file"
-    fi
-}
-
-# Edit task template in editor
-edit_task() {
-    local task_name="$1"
-
-    if [[ -z "$task_name" ]]; then
-        echo "Error: Task name required"
-        echo "Usage: workflow task edit NAME"
-        return 1
-    fi
-
-    # Load global config to get WIREFLOW_TASK_PREFIX
-    source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
-    load_global_config
-
-    # Set default if not configured
-    local default_task_dir="$HOME/.config/wireflow/tasks"
-    if [[ -z "$WIREFLOW_TASK_PREFIX" ]]; then
-        WIREFLOW_TASK_PREFIX="$default_task_dir"
-    fi
-
-    if [[ ! -d "$WIREFLOW_TASK_PREFIX" ]]; then
-        echo "Error: WIREFLOW_TASK_PREFIX directory not found: $WIREFLOW_TASK_PREFIX"
-        echo "Set WIREFLOW_TASK_PREFIX in ~/.config/wireflow/config"
-        return 1
-    fi
-
-    local task_file="$WIREFLOW_TASK_PREFIX/${task_name}.txt"
-
-    # If not found in custom location, try default location as fallback
-    if [[ ! -f "$task_file" ]]; then
-        local default_task_file="$HOME/.config/wireflow/tasks/${task_name}.txt"
-        if [[ -f "$default_task_file" ]]; then
-            task_file="$default_task_file"
-        else
-            echo "Error: Task template not found: $task_name" >&2
-            echo "  Searched: $WIREFLOW_TASK_PREFIX" >&2
-            echo "  Searched: $HOME/.config/wireflow/tasks (fallback)" >&2
-            echo ""
-            echo "Available templates:"
-            list_tasks
-            return 1
-        fi
-    fi
-
-    # Source edit.sh for edit_files function
-    source "$(dirname "${BASH_SOURCE[0]}")/edit.sh"
+EOF
 
     # Open in editor
     edit_files "$task_file"
 }
 
 # =============================================================================
-# Cat Subcommand - Display Workflow Output
+# Task Subcommand - Dispatch to Task-Mode Execution
 # =============================================================================
 
+# Execute named task template or inline task
+# Arguments:
+#   $@ - Task specification and execution options
+cmd_task() {
+    local task_content=""
+    local task_source=""
+    
+    # Check for inline task
+    if [[ "$1" == "-i" || "$1" == "--inline" ]]; then
+        shift
+        if [[ $# -eq 0 ]]; then
+            echo "Error: --inline requires task text" >&2
+            echo "Usage: $SCRIPT_NAME task --inline <text> [options]" >&2
+            return 1
+        fi
+        
+        task_content="$1"
+        task_source="inline"
+        shift
+    else
+        # Named task template
+        local task_name="$1"
+        
+        if [[ -z "$task_name" ]]; then
+            echo "Error: Task name or --inline text required" >&2
+            show_quick_help_task
+            return 1
+        fi
+        
+        shift
+        
+        # Resolve task file
+        local task_file
+        if ! task_file=$(resolve_task_file "$task_name"); then
+            echo "Error: Task not found: '$task_name'" >&2
+            echo >&2
+            echo "Run '$SCRIPT_NAME tasks' to list available tasks." >&2
+            return 1
+        fi
+        
+        # Read task content
+        if ! task_content=$(cat "$task_file"); then
+            echo "Error: Failed to read task file: $task_file" >&2
+            return 1
+        fi
+        
+        task_source="$task_name"
+    fi
+    
+    # Execute task with remaining arguments
+    execute_task_mode "$task_content" "$task_source" "$@"
+}
+
+# =============================================================================
+# Cat Subcommand - Pipe Workflow Output to Console
+# =============================================================================
+# Parameters:
+#   $1 - workflow name (required)
+#   $2 - output directory (optional, defaults to $OUTPUT_DIR)
 cat_workflow() {
     local workflow_name="$1"
+    local output_dir="${2:-$OUTPUT_DIR}"
 
-    # Find project root
-    PROJECT_ROOT=$(find_project_root) || {
-        echo "Error: Not in workflow project (no .workflow/ directory found)" >&2
-        echo "Run 'workflow init' to initialize a project" >&2
-        exit 1
-    }
-
-    # Find output file in .workflow/output/
-    local output_file
-    output_file=$(find "$PROJECT_ROOT/.workflow/output" -maxdepth 1 -type f -name "${workflow_name}.*" 2>/dev/null | head -1)
-
-    if [[ -z "$output_file" ]]; then
-        echo "Error: No output found for workflow: $workflow_name" >&2
-        echo "Available workflows:" >&2
-        if list_workflows; then
-            list_workflows | sed 's/^/  /' >&2
-        else
-            echo "  (none)" >&2
-        fi
-        echo "" >&2
-        echo "Run the workflow first: workflow run $workflow_name" >&2
-        exit 1
+    # Validate workflow name
+    if [[ -z "$workflow_name" ]]; then
+        echo "Error: Workflow name required" >&2
+        echo "Usage: $SCRIPT_NAME cat NAME" >&2
+        return 1
     fi
 
-    # Output to stdout
+    # Find output file in project output directory
+    local output_file
+    output_file=$(find "$output_dir" -maxdepth 1 -type f -name "${workflow_name}.*" 2>/dev/null | head -1)
+    if [[ -z "$output_file" ]]; then
+        echo "Error: No output found for '$workflow_name'" >&2
+        echo "Run '$SCRIPT_NAME run $workflow_name' first." >&2
+        return 1
+    fi
+
+    # Concatenate the workflow output file to stdout
     cat "$output_file"
 }
 
 # =============================================================================
-# Open Subcommand - Open Workflow Output in Default Application
+# Open Subcommand - Open Workflow Output File in Default Application
 # =============================================================================
-
 open_workflow() {
     local workflow_name="$1"
 
@@ -627,7 +838,7 @@ open_workflow() {
     PROJECT_ROOT=$(find_project_root) || {
         echo "Error: Not in workflow project (no .workflow/ directory found)" >&2
         echo "Run 'workflow init' to initialize a project" >&2
-        exit 1
+        return 1
     }
 
     # Find output file in .workflow/output/
@@ -644,230 +855,17 @@ open_workflow() {
         fi
         echo "" >&2
         echo "Run the workflow first: workflow run $workflow_name" >&2
-        exit 1
+        return 1
     fi
 
     # Check if open command exists (macOS)
     if ! command -v open >/dev/null 2>&1; then
         echo "Error: 'open' command not found (macOS only)" >&2
         echo "Use 'workflow cat $workflow_name' to view output instead" >&2
-        exit 1
+        return 1
     fi
 
     # Open with system default application
     echo "Opening: $output_file"
     open "$output_file"
-}
-
-# =============================================================================
-# Config Subcommand - Display and Edit Configuration
-# =============================================================================
-
-# Format config source for display (converts path to relative from HOME, or shows label)
-# Args: $1 = source (can be "global", "workflow", or a path)
-format_config_source() {
-    local source="$1"
-
-    if [[ "$source" == "global" || "$source" == "workflow" ]]; then
-        echo "$source"
-    elif [[ "$source" =~ ^/ ]]; then
-        # It's a path - make it relative to HOME
-        local rel_path="${source#$HOME/}"
-        if [[ "$rel_path" == "$source" ]]; then
-            # Not under HOME, use basename
-            echo "ancestor:$(basename "$source")"
-        else
-            echo "ancestor:$rel_path"
-        fi
-    else
-        echo "$source"
-    fi
-}
-
-# Display project-level configuration with option to edit
-config_project() {
-    local edit_mode="${1:-false}"
-
-    # Find project root
-    PROJECT_ROOT=$(find_project_root) || {
-        echo "Error: Not in workflow project (no .workflow/ directory found)"
-        echo "Run 'workflow init' to initialize a project first"
-        exit 1
-    }
-
-    # Format and display header
-    local project_display
-    project_display=$(format_path_with_tilde "$PROJECT_ROOT")
-
-    echo "Current Project:"
-    echo "  Location: $project_display"
-    echo ""
-
-    # Load configuration cascade (Tiers 1-3: global → ancestors → project)
-    load_project_config_tiers "$PROJECT_ROOT"
-
-    # Display configuration cascade hierarchy
-    local global_display
-    global_display=$(format_path_with_tilde "$GLOBAL_CONFIG_FILE")
-    display_config_cascade_hierarchy "$global_display" "$PROJECT_ROOT"
-
-    # Display effective configuration values with sources
-    display_effective_config_values
-
-    # Show workflows
-    echo "Workflows:"
-    local workflow_list
-    workflow_list=$(list_workflows) || true
-
-    if [[ -n "$workflow_list" ]]; then
-        echo "$workflow_list" | while read -r workflow; do
-            # Check for output file to show status
-            local output_file=$(ls "$PROJECT_ROOT/.workflow/output/$workflow".* 2>/dev/null | head -1)
-            if [[ -n "$output_file" ]]; then
-                local output_time
-                if [[ "$(uname)" == "Darwin" ]]; then
-                    output_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$output_file" 2>/dev/null)
-                else
-                    output_time=$(stat -c "%y" "$output_file" 2>/dev/null | cut -d'.' -f1)
-                fi
-                [[ -n "$output_time" ]] && echo "  $workflow [last run: $output_time]" || echo "  $workflow"
-            else
-                echo "  $workflow"
-            fi
-        done
-    else
-        echo "  (no workflows found)"
-    fi
-    echo ""
-
-    # Interactive prompt to edit (only if --edit flag was used)
-    if [[ "$edit_mode" == "true" ]]; then
-        read -p "Press Enter to edit project configuration (or Ctrl+C to cancel): " -r
-        echo ""
-        edit_workflow  # No arguments = edit project
-    fi
-}
-
-# Display workflow-specific configuration with cascade and option to edit
-config_workflow() {
-    local workflow_name="$1"
-    local edit_mode="${2:-false}"
-
-    # Find project root
-    PROJECT_ROOT=$(find_project_root) || {
-        echo "Error: Not in workflow project (no .workflow/ directory found)"
-        echo "Run 'workflow init' to initialize a project first"
-        exit 1
-    }
-
-    WORKFLOW_DIR="$PROJECT_ROOT/.workflow/$workflow_name"
-
-    # Check if workflow exists
-    if [[ ! -d "$WORKFLOW_DIR" ]]; then
-        echo "Error: Workflow '$workflow_name' not found"
-        echo "Available workflows:"
-        if list_workflows; then
-            list_workflows | sed 's/^/  /'
-        else
-            echo "  (none)"
-        fi
-        echo ""
-        echo "Create new workflow with: workflow new $workflow_name"
-        exit 1
-    fi
-
-    # Format and display header
-    local workflow_display
-    workflow_display=$(format_path_with_tilde "$WORKFLOW_DIR")
-
-    echo "Current Workflow:"
-    echo "  Name: $workflow_name"
-    echo "  Location: $workflow_display"
-    echo ""
-
-    # Load configuration cascade (Tiers 1-3: global → ancestors → project)
-    load_project_config_tiers "$PROJECT_ROOT"
-
-    # Tier 4: Workflow config
-    INPUT_PATTERN=""
-    INPUT_FILES_STR=""
-    CONTEXT_PATTERN=""
-    CONTEXT_FILES_STR=""
-    DEPENDS_ON_STR=""
-
-    if [[ -f "$WORKFLOW_DIR/config" ]]; then
-        while IFS='=' read -r key value; do
-            [[ -z "$value" ]] && continue
-            case "$key" in
-                MODEL|TEMPERATURE|MAX_TOKENS|OUTPUT_FORMAT)
-                    eval "$key=\"$value\""
-                    CONFIG_SOURCE_MAP[$key]="workflow"
-                    ;;
-                SYSTEM_PROMPTS)
-                    SYSTEM_PROMPTS=($value)
-                    CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="workflow"
-                    ;;
-                INPUT_PATTERN)
-                    INPUT_PATTERN="$value"
-                    ;;
-                INPUT_FILES)
-                    INPUT_FILES_STR="$value"
-                    ;;
-                CONTEXT_PATTERN)
-                    CONTEXT_PATTERN="$value"
-                    ;;
-                CONTEXT_FILES)
-                    CONTEXT_FILES_STR="$value"
-                    ;;
-                DEPENDS_ON)
-                    DEPENDS_ON_STR="$value"
-                    ;;
-            esac
-        done < <(extract_config "$WORKFLOW_DIR/config")
-    fi
-
-    # Update final values after workflow config
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
-
-    # Display configuration cascade hierarchy (with workflow tier)
-    local global_display
-    global_display=$(format_path_with_tilde "$GLOBAL_CONFIG_FILE")
-    display_config_cascade_hierarchy "$global_display" "$PROJECT_ROOT" "$WORKFLOW_DIR"
-
-    # Display effective configuration values with sources
-    display_effective_config_values
-
-    # Display input and context sources if any are configured
-    local has_input_sources=false
-    local has_context_sources=false
-
-    # Check for input sources
-    if [[ -n "$INPUT_PATTERN" || -n "$INPUT_FILES_STR" ]]; then
-        has_input_sources=true
-        echo "Input Sources (primary documents to analyze):"
-        [[ -n "$INPUT_PATTERN" ]] && echo "  INPUT_PATTERN: $INPUT_PATTERN"
-        [[ -n "$INPUT_FILES_STR" ]] && echo "  INPUT_FILES: $INPUT_FILES_STR"
-        echo ""
-    fi
-
-    # Check for context sources
-    if [[ -n "$CONTEXT_PATTERN" || -n "$CONTEXT_FILES_STR" || -n "$DEPENDS_ON_STR" ]]; then
-        has_context_sources=true
-        echo "Context Sources (supporting materials and references):"
-        [[ -n "$CONTEXT_PATTERN" ]] && echo "  CONTEXT_PATTERN: $CONTEXT_PATTERN"
-        [[ -n "$CONTEXT_FILES_STR" ]] && echo "  CONTEXT_FILES: $CONTEXT_FILES_STR"
-        [[ -n "$DEPENDS_ON_STR" ]] && echo "  DEPENDS_ON: $DEPENDS_ON_STR"
-        echo ""
-    fi
-
-    # Interactive prompt to edit (only if --edit flag was used)
-    if [[ "$edit_mode" == "true" ]]; then
-        read -p "Press Enter to edit workflow (or Ctrl+C to cancel): " -r
-        echo ""
-        edit_workflow "$workflow_name"
-    fi
 }
