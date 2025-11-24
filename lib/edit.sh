@@ -5,10 +5,6 @@
 # This file is sourced by lib/core.sh.
 # =============================================================================
 
-# Usage examples:
-# edit_files "config.yml"
-# edit_files "file1.txt" "file2.txt" "file3.txt"
-
 # Function to detect if editor supports vim-style splits
 is_vim_like() {
     local editor="$1"
