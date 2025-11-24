@@ -11,11 +11,187 @@
 # System Prompt Building
 # =============================================================================
 
-# Build system prompt from SYSTEM_PROMPTS configuration array
-# Concatenates prompt files from WIREFLOW_PROMPT_PREFIX directory
-#
+# Track loaded dependencies to prevent duplicates
+declare -A LOADED_SYSTEM_DEPS
+declare -A LOADED_TASK_DEPS
+
+# Find component file with fallback to builtin
 # Args:
-#   $1 - system_prompt_file: Path where composed prompt should be saved
+#   $1 - component_path: Path relative to PREFIX (e.g., "core/user")
+#   $2 - prefix_var: Variable name for user prefix (e.g., "WIREFLOW_PROMPT_PREFIX")
+#   $3 - builtin_var: Variable name for builtin prefix
+# Returns:
+#   0 on success (prints path), 1 on not found
+find_component_file() {
+    local component_path="$1"
+    local prefix_var="$2"
+    local builtin_var="$3"
+
+    local user_prefix="${!prefix_var}"
+    local builtin_prefix="${!builtin_var}"
+    local file_path="${user_prefix}/${component_path}.txt"
+
+    # Try user/project location first
+    if [[ -f "$file_path" ]]; then
+        echo "$file_path"
+        return 0
+    fi
+
+    # Try builtin fallback if different
+    if [[ "$user_prefix" != "$builtin_prefix" ]]; then
+        file_path="${builtin_prefix}/${component_path}.txt"
+        if [[ -f "$file_path" ]]; then
+            echo "$file_path"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Extract dependencies from component file metadata
+# Args:
+#   $1 - file: Path to component file
+# Returns:
+#   Prints dependency paths (one per line)
+extract_dependencies() {
+    local file="$1"
+
+    # Extract content between <dependencies> tags
+    # Look for lines like: <dependency>path/to/component</dependency>
+    awk '
+        /<dependencies>/,/<\/dependencies>/ {
+            if ($0 ~ /<dependency>.*<\/dependency>/) {
+                gsub(/<dependency>/, "", $0)
+                gsub(/<\/dependency>/, "", $0)
+                gsub(/^[[:space:]]+/, "", $0)
+                gsub(/[[:space:]]+$/, "", $0)
+                if ($0 != "") print $0
+            }
+        }
+    ' "$file"
+}
+
+# Resolve system component dependencies recursively
+# Args:
+#   $1 - component_path: Path to component (e.g., "domains/neuro-ai")
+# Returns:
+#   Prints ordered list of dependencies (excluding already loaded)
+# Side effect:
+#   Updates LOADED_SYSTEM_DEPS
+resolve_system_dependencies() {
+    local component_path="$1"
+    local -a dep_chain=()
+
+    # Ensure LOADED_SYSTEM_DEPS is an associative array (needed for test contexts)
+    if ! declare -p LOADED_SYSTEM_DEPS 2>/dev/null | grep -q '^declare -A'; then
+        declare -gA LOADED_SYSTEM_DEPS=()
+    fi
+
+    # Skip if already loaded (or currently being processed - prevents circular deps)
+    if [[ -n "${LOADED_SYSTEM_DEPS[$component_path]}" ]]; then
+        return 0
+    fi
+
+    # Mark as being processed BEFORE recursing to prevent circular dependency loops
+    LOADED_SYSTEM_DEPS[$component_path]=1
+
+    # Find the component file
+    local file=$(find_component_file "$component_path" \
+                                     "WIREFLOW_PROMPT_PREFIX" \
+                                     "BUILTIN_WIREFLOW_PROMPT_PREFIX")
+
+    if [[ -z "$file" ]]; then
+        echo "Warning: Component not found: $component_path" >&2
+        return 1
+    fi
+
+    # Extract its dependencies
+    local -a deps
+    mapfile -t deps < <(extract_dependencies "$file")
+
+    # Recursively resolve each dependency
+    for dep in "${deps[@]}"; do
+        if [[ -n "$dep" ]]; then
+            # Check if already loaded before recursive call
+            if [[ -z "${LOADED_SYSTEM_DEPS[$dep]}" ]]; then
+                # Get transitive dependencies first
+                local -a transitive_deps
+                mapfile -t transitive_deps < <(resolve_system_dependencies "$dep")
+
+                # Add transitive dependencies to chain
+                for trans_dep in "${transitive_deps[@]}"; do
+                    if [[ -n "$trans_dep" ]]; then
+                        dep_chain+=("$trans_dep")
+                    fi
+                done
+
+                # Add the direct dependency itself
+                dep_chain+=("$dep")
+            fi
+        fi
+    done
+
+    # Output the dependency chain
+    printf '%s\n' "${dep_chain[@]}"
+}
+
+# Resolve task component dependencies recursively
+# Args:
+#   $1 - task_path: Path to task (e.g., "summaries/meeting")
+# Returns:
+#   Prints ordered list of dependencies (excluding already loaded)
+# Side effect:
+#   Updates LOADED_TASK_DEPS
+resolve_task_dependencies() {
+    local task_path="$1"
+    local -a dep_chain=()
+
+    # Ensure LOADED_TASK_DEPS is an associative array (needed for test contexts)
+    if ! declare -p LOADED_TASK_DEPS 2>/dev/null | grep -q '^declare -A'; then
+        declare -gA LOADED_TASK_DEPS=()
+    fi
+
+    # Skip if already loaded (or currently being processed - prevents circular deps)
+    if [[ -n "${LOADED_TASK_DEPS[$task_path]}" ]]; then
+        return 0
+    fi
+
+    # Mark as being processed BEFORE recursing to prevent circular dependency loops
+    LOADED_TASK_DEPS[$task_path]=1
+
+    # Find the task file
+    local file=$(find_component_file "$task_path" \
+                                     "WIREFLOW_TASK_PREFIX" \
+                                     "BUILTIN_WIREFLOW_TASK_PREFIX")
+
+    if [[ -z "$file" ]]; then
+        echo "Warning: Task not found: $task_path" >&2
+        return 1
+    fi
+
+    # Extract its dependencies
+    local -a deps
+    mapfile -t deps < <(extract_dependencies "$file")
+
+    # Recursively resolve each dependency
+    for dep in "${deps[@]}"; do
+        if [[ -n "$dep" ]]; then
+            # Only process if not already loaded
+            if [[ -z "${LOADED_TASK_DEPS[$dep]}" ]]; then
+                resolve_task_dependencies "$dep"
+                dep_chain+=("$dep")
+            fi
+        fi
+    done
+
+    # Output the dependency chain
+    printf '%s\n' "${dep_chain[@]}"
+}
+
+# Build system prompt from SYSTEM_PROMPTS configuration array
+# Now with dependency resolution support
+#
 # Requires:
 #   WIREFLOW_PROMPT_PREFIX: Directory containing *.txt prompt files
 #   SYSTEM_PROMPTS: Array of prompt names (without .txt extension)
@@ -25,9 +201,6 @@
 #   Writes composed prompt to system_prompt_file
 #   May use cached version if rebuild fails
 build_system_prompt() {
-    local system_prompt_file="$1"
-
-    # Validate prompt directory configuration
     if [[ -z "$WIREFLOW_PROMPT_PREFIX" ]]; then
         echo "Error: WIREFLOW_PROMPT_PREFIX environment variable is not set" >&2
         echo "Set WIREFLOW_PROMPT_PREFIX to the directory containing your *.txt prompt files" >&2
@@ -39,23 +212,15 @@ build_system_prompt() {
         return 1
     fi
 
-    echo "Building system prompt from: meta (auto) ${SYSTEM_PROMPTS[*]}"
-
-    # Ensure parent directory exists
-    mkdir -p "$(dirname "$system_prompt_file")"
-
-    # Build to temp file for atomic write (XML text for debugging)
-    local temp_prompt
-    temp_prompt=$(mktemp)
-    local build_success=true
+    # Reset dependency tracker for this build
+    LOADED_SYSTEM_DEPS=()
 
     # FIRST: Add meta prompt block (required, auto-included, not cached)
-    local meta_file="$HOME/.config/wireflow/prompts/meta.txt"
-    if [[ ! -f "$meta_file" && -n "$WIREFLOW_PROMPT_PREFIX" ]]; then
-        meta_file="$WIREFLOW_PROMPT_PREFIX/meta.txt"
-    fi
+    local meta_file=$(find_component_file "meta" \
+                                          "WIREFLOW_PROMPT_PREFIX" \
+                                          "BUILTIN_WIREFLOW_PROMPT_PREFIX")
 
-    if [[ -f "$meta_file" ]]; then
+    if [[ -n "$meta_file" && -f "$meta_file" ]]; then
         local meta_text
         meta_text=$(cat "$meta_file")
         local meta_block
@@ -65,104 +230,98 @@ build_system_prompt() {
             '{
                 type: $type,
                 text: $text
-            }')  # NO cache_control (too small to cache)
+            }')
         SYSTEM_BLOCKS+=("$meta_block")
-
-        # Also add to XML file for debugging
-        cat "$meta_file" >> "$temp_prompt"
-        echo "" >> "$temp_prompt"
     fi
 
-    # THEN: Build user-specified prompts with cache control
-    local system_prompts_text=""
+    # THEN: Build user-specified prompts with dependency resolution and cache control
+    local all_components=()
 
-    # Write opening XML tag
-    echo "<system-prompts>" >> "$temp_prompt"
-    echo "" >> "$temp_prompt"
+    # For each component in SYSTEM_PROMPTS, resolve dependencies
+    for component in "${SYSTEM_PROMPTS[@]}"; do
+        # Get dependencies (recursively resolved)
+        local -a deps
+        mapfile -t deps < <(resolve_system_dependencies "$component")
 
-    # Concatenate all specified prompts (no extra indentation)
-    for prompt_name in "${SYSTEM_PROMPTS[@]}"; do
-        local prompt_file="$WIREFLOW_PROMPT_PREFIX/${prompt_name}.txt"
-
-        # If not found in custom location, try default location as fallback
-        if [[ ! -f "$prompt_file" ]]; then
-            local default_prompt_file="$HOME/.config/wireflow/prompts/${prompt_name}.txt"
-            if [[ -f "$default_prompt_file" ]]; then
-                prompt_file="$default_prompt_file"
-                echo "Using built-in prompt: $prompt_name (from default location)" >&2
-            else
-                echo "Error: System prompt file not found: ${prompt_name}.txt" >&2
-                echo "  Searched: $WIREFLOW_PROMPT_PREFIX" >&2
-                echo "  Searched: $HOME/.config/wireflow/prompts (fallback)" >&2
-                build_success=false
-                break
+        # Add dependencies to list (already deduped by tracker)
+        for dep in "${deps[@]}"; do
+            if [[ -n "$dep" ]]; then
+                all_components+=("$dep")
             fi
-        fi
+        done
 
-        # Add to XML file
-        cat "$prompt_file" >> "$temp_prompt"
-        echo "" >> "$temp_prompt"
-
-        # Also accumulate for JSON block
-        system_prompts_text+=$(cat "$prompt_file")
-        system_prompts_text+=$'\n\n'
+        # Add the component itself
+        all_components+=("$component")
     done
 
-    # Write closing XML tag
-    echo "</system-prompts>" >> "$temp_prompt"
+    echo "Building system prompt from: meta (auto) ${all_components[*]}"
 
-    # Handle build result
-    if [[ "$build_success" == true ]]; then
-        mv "$temp_prompt" "$system_prompt_file"
+    # Build blocks from all components
+    local processed_any="false"
+    for component_path in "${all_components[@]}"; do
+        local file=$(find_component_file "$component_path" \
+                                        "WIREFLOW_PROMPT_PREFIX" \
+                                        "BUILTIN_WIREFLOW_PROMPT_PREFIX")
 
-        # Build JSON content block for system prompts with cache_control
-        local system_prompts_block
-        system_prompts_block=$(jq -n \
+        if [[ -z "$file" || ! -f "$file" ]]; then
+            echo "Error: System prompt component not found: ${component_path}" >&2
+            continue
+        fi
+
+        # Load component content
+        local component_text
+        component_text=$(cat "$file")
+
+        # Build JSON content block
+        local component_block
+        component_block=$(jq -n \
             --arg type "text" \
-            --arg text "$system_prompts_text" \
+            --arg text "$component_text" \
             '{
                 type: $type,
-                text: $text,
-                cache_control: {type: "ephemeral"}
+                text: $text
             }')
 
         # Add to SYSTEM_BLOCKS array
-        SYSTEM_BLOCKS+=("$system_prompts_block")
+        SYSTEM_BLOCKS+=("$component_block")
+        processed_any="true"
+    done
 
-        echo "System prompt built successfully"
+    # If blocks were added, make the last block a cache_control breakpoint
+    if [[ "$processed_any" == "true" ]]; then
+        local last_idx=$((${#SYSTEM_BLOCKS[@]} - 1))
+        SYSTEM_BLOCKS[$last_idx]=$(echo "${SYSTEM_BLOCKS[$last_idx]}" | jq '. + {cache_control: {type: "ephemeral"}}')
         return 0
     else
-        rm -f "$temp_prompt"
-        # Fall back to cached version if available
-        if [[ -f "$system_prompt_file" ]]; then
-            echo "Warning: Using cached system prompt (rebuild failed)" >&2
-            return 0
-        else
-            echo "Error: Cannot build system prompt and no cached version available" >&2
-            return 1
-        fi
+        return 1
     fi
 }
 
-# Build project description content block (with cache_control)
-# Args:
-#   $1 - project_root: Project root directory
+# Build project description content blocks (with cache_control)
 # Returns:
-#   0 if project description exists and block was created, 1 otherwise
+#   success status - if project description blocks were created
 # Side effects:
-#   Appends block to SYSTEM_BLOCKS array if successful
-build_project_description_block() {
-    local project_root="$1"
+#   Appends blocks to SYSTEM_BLOCKS array if successful
+build_project_description_blocks() {
+    local project_root="${1:-$PROJECT_ROOT}"
 
-    if [[ -z "$project_root" ]]; then
-        return 1
-    fi
+    # Find all project roots from current location
+    local -a roots_array
+    mapfile -t roots_array <<< "$(find_ancestor_projects)" || return 1 
 
-    # Try to aggregate nested project descriptions
-    if aggregate_nested_project_descriptions "$project_root"; then
-        local project_desc_cache="$project_root/.workflow/prompts/project.txt"
+    # Add nested project descriptions as JSON content blocks
+    local processed_any=false
+    for root in "${roots_array[@]}"; do
+        local proj_file="$root/.workflow/project.txt"
         local project_desc
-        project_desc=$(<"$project_desc_cache")
+        local tag_name
+
+        # Skip if project file doesn't exist or is empty
+        [[ ! -f "$proj_file" || ! -s "$proj_file" ]] && continue
+
+        # Load and tag project description file
+        tag_name=$(sanitize "$(basename "$root")")
+        project_desc="<$tag_name>"$'\n'"$(cat "$proj_file")"$'\n'"</$tag_name>"
 
         # Build JSON content block with cache_control
         local project_desc_block
@@ -172,11 +331,17 @@ build_project_description_block() {
             '{
                 type: $type,
                 text: $text,
-                cache_control: {type: "ephemeral"}
             }')
 
         # Add to SYSTEM_BLOCKS array
         SYSTEM_BLOCKS+=("$project_desc_block")
+        processed_any=true
+    done
+
+    # If blocks were added, make the last block a cache_control breakpoint
+    if [[ "$processed_any" == "true" ]]; then
+        local last_idx=$((${#SYSTEM_BLOCKS[@]} - 1))
+        SYSTEM_BLOCKS[$last_idx]=$(echo "${SYSTEM_BLOCKS[$last_idx]}" | jq '. + {cache_control: {type: "ephemeral"}}')
         return 0
     else
         return 1
@@ -343,6 +508,10 @@ estimate_tokens() {
             for block in "${IMAGE_BLOCKS[@]}"; do
                 all_user_blocks+=("$block")
             done
+            # Add task dependency blocks for token counting
+            for block in "${TASK_BLOCKS[@]}"; do
+                all_user_blocks+=("$block")
+            done
             all_user_blocks+=("$TASK_BLOCK")
 
             local user_blocks_json
@@ -453,6 +622,10 @@ handle_dry_run_mode() {
     for block in "${IMAGE_BLOCKS[@]}"; do
         all_user_blocks+=("$block")
     done
+    # Add task dependency blocks for dry run
+    for block in "${TASK_BLOCKS[@]}"; do
+        all_user_blocks+=("$block")
+    done
     all_user_blocks+=("$TASK_BLOCK")
 
     local user_blocks_json
@@ -503,8 +676,12 @@ handle_dry_run_mode() {
         echo ""
     fi
 
-    # Open in editor
-    edit_files "$dry_run_json_request" "$dry_run_json_blocks"
+    # Open in editor (skip in test mode)
+    if [[ "${WIREFLOW_TEST_MODE:-}" != "true" ]]; then
+        edit_files "$dry_run_json_request" "$dry_run_json_blocks"
+    else
+        echo "=== DRY RUN MODE ==="
+    fi
     exit 0
 }
 
@@ -516,16 +693,14 @@ handle_dry_run_mode() {
 # Assembles JSON content blocks only (no XML strings)
 #
 # Args:
-#   $1 - system_prompt_file: Path to system prompt file (for system-prompts block building)
-#   $2 - project_root: Project root directory (or empty if no project)
-#   $3 - task_source: Path to task file OR task string content
+#   $1 - project_root: Project root directory (or empty if no project)
+#   $2 - task_source: Path to task file OR task string content
 # Side effects:
 #   Builds SYSTEM_BLOCKS array (system-prompts, project-description, current-date)
 #   Builds TASK_BLOCK
 build_prompts() {
-    local system_file="$1"
-    local project_root="$2"
-    local task_source="$3"
+    local project_root="$1"
+    local task_source="$2"
 
     # =============================================================================
     # Build System Message Blocks (for JSON API)
@@ -535,7 +710,7 @@ build_prompts() {
 
     # Add project description block (if exists)
     if [[ -n "$project_root" ]]; then
-        build_project_description_block "$project_root" || true
+        build_project_description_blocks "$project_root" || true
     fi
 
     # Add current date block (always)
@@ -545,17 +720,75 @@ build_prompts() {
     # Build User Message Blocks (for JSON API)
     # =============================================================================
 
-    # Get task content
-    local task_content
+    # Reset task dependency tracker
+    LOADED_TASK_DEPS=()
+    local -a TASK_BLOCKS=()
+
+    # Process task with dependency resolution
     if [[ -f "$task_source" ]]; then
-        # Task is a file
-        task_content=$(<"$task_source")
+        # Task is a file - extract its name from metadata or path
+        local task_name=""
+
+        # Try to extract task name from metadata (use sed for portability)
+        task_name=$(sed -n 's/.*<name>\([^<]*\)<\/name>.*/\1/p' "$task_source" 2>/dev/null | head -1) || true
+
+        # If task has dependencies in its metadata, resolve them
+        local -a task_deps
+        mapfile -t task_deps < <(extract_dependencies "$task_source")
+
+        # Resolve dependencies and build blocks for each
+        for dep in "${task_deps[@]}"; do
+            if [[ -n "$dep" ]]; then
+                # Get transitive dependencies
+                local -a transitive_deps
+                mapfile -t transitive_deps < <(resolve_task_dependencies "$dep")
+
+                # Add all transitive dependencies first
+                for trans_dep in "${transitive_deps[@]}"; do
+                    if [[ -n "$trans_dep" ]]; then
+                        local dep_file=$(find_component_file "$trans_dep" \
+                                                            "WIREFLOW_TASK_PREFIX" \
+                                                            "BUILTIN_WIREFLOW_TASK_PREFIX")
+                        if [[ -n "$dep_file" && -f "$dep_file" ]]; then
+                            local dep_content=$(<"$dep_file")
+                            local dep_block=$(jq -n \
+                                --arg type "text" \
+                                --arg text "$dep_content" \
+                                '{
+                                    type: $type,
+                                    text: $text
+                                }')
+                            TASK_BLOCKS+=("$dep_block")
+                        fi
+                    fi
+                done
+
+                # Add the direct dependency
+                local dep_file=$(find_component_file "$dep" \
+                                                    "WIREFLOW_TASK_PREFIX" \
+                                                    "BUILTIN_WIREFLOW_TASK_PREFIX")
+                if [[ -n "$dep_file" && -f "$dep_file" ]]; then
+                    local dep_content=$(<"$dep_file")
+                    local dep_block=$(jq -n \
+                        --arg type "text" \
+                        --arg text "$dep_content" \
+                        '{
+                            type: $type,
+                            text: $text
+                        }')
+                    TASK_BLOCKS+=("$dep_block")
+                fi
+            fi
+        done
+
+        # Get the main task content
+        local task_content=$(<"$task_source")
     else
         # Task is inline string
-        task_content="$task_source"
+        local task_content="$task_source"
     fi
 
-    # Build task block (most volatile, no cache_control)
+    # Build main task block (most volatile, no cache_control)
     TASK_BLOCK=$(jq -n \
         --arg type "text" \
         --arg text "$task_content" \
@@ -565,7 +798,7 @@ build_prompts() {
         }')
 
     # Note: Complete user message will be assembled in API request from:
-    # CONTEXT_BLOCKS + DEPENDENCY_BLOCKS + INPUT_BLOCKS + TASK_BLOCK
+    # CONTEXT_BLOCKS + DEPENDENCY_BLOCKS + INPUT_BLOCKS + TASK_BLOCKS + TASK_BLOCK
 }
 
 # =============================================================================
@@ -1135,7 +1368,21 @@ execute_api_request() {
         all_user_blocks+=("$block")
     done
 
-    # Add task block (always present)
+    # Add task dependency blocks (if any)
+    if [[ ${#TASK_BLOCKS[@]} -gt 0 ]]; then
+        # Add all but the last task dependency block
+        local last_task_idx=$((${#TASK_BLOCKS[@]} - 1))
+        for ((i = 0; i < last_task_idx; i++)); do
+            all_user_blocks+=("${TASK_BLOCKS[$i]}")
+        done
+
+        # Add the last task dependency block with cache_control
+        local last_task_block="${TASK_BLOCKS[$last_task_idx]}"
+        last_task_block=$(echo "$last_task_block" | jq '. + {cache_control: {type: "ephemeral"}}')
+        all_user_blocks+=("$last_task_block")
+    fi
+
+    # Add main task block (always present, never cached)
     all_user_blocks+=("$TASK_BLOCK")
 
     # Convert to JSON array
