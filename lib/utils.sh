@@ -1,15 +1,209 @@
 # =============================================================================
-# Workflow Utility Functions
+# WireFlow Utility Functions
 # =============================================================================
-# Support functions for the workflow CLI tool.
-# This file is sourced by both wireflow.sh and lib/core.sh.
+# Support functions for the WireFlow CLI tool.
 # =============================================================================
+
+# =============================================================================
+# Path Formatting
+# =============================================================================
+
+# Verify and canonicalize target paths (requires realpath)
+# Arguments:
+#   $@ - Target paths
+# Returns:
+#   success status - All target paths verified
+#   stdout - Canonicalized paths, one line per verified target path
+real_path() {
+    realpath -q "${@}"
+}
+
+# Path normalization
+# Arguments:
+#   $1 - Path to normalize, required
+# Returns:
+#   stdout - Path with normalized components (removed '.', '..', '//', etc.)
+normalize_path() {  
+    local path="$1"
+    
+    # Validate required path argument
+    # Handle empty input
+    if [[ -z "$path" ]]; then
+        echo "."
+        return 0
+    fi
+
+    local max_iterations=100  # Prevent infinite loops
+    local counter=0
+
+    # Remove trailing slashes (except root)
+    while [[ "$path" != "/" && "$path" == */ ]]; do
+        path="${path%/}"
+    done
+
+    # Iteratively simplify the path with safeguard
+    local prev_path=""
+    while [[ "$prev_path" != "$path" && $counter -lt $max_iterations ]]; do
+        prev_path="$path"
+
+        # Remove /./
+        path="${path//\/.\//\/}"
+
+        # Remove leading ./
+        [[ "$path" == ./* ]] && path="${path#./}"
+
+        # Remove trailing /.
+        [[ "$path" != "/" ]] && path="${path%/.}"
+
+        # Remove //
+        path="${path//\/\//\/}"
+
+        # Remove /dir/../ patterns safely
+        # This handles the common case of parent directory references
+        if [[ "$path" =~ /[^/]+/\.\. ]]; then
+            path=$(echo "$path" | sed 's|/[^/][^/]*/\.\./|/|g')
+            path=$(echo "$path" | sed 's|/[^/][^/]*/\.\.$||')
+        fi
+
+        ((counter++))
+    done
+
+    # Final cleanup
+    [[ -z "$path" ]] && path="/"
+    [[ "$path" != "/" ]] && path="${path%/}"
+
+    # Handle relative paths that are now empty after cleanup
+    [[ -z "$path" ]] && path="."
+
+    # Output the final normalized path
+    echo "$path"
+}
+
+# Normalize any path for display  
+# Arguments:  
+#   $1 - Path to format, optional (defaults to '.')  
+# Returns:  
+#   stdout - Normalized path with optional tilde prefix for absolute paths  
+display_normalized_path() {
+    local path="${1:-.}"  
+    local normalized="$(normalize_path "$path")"  
+    echo "${normalized/#$HOME/\~}"  
+}
+
+# Absolute path normalization without link-following or verification
+# Arguments:
+#   $1 - Path to normalize, optional (defaults to '.')
+# Returns:
+#   stdout - Normalized absolute path
+absolute_path() {
+    local path="${1:-.}"
+    
+    # Expand tilde
+    path="${path/#\~/$HOME}"
+
+    # Ensure absolute path
+    [[ "$path" != /* ]] && path="$(pwd)/$path"
+
+    # Path normalization
+    normalize_path "$path"
+}
+
+# Absolute path with tilde prefix for display
+# Arguments:
+#   $1 - Path to format, optional (defaults to '.')
+# Returns:
+#   stdout - Normalized absolute path with tilde prefix for display
+display_absolute_path() {
+    local path="${1:-.}"
+    local abs_path="$(absolute_path "$path")"
+    echo "${abs_path/#$HOME/\~}"
+}
+
+# Relative path normalization with respect to any base path  
+# Arguments:  
+#   $1 - Target path, optional (defaults to '.')  
+#   $2 - Base path, optional (defaults to $HOME)  
+# Returns:  
+#   stdout - Normalized relative path to the target path from the base path  
+relative_path() {  
+    local target="${1:-.}"  
+    local base="${2:-$HOME}"  
+  
+    # Make both paths absolute first
+    local target_abs="$(absolute_path "$target")"  
+    local base_abs="$(absolute_path "$base")"  
+  
+    # If they're the same, return .
+    if [[ "$target_abs" == "$base_abs" ]]; then
+        echo "."
+        return
+    fi
+    
+    # If target is under base (child), strip base prefix
+    if [[ "$target_abs" == "$base_abs"/* ]]; then
+        local rel="${target_abs#$base_abs/}"
+        echo "$rel"
+        return
+    fi
+    
+    # Otherwise, need to go up from base to find common ancestor
+    local common="$base_abs"
+    local ups=""
+    
+    # Walk up from base until we find a common prefix
+    while [[ -n "$common" ]] && [[ "$common" != "/" ]] && [[ "$target_abs" != "$common"/* ]] && [[ "$target_abs" != "$common" ]]; do
+        ups="../$ups"
+        common="${common%/*}"
+        # If we've gone all the way up to root
+        [[ -z "$common" ]] && common="/"
+    done
+
+    # If no common ancestor (shouldn't happen for absolute paths), return absolute path
+    if [[ -z "$common" ]]; then
+        echo "$target_abs"
+        return
+    fi
+    
+    # Build relative path: ups + remainder of target
+    if [[ "$target_abs" == "$common" ]]; then
+        # Target is the common ancestor
+        echo "${ups%/}"  # Remove trailing /
+    else
+        # Target is below common ancestor
+        local remainder
+        if [[ "$common" == "/" ]]; then
+            # Special case for root - don't add extra slash
+            remainder="${target_abs#/}"
+        else
+            remainder="${target_abs#$common/}"
+        fi
+        echo "${ups}${remainder}"
+    fi
+}
+
+# =============================================================================
+# Terminal UI Functions
+# =============================================================================
+
+# Prompt the user before continuing execution, otherwise exit the program
+# Arguments:
+#    $1 - optional prompt string to display
+prompt_to_continue_or_exit() {
+    # Auto-continue in test mode
+    [[ "${WIREFLOW_TEST_MODE:-}" == "true" ]] && return 0
+
+    [[ -n "$1" ]] && echo "$1"
+    read -p "Continue? [y/N] " -n 1 -r
+    echo
+    [[ ! $REPLY =~ ^[Yy]$ ]] && echo "Exiting..." && exit 0
+    echo ""
+}
 
 # =============================================================================
 # File Processing Functions
 # =============================================================================
 
-# Filename sanitization for XML-like identifiers
+# Filename sanitization -- create XML-like identifiers for files
 sanitize() {
     local filename="$1"
     local sanitized
@@ -17,18 +211,13 @@ sanitize() {
     # Strip any parent path elements first
     sanitized="$(basename "$filename")"
 
-    # Strip file extension
-    sanitized="${sanitized%.*}"
+    # Replace spaces with underscores
+    sanitized="${sanitized// /_}"
 
-    # Convert to lowercase
-    sanitized="${sanitized,,}"
-
-    # Replace spaces and common punctuation with dashes
-    sanitized="${sanitized//[[:space:]]/-}"
-
-    # Remove or replace characters not valid in XML names
-    # Keep only alphanumeric, dash, and period
-    sanitized="${sanitized//[^a-z0-9.-]/}"
+    # Replace special characters with underscores
+    # Keep only alphanumeric, dash, underscore, and period
+    # Use sed to replace non-matching chars with underscore
+    sanitized=$(echo "$sanitized" | sed 's/[^a-zA-Z0-9._-]/_/g')
 
     # Ensure it doesn't start with a number, dash, or period
     # (XML names must start with a letter or underscore)
@@ -36,167 +225,176 @@ sanitize() {
         sanitized="_${sanitized}"
     fi
 
-    # Remove consecutive dashes
-    sanitized="${sanitized//--/-}"
+    # Remove consecutive underscores
+    while [[ "$sanitized" == *"__"* ]]; do
+        sanitized="${sanitized//__/_}"
+    done
 
-    # Trim leading/trailing dashes
-    sanitized="${sanitized#-}"
-    sanitized="${sanitized%-}"
+    # Trim leading/trailing underscores
+    sanitized="${sanitized#_}"
+    sanitized="${sanitized%_}"
 
     echo "$sanitized"
 }
 
 # =============================================================================
-# Project Root Discovery
+# Project and Workflow Utilities
 # =============================================================================
+
+# Library help function to print justified columns of paths
+_print_labeled_path() {
+    local label="${1:-Path}"
+    local path="$2"
+    local indent="${3:-  }"
+    [[ -z "$path" ]] && return 1
+    local display="$(display_absolute_path "$path")"
+    printf "${indent}%-12s%-55s%s\n" "${label}:" "$display"
+}
+
+# Show current project location (root directory path)
+show_project_location() {
+    local project_root="${1:-$PROJECT_ROOT}"
+    local project_file="${2:-$PROJECT_FILE}"
+    local output_dir="${3:-$OUTPUT_DIR}"
+    [[ -z "$project_root" || ! -d "$project_root" ]] && return 1
+
+    # Display current project root
+    echo "Current Project:"
+    _print_labeled_path "Root" "$project_root"
+    _print_labeled_path "Project" "$project_file" || true
+    _print_labeled_path "Output" "$output_dir" || true
+    return 0
+}
+
+# Show specific workflow location (run directory path)
+show_workflow_location() {
+    local name="${1:-$WORKFLOW_NAME}"
+    local workflow_dir="${2:-$WORKFLOW_DIR}"
+    local project_root="${3:-$PROJECT_ROOT}"
+    [[ -z "$name" || -z "$workflow_dir" ]] && return 1
+    [[ ! -d "$workflow_dir" ]] && return 1
+
+    # Display current project root
+    echo "Workflow ('$name'):"
+    _print_labeled_path "Project" "$project_root" || true
+    _print_labeled_path "Run path" "$workflow_dir"
+    _print_labeled_path "Task file" "$workflow_dir/task.txt"
+    return 0
+}
+
+# Find the closest (current) project root in parent directory tree
 find_project_root() {
-    local dir="$PWD"
-    while [[ "$dir" != "$HOME" && "$dir" != "/" ]]; do
+    local dir="${1:-$(pwd)}"
+    local max_depth=100  # Reasonable maximum
+    local depth=0
+
+    # Get canonical path to avoid symlink issues, but handle failures gracefully
+    if [[ -d "$dir" ]]; then
+        dir="$(cd "$dir" 2>/dev/null && pwd -P)" || dir="${1:-$(pwd)}"
+    fi
+    # If no directory at all, return failure
+    [[ -z "$dir" ]] && return 1
+
+    while [[ "$dir" != "/" && $depth -lt $max_depth ]]; do
         if [[ -d "$dir/.workflow" ]]; then
             echo "$dir"
             return 0
         fi
-        dir="$(dirname "$dir")"
+        # Safeguard against dirname not making progress
+        local parent="$(dirname "$dir")"
+        [[ "$parent" == "$dir" ]] && break
+        dir="$parent"
+        ((depth++))
     done
+
+    # Check root directory as final attempt
+    [[ -d "/.workflow" ]] && echo "/" && return 0
+
+    # No project found - return failure
     return 1
 }
 
-# Find all project roots from current directory upward
-# Returns newline-separated list of absolute paths (closest first)
-# Useful for nested project context aggregation
-find_all_project_roots() {
-    local dir="$PWD"
+# Find ancestor project roots excluding current project
+# Returns:
+#   success status - if any ancestors were found
+#   stdout - newline-separated paths from oldest to newest ancestor
+find_ancestor_projects() {
+    local project_root="${1:-$PROJECT_ROOT}"
+    local dir="$(dirname "$project_root")" # start at parent
     local roots=()
+    local max_depth=100
+    local depth=0
 
-    while [[ "$dir" != "$HOME" && "$dir" != "/" ]]; do
+    # Get canonical starting directory
+    dir="$(cd "$dir" 2>/dev/null && pwd -P)" || return 1
+
+    # Search upwards to find all project roots
+    while [[ "$dir" != "/" && $depth -lt $max_depth ]]; do
         if [[ -d "$dir/.workflow" ]]; then
             roots+=("$dir")
         fi
-        dir="$(dirname "$dir")"
+        local parent="$(dirname "$dir")"
+        [[ "$parent" == "$dir" ]] && break  # Safeguard
+        dir="$parent"
+        ((depth++))
     done
 
-    # Return all roots (newline-separated to handle spaces in paths)
-    if [[ ${#roots[@]} -gt 0 ]]; then
-        printf '%s\n' "${roots[@]}"
-        return 0
-    else
+    # Check root as final location
+    [[ -d "/.workflow" ]] && roots+=("/")
+
+    # If ancestors were found, print them out in reverse
+    if [[ ${#roots[@]} -eq 0 ]]; then
+        # Failure if no ancestors found
         return 1
+    else
+        # Reverse array to print oldest first
+        for ((i=${#roots[@]}-1; i>=0; i--)); do
+            printf '%s\n' "${roots[i]}"
+        done
+        return 0
     fi
 }
 
-# Aggregate project descriptions from all parent projects
-# Creates hierarchical context by concatenating project.txt files
-# from top-level down to current project with XML tagging
-#
-# Arguments:
-#   $1 - Project root path (required)
-#
+# =============================================================================
+# Workflow Management
+# =============================================================================
+
+# Verify that workflow directory exists and ensure its path is set
 # Returns:
-#   0 if any project descriptions were aggregated
-#   1 if no non-empty project.txt files found
-#
-# Side effects:
-#   Writes aggregated content to $1/.workflow/prompts/project.txt
-#   Creates prompts/ directory if needed
-aggregate_nested_project_descriptions() {
-    local current_root="$1"
+#   0 - if a valid workflow directory exists and its paths have been set
+#   1 - if this is not a workflow run or no valid path or directory can be found
+check_workflow_dir() {
+    # Fail if this is not a workflow run (i.e., WORKFLOW_NAME is unset)
+    [[ -z "${WORKFLOW_NAME:-}" ]] && return 1
 
-    if [[ -z "$current_root" ]]; then
-        return 1
-    fi
-
-    # Find all project roots from current location
-    local all_roots
-    all_roots=$(cd "$current_root" && find_all_project_roots) || {
-        return 1
-    }
-
-    # Build cache file path
-    local cache_file="$current_root/.workflow/prompts/project.txt"
-    mkdir -p "$(dirname "$cache_file")"
-
-    # Clear cache file
-    > "$cache_file"
-
-    # Convert newline-separated string to array
-    local -a roots_array
-    mapfile -t roots_array <<< "$all_roots"
-
-    # Process in reverse order (top-level first)
-    local processed_any=false
-    for ((i=${#roots_array[@]}-1; i>=0; i--)); do
-        local root="${roots_array[i]}"
-        local proj_file="$root/.workflow/project.txt"
-
-        # Skip if doesn't exist or is empty
-        if [[ ! -f "$proj_file" || ! -s "$proj_file" ]]; then
-            continue
+    # Try to build a valid workflow directory path
+    local dir="${WORKFLOW_DIR:-}"
+    if [[ -z "$dir" ]]; then
+        if [[ -n "$RUN_DIR" && -n "$WORKFLOW_NAME" ]]; then
+            dir="$RUN_DIR/$WORKFLOW_NAME"
+        else
+            echo "check_workflow_dir: set RUN_DIR and WORKFLOW_NAME first" >&2
+            return 1
         fi
-
-        # Generate sanitized tag name from PROJECT_ROOT basename
-        local tag_name
-        tag_name=$(sanitize "$(basename "$root")")
-
-        # Append with XML tag
-        printf "<%s>\n" "$tag_name" >> "$cache_file"
-        cat "$proj_file" >> "$cache_file"
-
-        # Ensure newline before closing tag
-        [[ -n $(tail -c 1 "$proj_file" 2>/dev/null) ]] && printf "\n" >> "$cache_file"
-
-        printf "</%s>\n\n" "$tag_name" >> "$cache_file"
-
-        processed_any=true
-    done
-
-    # Return success if we processed any projects
-    if [[ "$processed_any" == true ]]; then
-        return 0
-    else
-        return 1
     fi
+
+    # Verify that the workflow directory exists
+    [[ -d "$dir" ]] || return 1
+
+    # Set workflow paths
+    WORKFLOW_DIR="$(absolute_path "$dir")"
+    WORKFLOW_CONFIG="$WORKFLOW_DIR/config"
+    WORKFLOW_TASK="$WORKFLOW_DIR/task.txt"
 }
 
-# =============================================================================
-# Path Formatting
-# =============================================================================
-
-# Format absolute path with ~/ prefix for HOME directory
-# Arguments:
-#   $1 - Absolute path
-# Returns:
-#   Path with ~/ prefix if under $HOME, otherwise original path
-format_path_with_tilde() {
-    local path="$1"
-    local relative="${path#$HOME/}"
-
-    if [[ "$relative" == "$path" ]]; then
-        # Path is not under HOME
-        echo "$path"
-    else
-        # Path is under HOME, use ~/ prefix
-        echo "~/$relative"
-    fi
-}
-
-# =============================================================================
-# Workflow Listing
-# =============================================================================
-
-# List workflows in a project (excludes special files/directories)
+# List workflows in a project
 list_workflows() {
-    local project_root="${1:-$PROJECT_ROOT}"
+    local run_root="${1:-$RUN_DIR}"
+    [[ -z "$run_root" || ! -d "$run_root" ]] && return 1
 
-    # Validate project root
-    if [[ -z "$project_root" || ! -d "$project_root/.workflow" ]]; then
-        echo "Error: Invalid project root or .workflow directory not found" >&2
-        return 1
-    fi
-
-    # List entries, excluding special files/directories
+    # List entries in the workflow run directory
     local workflows
-    workflows=$(ls -1 "$project_root/.workflow" 2>/dev/null | \
-                grep -E -v '^(config|prompts|output|project\.txt)$')
+    workflows=$(ls -1 "$run_root" 2>/dev/null)
 
     # Return workflows if found, otherwise return 1
     if [[ -n "$workflows" ]]; then
@@ -214,7 +412,8 @@ list_workflows() {
 # Escape JSON strings
 escape_json() {
     local string="$1"
-    printf '%s' "$string" | jq -Rs .
+    # Use jq to escape special characters, then remove the outer quotes
+    printf '%s' "$string" | jq -Rs . | sed 's/^"//;s/"$//'
 }
 
 # =============================================================================
@@ -239,8 +438,8 @@ filename_to_title() {
     title="${title//-/ }"
     title="${title//_/ }"
 
-    # Capitalize each word (sentence case)
-    title=$(echo "$title" | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2))}1')
+    # Capitalize first letter of each word if it's lowercase (preserve existing uppercase)
+    title=$(echo "$title" | awk '{for(i=1;i<=NF;i++) {if(substr($i,1,1) ~ /[a-z]/) $i=toupper(substr($i,1,1)) substr($i,2); }}1')
 
     echo "$title"
 }
@@ -336,20 +535,34 @@ detect_file_type() {
     # Check file type by extension
     case "$extension" in
         # Image types (Vision API support)
-        png|jpg|jpeg|gif|webp)
+        png|jpg|jpeg|gif|webp|svg)
             echo "image"
             ;;
         # PDF document types
         pdf)
-            echo "document"
+            echo "pdf"
             ;;
         # Microsoft Office types (require conversion)
         docx|pptx)
             echo "office"
             ;;
-        # Text files (default)
+        # Binary files
+        bin|exe|zip|tar|gz|bz2|7z|rar|so|dylib|dll|o|a)
+            echo "binary"
+            ;;
+        # Text files (default for code, config, docs, etc.)
         *)
-            echo "text"
+            # If no extension or unknown, try file command
+            if [[ -f "$file" ]]; then
+                local file_output=$(file -b "$file" 2>/dev/null)
+                if [[ "$file_output" == *"executable"* ]] || [[ "$file_output" == *"binary"* ]] || [[ "$file_output" == "data" ]]; then
+                    echo "binary"
+                else
+                    echo "text"
+                fi
+            else
+                echo "text"
+            fi
             ;;
     esac
 }
@@ -378,6 +591,9 @@ get_image_media_type() {
             ;;
         webp)
             echo "image/webp"
+            ;;
+        svg)
+            echo "image/svg+xml"
             ;;
         *)
             echo "image/jpeg"  # Default fallback
