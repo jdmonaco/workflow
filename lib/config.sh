@@ -3,54 +3,126 @@
 # =============================================================================
 # Configuration functions for the workflow CLI tool.
 # Handles global, project, and workflow config loading and management.
-# This file is sourced by wireflow.sh and lib/core.sh.
 # =============================================================================
 
 # =============================================================================
-# Configuration Extraction
+# Configuration -- Writing and Reading Settings
 # =============================================================================
 
-# Extract config values from a config file
-# General-purpose function for reading config files and outputting key=value pairs
-# Used for: parent config inheritance, config display, config cascade tracking
-#
+# Write default (pass-through) config assignments to stdout
+# Used for: creating default config files
+cat_default_config() {
+    # Add the config parameters
+    echo -en "\n# API processing parameters\n"
+    for key in "${CONFIG_KEYS[@]}"; do
+        printf '%s=\n' "$key"
+    done
+
+    # Add the user-env variables
+    echo -en "\n# User-env variables\n"
+    for key in "${USER_ENV_KEYS[@]}"; do
+        printf '%s=\n' "$key"
+    done
+}
+
+# Write default (pass-through) project config assignments to stdout
+# Used for: creating default project config files
+cat_default_project_config() {
+    # Add the project-level settings
+    echo -en "\n# Project-level settings\n"
+    for key in "${PROJECT_KEYS[@]}"; do
+        # Skip the CLI versions of project settings
+        [[ "$key" == *_CLI ]] && continue
+        printf '%s=\n' "$key"
+    done
+
+    # Append the global configs to enable project overrides
+    cat_default_config
+}
+
+# Write default (pass-through) workflow config assignments to stdout
+# Used for: creating default workflow config files
+cat_default_workflow_config() {
+    # Add the project-level overrides and workflow-specific settings
+    echo -en "\n# Workflow-specific settings\n"
+    for key in "${PROJECT_KEYS[@]}"; do
+        # Skip the CLI versions of project settings
+        [[ "$key" == *_CLI ]] && continue
+        printf '%s=\n' "$key"
+    done
+    for key in "${WORKFLOW_KEYS[@]}"; do
+        # Skip the CLI versions of workflow settings
+        [[ "$key" == *_CLI ]] && continue
+        printf '%s=\n' "$key"
+    done
+
+    # Append the global configs to enable workflow overrides
+    cat_default_config
+}
+
+# Extract config values from a config file and emit as key=value pairs
+# for decoding by the load_*_config functions
+# This function needs to be updated when new config settings are added.
 # Args:
 #   $1 - Config file path
 # Returns:
 #   Outputs key=value pairs to stdout (one per line)
-#   Arrays are space-separated
+#   Array values are escaped, quoted, and space-separated
 #   Empty/unset values output as "KEY="
 extract_config() {
     local config_file="$1"
 
     # Source config in subshell and extract all config values
+    # Output key=value pairs for all config variables
+    # Handle arrays - output quoted, escapeds, and space-separated
     (
-        # Suppress errors if config doesn't exist or has issues
         source "$config_file" 2>/dev/null || true
 
-        # Output key=value pairs for all config variables
+        # Scalars
         echo "MODEL=${MODEL:-}"
         echo "TEMPERATURE=${TEMPERATURE:-}"
         echo "MAX_TOKENS=${MAX_TOKENS:-}"
-        echo "OUTPUT_FORMAT=${OUTPUT_FORMAT:-}"
         echo "ENABLE_CITATIONS=${ENABLE_CITATIONS:-}"
-        # Handle arrays - output space-separated
-        echo "SYSTEM_PROMPTS=${SYSTEM_PROMPTS[*]:-}"
-        echo "INPUT_PATTERN=${INPUT_PATTERN:-}"
-        echo "INPUT_FILES=${INPUT_FILES[*]:-}"
+        echo "OUTPUT_FORMAT=${OUTPUT_FORMAT:-}"
+
+        # Arrays - output as single-line bash array syntax with printf %q
+        printf 'SYSTEM_PROMPTS='
+        printf '('
+        printf '%q ' "${SYSTEM_PROMPTS[@]}"
+        printf ')\n'
+
+        # User environment variables
+        echo "WIREFLOW_PROMPT_PREFIX=${WIREFLOW_PROMPT_PREFIX:-}"
+        echo "WIREFLOW_TASK_PREFIX=${WIREFLOW_TASK_PREFIX:-}"
+        echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}"
+
+        # Workflow parameters
         echo "CONTEXT_PATTERN=${CONTEXT_PATTERN:-}"
-        echo "CONTEXT_FILES=${CONTEXT_FILES[*]:-}"
-        echo "DEPENDS_ON=${DEPENDS_ON[*]:-}"
+
+        printf 'CONTEXT_FILES='
+        printf '('
+        printf '%q ' "${CONTEXT_FILES[@]}"
+        printf ')\n'
+
+        printf 'DEPENDS_ON='
+        printf '('
+        printf '%q ' "${DEPENDS_ON[@]}"
+        printf ')\n'
+
+        echo "INPUT_PATTERN=${INPUT_PATTERN:-}"
+
+        printf 'INPUT_FILES='
+        printf '('
+        printf '%q ' "${INPUT_FILES[@]}"
+        printf ')\n'
+
+        echo "EXPORT_FILE=${EXPORT_FILE:-}"
     )
 }
 
 # =============================================================================
-# Global Configuration Management
+# Global Configuration
 # =============================================================================
-
-# Global config directory and file paths
-GLOBAL_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/wireflow"
-GLOBAL_CONFIG_FILE="$GLOBAL_CONFIG_DIR/config"
 
 # Ensure global config directory and file exist
 # Creates default config with hard-coded defaults if missing
@@ -91,6 +163,191 @@ ensure_global_config() {
     return 0
 }
 
+# Create default global config file with dynamic built-in defaults
+# Create default system prompts directory with meta and base prompts
+# Create default tasks directory with built-in templates
+# Returns: 0 on success, 1 on error
+create_default_global_config() {
+    # Create system prompt directory structure
+    local system_dir="$GLOBAL_CONFIG_DIR/prompts/system"
+    if ! mkdir -p "$system_dir" 2>/dev/null; then
+        echo "Warning: Cannot create system prompt directory: $system_dir" >&2
+        return 1
+    fi
+
+    # Create task template directory structure
+    local task_dir="$GLOBAL_CONFIG_DIR/prompts/tasks"
+    if ! mkdir -p "$task_dir" 2>/dev/null; then
+        echo "Warning: Cannot create task template directory: $task_dir" >&2
+        # Non-fatal, continue
+    fi
+
+    # Create meta system prompt (automatically included first, not user-configurable)
+    cat > "$system_dir/meta.txt" <<'META_PROMPT_EOF'
+<system-component>
+  <metadata>
+    <name>meta</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <workflow-context>
+      You are assisting with a workflow-based task using the WireFlow CLI tool.
+
+      STRUCTURE:
+      - System blocks: Meta prompt (this), user system prompts, optional project description, current date
+      - User blocks: Context materials, input documents, task (in optimized order)
+
+      CONTENT:
+      User content provided in order: PDFs → text documents → images → task
+      - Context: Supporting information (wrapped in &lt;metadata type="context"&gt;)
+      - Input: Primary materials to analyze (wrapped in &lt;metadata type="input"&gt;)
+      - Dependency: Outputs from prior workflows (wrapped in &lt;metadata type="dependency"&gt;)
+      - PDFs: Joint text+visual analysis (citable with document indices)
+      - Text files: Various formats (citable with document indices)
+      - Images: Vision API (not citable)
+      - Task: Final block with your objective (wrapped in &lt;task&gt;)
+
+      PROJECT:
+      May include nested project hierarchy. Configuration cascade enables project-specific customization.
+
+      Produce well-structured output directly addressing the task using provided context and inputs.
+    </workflow-context>
+  </content>
+</system-component>
+META_PROMPT_EOF
+
+    # Create default base system prompt
+    cat > "$system_dir/base.txt" <<'PROMPT_EOF'
+<system-component>
+  <metadata>
+    <name>base</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <system>
+      You are a helpful AI assistant supporting workflow-based content development and analysis.
+
+      Your role is to assist users with various tasks including:
+      - Research synthesis and literature analysis
+      - Content drafting and refinement
+      - Data analysis and interpretation
+      - Technical writing and documentation
+      - Creative ideation and brainstorming
+      - Structured problem-solving
+
+      When responding:
+      - Provide clear, well-organized outputs
+      - Use appropriate formatting (Markdown, JSON, etc. as requested)
+      - Cite sources and reasoning when relevant
+      - Break down complex tasks into manageable steps
+      - Maintain consistency across workflow stages
+      - Build upon context from previous workflow outputs
+
+      Focus on producing high-quality, actionable content that advances the user's project goals.
+    </system>
+  </content>
+</system-component>
+PROMPT_EOF
+
+    # Create built-in task templates
+    create_builtin_task_templates "$task_dir"
+
+    # Create global config file with dynamic interpolation of built-in defaults
+    cat > "$GLOBAL_CONFIG_FILE" <<EOF
+# Global Wireflow Configuration
+# ~/.config/wireflow/config
+#
+# Configuration Cascade:
+#   builtin defaults → global config → ancestor → project → workflow → CLI
+#
+# How to set values:
+#   - Leave EMPTY to use builtin default:     MODEL=
+#   - Set VALUE to override builtin:          MODEL=claude-opus-4
+#
+# This file sets defaults for all Wireflow projects and workflows.
+# Run 'wfw config' from any project to view effective configuration.
+
+# =============================================================================
+# Configuration Parameters
+# =============================================================================
+
+# API Request Parameters
+MODEL=$BUILTIN_MODEL
+TEMPERATURE=$BUILTIN_TEMPERATURE
+MAX_TOKENS=$BUILTIN_MAX_TOKENS
+ENABLE_CITATIONS=$BUILTIN_ENABLE_CITATIONS
+SYSTEM_PROMPTS=(${BUILTIN_SYSTEM_PROMPTS[@]})
+OUTPUT_FORMAT=$BUILTIN_OUTPUT_FORMAT
+
+# User-Environment Variables
+WIREFLOW_PROMPT_PREFIX=$BUILTIN_WIREFLOW_PROMPT_PREFIX
+WIREFLOW_TASK_PREFIX=$BUILTIN_WIREFLOW_TASK_PREFIX
+
+# Anthropic API Key
+# WARNING: Storing API keys in plain text poses security risks.
+# Recommended: Set as environment variable in ~/.bashrc instead:
+#   export ANTHROPIC_API_KEY="sk-ant-..."
+# If both are set, environment variable takes precedence.
+# ANTHROPIC_API_KEY=$BUILTIN_ANTHROPIC_API_KEY
+
+# =============================================================================
+# Configuration Guide
+# =============================================================================
+#
+# Scalar Variables:
+#   Leave EMPTY to use builtin:    TEMPERATURE=
+#   Set VALUE to override:         TEMPERATURE=0.7
+#
+# Array Variables (SYSTEM_PROMPTS):
+# ┌──────────────────────────┬─────────────────────────────────────┐
+# │ Syntax                   │ Behavior                            │
+# ├──────────────────────────┼─────────────────────────────────────┤
+# │ SYSTEM_PROMPTS=          │ Use builtin (pass-through)          │
+# │ SYSTEM_PROMPTS=()        │ Clear (no prompts)                  │
+# │ SYSTEM_PROMPTS=(base)    │ Replace (override builtin)          │
+# │ SYSTEM_PROMPTS+=(custom) │ Append (add to builtin)             │
+# └──────────────────────────┴─────────────────────────────────────┘
+#
+# System Prompts:
+#   Prompt files are loaded from \$WIREFLOW_PROMPT_PREFIX/{name}.txt
+#   Default prompts created at: $BUILTIN_WIREFLOW_PROMPT_PREFIX/{meta,base}.txt
+#
+#   Examples:
+#     SYSTEM_PROMPTS=(base)              # Use base prompt only
+#     SYSTEM_PROMPTS=(base research)     # Use base + research prompts
+#     SYSTEM_PROMPTS+=(custom)           # Add custom to builtin
+#
+# Task Files:
+#   Named task files stored in: \$WIREFLOW_TASK_PREFIX/{name}.txt
+#   Used by: wfw task NAME
+#
+# API Key Security:
+#   Environment variable (recommended):
+#     export ANTHROPIC_API_KEY="sk-ant-..."
+#   
+#   Config file (less secure):
+#     ANTHROPIC_API_KEY="sk-ant-..."
+#
+# Model Options:
+#   claude-opus-4      - Highest capability, complex reasoning
+#   claude-sonnet-4-5  - Balanced quality and speed (default)
+#   claude-haiku-4     - Fast, efficient for simple tasks
+#
+# Temperature Guide:
+#   0.0-0.4  - Focused, deterministic (analysis, code)
+#   0.5-0.7  - Balanced (general writing)
+#   0.8-1.0  - Creative, varied (brainstorming)
+#
+# Output Formats:
+#   md    - Markdown (default)
+#   txt   - Plain text
+#   json  - JSON structure
+#   html  - HTML document
+EOF
+
+    return $?
+}
+
 # Create built-in task templates
 # Args:
 #   $1 - task_dir: Directory where task templates should be created
@@ -101,6 +358,30 @@ create_builtin_task_templates() {
     # Only create if directory exists and is writable
     [[ -d "$task_dir" && -w "$task_dir" ]] || return 0
 
+    # default.txt - Default task template
+    cat > "$task_dir/default.txt" <<'TASK_EOF'
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Summarize the following content:
+    </description>
+    <instructions>
+      - Brief overview (2-3 sentences)
+      - Key points (bullet list)
+      - Main conclusions or next steps
+    </instructions>
+    <output-format>
+      Markdown format with clear headers for each section
+    </output-format>
+  </content>
+</user-task>
+TASK_EOF
+
+    #TODO fix builtin task templates with incomplete XML structure
     # summarize.txt
     cat > "$task_dir/summarize.txt" <<'TASK_EOF'
 <description>
@@ -327,428 +608,310 @@ TASK_EOF
     return 0
 }
 
-# Create default global config file with hard-coded defaults
-# Also creates default system prompt directory and base.txt
-# Returns: 0 on success, 1 on error
-create_default_global_config() {
-    # Create system prompt directory
-    local prompt_dir="$GLOBAL_CONFIG_DIR/prompts"
-    if ! mkdir -p "$prompt_dir" 2>/dev/null; then
-        echo "Warning: Cannot create system prompt directory: $prompt_dir" >&2
-        return 1
+# =============================================================================
+# Load Configuration with Source Tracking
+# =============================================================================
+
+# Track loaded config files to prevent duplicates
+declare -A LOADED_CONFIGS=()
+
+# Generic config loader with source tracking
+# Arguments:
+#   $1 - Config file path
+#   $2 - Source level name (e.g., "global", "project", "workflow", or ancestor path)
+# Returns:
+#   0 on success, 1 if config file not found
+load_config_level() {
+    local config_file="$1"
+    local source_level="$2"
+
+    [[ -z "$config_file" || ! -f "$config_file" ]] && return 1
+
+    # Ensure associative arrays are properly declared (needed for subshell/test contexts)
+    if ! declare -p LOADED_CONFIGS 2>/dev/null | grep -q '^declare -A'; then
+        declare -gA LOADED_CONFIGS=()
+    fi
+    if ! declare -p CONFIG_SOURCE_MAP 2>/dev/null | grep -q '^declare -A'; then
+        declare -gA CONFIG_SOURCE_MAP=()
+    fi
+    if ! declare -p USER_ENV_SOURCE_MAP 2>/dev/null | grep -q '^declare -A'; then
+        declare -gA USER_ENV_SOURCE_MAP=()
+    fi
+    if ! declare -p PROJECT_SOURCE_MAP 2>/dev/null | grep -q '^declare -A'; then
+        declare -gA PROJECT_SOURCE_MAP=()
+    fi
+    if ! declare -p WORKFLOW_SOURCE_MAP 2>/dev/null | grep -q '^declare -A'; then
+        declare -gA WORKFLOW_SOURCE_MAP=()
     fi
 
-    # Create task template directory
-    local task_dir="$GLOBAL_CONFIG_DIR/tasks"
-    if ! mkdir -p "$task_dir" 2>/dev/null; then
-        echo "Warning: Cannot create task template directory: $task_dir" >&2
-        # Non-fatal, continue
-    fi
+    # Get real path for tracking config file loading
+    local abs_config_file
+    abs_config_file="$(real_path "$config_file")" || return 1
 
-    # Create meta system prompt (automatically included first, not user-configurable)
-    cat > "$prompt_dir/meta.txt" <<'META_PROMPT_EOF'
-<workflow-context>
-You are assisting with a workflow-based task using the Workflow CLI tool.
-
-STRUCTURE:
-- System blocks: Meta prompt (this), user system prompts, optional project description, current date
-- User blocks: Context materials, input documents, task (in optimized order)
-
-CONTENT:
-User content provided in order: PDFs → text documents → images → task
-- Context: Supporting information (wrapped in <metadata type="context">)
-- Input: Primary materials to analyze (wrapped in <metadata type="input">)
-- Dependency: Outputs from prior workflows (wrapped in <metadata type="dependency">)
-- PDFs: Joint text+visual analysis (citable with document indices)
-- Text files: Various formats (citable with document indices)
-- Images: Vision API (not citable)
-- Task: Final block with your objective (wrapped in <task>)
-
-PROJECT:
-May include nested project hierarchy. Configuration cascade enables project-specific customization.
-
-Produce well-structured output directly addressing the task using provided context and inputs.
-</workflow-context>
-META_PROMPT_EOF
-
-    # Create default base system prompt
-    cat > "$prompt_dir/base.txt" <<'PROMPT_EOF'
-<system>
-You are a helpful AI assistant supporting workflow-based content development and analysis.
-
-Your role is to assist users with various tasks including:
-
-- Research synthesis and literature analysis
-- Content drafting and refinement
-- Data analysis and interpretation
-- Technical writing and documentation
-- Creative ideation and brainstorming
-- Structured problem-solving
-
-When responding:
-
-- Provide clear, well-organized outputs
-- Use appropriate formatting (Markdown, JSON, etc. as requested)
-- Cite sources and reasoning when relevant
-- Break down complex tasks into manageable steps
-- Maintain consistency across workflow stages
-- Build upon context from previous workflow outputs
-
-Focus on producing high-quality, actionable content that advances the user's project goals.
-</system>
-PROMPT_EOF
-
-    # Create built-in task templates
-    create_builtin_task_templates "$task_dir"
-
-    # Create global config file
-    cat > "$GLOBAL_CONFIG_FILE" <<'EOF'
-# Global WireFlow Configuration
-# ~/.config/wireflow/config
-#
-# This file sets default values for all wireflow projects.
-# Configuration cascade: global → project → workflow → CLI flags
-#
-# Each tier inherits from the previous tier when values are empty.
-# Set explicit values here to change defaults for all projects.
-
-# =============================================================================
-# API Configuration
-# =============================================================================
-
-# Model to use for API requests
-# Default: claude-sonnet-4-5
-# Examples: claude-opus-4, claude-sonnet-4-5, claude-haiku-4
-MODEL="claude-sonnet-4-5"
-
-# Temperature for generation (0.0 = deterministic, 1.0 = creative)
-# Default: 1.0
-TEMPERATURE=1.0
-
-# Maximum tokens to generate
-# Default: 4096
-MAX_TOKENS=4096
-
-# Output file format/extension
-# Default: md
-# Options: md, txt, json, html, etc.
-OUTPUT_FORMAT="md"
-
-# Enable citations for document analysis
-# Default: false
-# When true, context and input documents use citations.enabled=true
-ENABLE_CITATIONS=false
-
-# =============================================================================
-# System Prompts
-# =============================================================================
-
-# System prompt files to concatenate (space-separated or array syntax)
-# Files are loaded from $WIREFLOW_PROMPT_PREFIX/{name}.txt
-# Default: (base)
-SYSTEM_PROMPTS=(base)
-
-# System prompt directory (contains prompt .txt files)
-# Default prompt included at ~/.config/wireflow/prompts/base.txt
-# Override to use custom prompt directory
-WIREFLOW_PROMPT_PREFIX="$HOME/.config/wireflow/prompts"
-
-# =============================================================================
-# Task Files
-# =============================================================================
-
-# Task file directory (contains named task .txt files)
-# Used by 'wireflow task NAME' subcommand
-# Built-in task templates are created automatically on first use
-WIREFLOW_TASK_PREFIX="$HOME/.config/wireflow/tasks"
-
-# =============================================================================
-# Optional: API Credentials
-# =============================================================================
-
-# Anthropic API key
-# WARNING: Storing API keys in plain text poses security risks on shared systems.
-# Recommended: Set as environment variable in ~/.bashrc instead:
-#   export ANTHROPIC_API_KEY="sk-ant-..."
-# If both config file and environment variable are set, environment variable takes precedence.
-# ANTHROPIC_API_KEY=""
-
-EOF
-    return $?
-}
-
-# Find ancestor project roots (excluding current project)
-# Returns newline-separated paths from oldest to newest ancestor
-# Args: $1 = current project root
-find_ancestor_projects() {
-    local current="$1"
-
-    # Get all project roots from current location
-    local all_roots
-    all_roots=$(cd "$current" && find_all_project_roots) || return 1
-
-    # Filter out current project, keep only ancestors
-    local ancestors=()
-    while IFS= read -r root; do
-        if [[ "$root" != "$current" ]]; then
-            ancestors+=("$root")
-        fi
-    done <<< "$all_roots"
-
-    # Reverse array to get oldest first
-    local reversed=()
-    for ((i=${#ancestors[@]}-1; i>=0; i--)); do
-        reversed+=("${ancestors[i]}")
-    done
-
-    # Output newline-separated
-    if [[ ${#reversed[@]} -gt 0 ]]; then
-        printf '%s\n' "${reversed[@]}"
+    # Skip if already loaded
+    if [[ -v LOADED_CONFIGS[$abs_config_file] ]]; then
         return 0
-    else
-        return 1
     fi
+
+    # Mark as loaded
+    LOADED_CONFIGS[$abs_config_file]=1
+    
+    while IFS='=' read -r key value; do
+        # Skip empty scalar assignments to enable parameter pass-through
+        [[ -z "$value" ]] && continue
+
+        # Skip empty array assignments (serialized as "('' )")
+        if [[ "$value" =~ ^\([[:space:]]*\'\'[[:space:]]*\)$ ]]; then
+            continue
+        fi
+
+        # Auto-detect array variables
+        if declare -p "$key" 2>/dev/null | grep -q '^declare -a'; then
+            # Parse array syntax with eval
+            eval "$key=$value"
+
+            # Update appropriate source map
+            if [[ -v CONFIG_SOURCE_MAP[$key] ]]; then
+                CONFIG_SOURCE_MAP[$key]="$source_level"
+            elif [[ -v PROJECT_SOURCE_MAP[$key] ]]; then
+                PROJECT_SOURCE_MAP[$key]="$source_level"
+            elif [[ -v WORKFLOW_SOURCE_MAP[$key] ]]; then
+                WORKFLOW_SOURCE_MAP[$key]="$source_level"
+            fi
+        # Handle scalar variables
+        elif [[ -v CONFIG_SOURCE_MAP[$key] ]]; then
+            printf -v "$key" '%s' "$value"
+            CONFIG_SOURCE_MAP[$key]="$source_level"
+        elif [[ -v USER_ENV_SOURCE_MAP[$key] ]]; then
+            # Skip user-env variables if already set from the environment
+            [[ "${USER_ENV_SOURCE_MAP[$key]}" == "env" ]] && continue
+            # Override builtin value with config value
+            printf -v "$key" '%s' "$value"
+            USER_ENV_SOURCE_MAP[$key]="$source_level"
+        elif [[ -v PROJECT_SOURCE_MAP[$key] ]]; then
+            printf -v "$key" '%s' "$value"
+            PROJECT_SOURCE_MAP[$key]="$source_level"
+        elif [[ -v WORKFLOW_SOURCE_MAP[$key] ]]; then
+            printf -v "$key" '%s' "$value"
+            WORKFLOW_SOURCE_MAP[$key]="$source_level"
+        fi
+    done < <(extract_config "$config_file" 2>/dev/null || true)
 }
 
-# Load configuration cascade from ancestor projects
-# Loads configs from all ancestor projects (oldest to newest)
-# Tracks which ancestor set each configuration value
-# Args: $1 = current project root
-# Side effects:
-#   Sets: MODEL, TEMPERATURE, MAX_TOKENS, OUTPUT_FORMAT, SYSTEM_PROMPTS (if non-empty in configs)
-#   Sets: CONFIG_SOURCE_MAP (associative array tracking source for each key)
+# Load global configuration from ~/.config/wireflow/config
+# Handles environment variable precedence for API key and path prefixes
+# Silently fall back to builtin default values if file unavailable
+load_global_config() {
+    load_config_level "${1:-$GLOBAL_CONFIG_FILE}" "global"
+}
+
+# Loads configs from ancestor projects
 load_ancestor_configs() {
-    local current_root="$1"
-
-    # Initialize source tracking map
-    declare -gA CONFIG_SOURCE_MAP
-
-    # Get ancestors (oldest first)
     local ancestors
-    ancestors=$(find_ancestor_projects "$current_root") || return 0
+    ancestors=$(find_ancestor_projects) || return 1
 
     # Load each ancestor config in order
     while IFS= read -r ancestor; do
         local config_file="$ancestor/.workflow/config"
-        [[ ! -f "$config_file" ]] && continue
-
-        while IFS='=' read -r key value; do
-            [[ -z "$value" ]] && continue
-            case "$key" in
-                MODEL|TEMPERATURE|MAX_TOKENS|OUTPUT_FORMAT|SYSTEM_PROMPTS)
-                    # Set value and track source
-                    case "$key" in
-                        SYSTEM_PROMPTS)
-                            SYSTEM_PROMPTS=($value)
-                            ;;
-                        *)
-                            eval "$key=\"$value\""
-                            ;;
-                    esac
-                    CONFIG_SOURCE_MAP[$key]="$ancestor"
-                    ;;
-            esac
-        done < <(extract_config "$config_file")
+        load_config_level "$config_file" "$ancestor"
     done <<< "$ancestors"
 }
 
-# Load global configuration with fallback to hard-coded defaults
-# Reads from ~/.config/wireflow/config if exists
-# Handles environment variable precedence for API key and prompt prefix
-# Always succeeds (uses fallbacks if global config unavailable)
-#
-# Side effects:
-#   Sets: MODEL, TEMPERATURE, MAX_TOKENS, OUTPUT_FORMAT, SYSTEM_PROMPTS
-#   May set: ANTHROPIC_API_KEY, WIREFLOW_PROMPT_PREFIX (if not in env)
-load_global_config() {
-    # Start with hard-coded fallbacks
-    local FALLBACK_MODEL="claude-sonnet-4-5"
-    local FALLBACK_TEMPERATURE=1.0
-    local FALLBACK_MAX_TOKENS=4096
-    local FALLBACK_OUTPUT_FORMAT="md"
-    local FALLBACK_ENABLE_CITATIONS=false
+# Load config from current project
+load_project_config() {
+    load_config_level "${1:-$PROJECT_CONFIG}" "project"
+}
 
-    MODEL="$FALLBACK_MODEL"
-    TEMPERATURE="$FALLBACK_TEMPERATURE"
-    MAX_TOKENS="$FALLBACK_MAX_TOKENS"
-    OUTPUT_FORMAT="$FALLBACK_OUTPUT_FORMAT"
-    ENABLE_CITATIONS="$FALLBACK_ENABLE_CITATIONS"
-    SYSTEM_PROMPTS=(base)
+# Load config for a given workflow in the current project
+load_workflow_config() {
+    local config_file="${1:-$WORKFLOW_CONFIG}"
 
-    # Try to load global config if it exists
-    if [[ -f "$GLOBAL_CONFIG_FILE" ]]; then
-        # Source config and extract values
-        while IFS='=' read -r key value; do
-            case "$key" in
-                MODEL) [[ -n "$value" ]] && MODEL="$value" ;;
-                TEMPERATURE) [[ -n "$value" ]] && TEMPERATURE="$value" ;;
-                MAX_TOKENS) [[ -n "$value" ]] && MAX_TOKENS="$value" ;;
-                OUTPUT_FORMAT) [[ -n "$value" ]] && OUTPUT_FORMAT="$value" ;;
-                ENABLE_CITATIONS) [[ -n "$value" ]] && ENABLE_CITATIONS="$value" ;;
-                SYSTEM_PROMPTS) [[ -n "$value" ]] && SYSTEM_PROMPTS=($value) ;;
-                ANTHROPIC_API_KEY)
-                    # Only use config value if env var not already set
-                    if [[ -z "$ANTHROPIC_API_KEY" && -n "$value" ]]; then
-                        ANTHROPIC_API_KEY="$value"
-                    fi
-                    ;;
-                WIREFLOW_PROMPT_PREFIX)
-                    # Only use config value if env var not already set
-                    if [[ -z "$WIREFLOW_PROMPT_PREFIX" && -n "$value" ]]; then
-                        WIREFLOW_PROMPT_PREFIX="$value"
-                    fi
-                    ;;
-                WIREFLOW_TASK_PREFIX)
-                    # Only use config value if env var not already set
-                    if [[ -z "$WIREFLOW_TASK_PREFIX" && -n "$value" ]]; then
-                        WIREFLOW_TASK_PREFIX="$value"
-                    fi
-                    ;;
-            esac
-        done < <(extract_config "$GLOBAL_CONFIG_FILE" 2>/dev/null || true)
+    if [[ -n "$config_file" && ! -f "$config_file" ]]; then
+        echo "Error: Workflow '$WORKFLOW_NAME' config not found" >&2
+        echo "Run '$SCRIPT_NAME new $WORKFLOW_NAME' to create it." >&2
+        return 1
     fi
 
-    return 0
+    load_config_level "$config_file" "workflow"
 }
 
 # =============================================================================
 # Configuration Display Helpers
 # =============================================================================
 
-# Load configuration cascade for project (Tiers 1-3)
-# Loads global config → ancestor configs → project config
-# Updates CONFIG_VALUE array with final values after each tier
-#
-# Args:
-#   $1 - PROJECT_ROOT (required)
-# Side effects:
-#   Sets: MODEL, TEMPERATURE, MAX_TOKENS, OUTPUT_FORMAT, SYSTEM_PROMPTS
-#   Updates: CONFIG_VALUE associative array
-#   Updates: CONFIG_SOURCE_MAP via load_ancestor_configs()
-load_project_config_tiers() {
-    local PROJECT_ROOT="$1"
-
-    # Tier 1: Load global config
-    load_global_config
-
-    # Track initial values
-    declare -gA CONFIG_VALUE
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
-
-    # Tier 2: Ancestor project cascade
-    load_ancestor_configs "$PROJECT_ROOT"
-
-    # Update values after ancestor cascade
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
-
-    # Tier 3: Current project config (only apply non-empty values)
-    if [[ -f "$PROJECT_ROOT/.workflow/config" ]]; then
-        while IFS='=' read -r key value; do
-            [[ -z "$value" ]] && continue
-            case "$key" in
-                MODEL|TEMPERATURE|MAX_TOKENS|OUTPUT_FORMAT)
-                    eval "$key=\"$value\""
-                    CONFIG_SOURCE_MAP[$key]="project"
-                    ;;
-                SYSTEM_PROMPTS)
-                    SYSTEM_PROMPTS=($value)
-                    CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="project"
-                    ;;
-            esac
-        done < <(extract_config "$PROJECT_ROOT/.workflow/config")
+# Format config source for display
+# Arguments:
+#   $1 - Source from *_SOURCE_MAP value or a path
+# Returns:
+#   stdout - source label or path string for display
+display_config_source() {
+    local source="$1"
+    if [[ -z "$source" ]]; then
+        echo "none"
+    elif [[ "$source" =~ unset|builtin|env|global|project|workflow ]]; then
+        echo "$source"
+    elif [[ -d "$source" ]]; then
+        echo "ancestor:$(display_absolute_path "$source")"
+    else
+        echo "$(sanitize "$source")"
     fi
-
-    # Update final values
-    CONFIG_VALUE[MODEL]="$MODEL"
-    CONFIG_VALUE[TEMPERATURE]="$TEMPERATURE"
-    CONFIG_VALUE[MAX_TOKENS]="$MAX_TOKENS"
-    CONFIG_VALUE[OUTPUT_FORMAT]="$OUTPUT_FORMAT"
-    CONFIG_VALUE[SYSTEM_PROMPTS]="${SYSTEM_PROMPTS[*]}"
 }
 
-# Display configuration cascade hierarchy
-# Shows cascade path: Global → Ancestors → Project → [Workflow]
-#
-# Args:
-#   $1 - global_config_path (formatted with ~/)
-#   $2 - project_root (absolute path)
-#   $3 - workflow_dir (optional, absolute path)
-display_config_cascade_hierarchy() {
-    local global_display="$1"
-    local project_root="$2"
-    local workflow_dir="${3:-}"
+# Check config file status for display note
+# Arguments:
+#   $1 - Config file path, required
+# Returns:
+#   stdout - status note that can be appended to a path string
+display_config_note() {
+    local config_path="$1"
+    [[ -z "$config_path" ]] && {
+        echo "display_config_note: config path required" >&2
+        exit 1
+    }
 
-    # Format project display path
-    local project_display
-    project_display=$(format_path_with_tilde "$project_root")
+    # Create note with config file status
+    local note=""
+    if [[ ! -e "$config_path" ]]; then
+        note=" [file missing]"
+    elif [[ ! -s "$config_path" ]]; then
+        note=" [empty config]"
+    elif [[ ! -r "$config_path" ]]; then
+        note=" [not readable]"
+    elif ! bash -n "$config_path" 2>/dev/null; then
+        note=" [syntax errors]"
+    else
+        note=" [OK]"
+    fi
+    echo "$note"
+}
 
-    echo "Configuration Cascade:"
-    echo "  Global:   $global_display"
-
-    # Display each ancestor project
+# Show a report of detected config cascade paths
+# Arguments:
+#   $1 - Global config path, optional
+#   $2 - Project root path, optional
+#   $3 - Workflow directory, optional
+show_config_paths() {
+    local global_config="${1:-$GLOBAL_CONFIG_FILE}"
+    local wireflow_config=".workflow/config"
+    local indent="  "
+    local config
+    local note
+    local display
     local ancestors
-    if ancestors=$(find_ancestor_projects "$project_root" 2>/dev/null); then
+
+    # Display global config path
+    display="$(display_absolute_path "$global_config")"
+    note="$(display_config_note "$global_config")"
+    echo "Configuration Paths:"
+    printf "${indent}%-12s%-55s%s\n" "Global:" "$display" "$note"
+
+    # Display ancestor paths
+    if ancestors=$(find_ancestor_projects); then
         while IFS= read -r ancestor; do
-            local ancestor_display
-            ancestor_display=$(format_path_with_tilde "$ancestor")
-            echo "  Ancestor: $ancestor_display/.workflow/config"
+            config="$ancestor/$wireflow_config"
+            display="$(display_absolute_path "$config")"
+            note="$(display_config_note "$config")"
+            printf "${indent}%-12s%-55s%s\n" "Ancestor:" "$display" "$note"
         done <<< "$ancestors"
     fi
 
-    echo "  Project:  $project_display/.workflow/config"
+    # Display project path
+    local project_config="${2:-$PROJECT_CONFIG}"
+    if [[ -n "$project_config" ]]; then
+        display="$(display_absolute_path "$project_config")"
+        note="$(display_config_note "$project_config")"
+        printf "${indent}%-12s%-55s%s\n" "Project:" "$display" "$note"
 
-    # Add workflow tier if provided
-    if [[ -n "$workflow_dir" ]]; then
-        local workflow_display
-        workflow_display=$(format_path_with_tilde "$workflow_dir")
-        echo "  Workflow: $workflow_display/config"
+        # Display workflow path
+        local workflow_dir="${3:-$WORKFLOW_DIR}"
+        if [[ -n "$workflow_dir" ]]; then
+            display="$(display_absolute_path "$workflow_dir/config")"
+            note="$(display_config_note "$workflow_dir/config")"
+            printf "${indent}%-12s%-55s%s\n" "Workflow:" "$display" "$note"
+        fi
     fi
-
-    echo ""
 }
 
-# Display effective configuration values with sources
-# Shows the 5 main config parameters with their source tier
-#
-# Requires:
-#   CONFIG_VALUE associative array (set by load_project_config_tiers)
-#   CONFIG_SOURCE_MAP associative array (set by load_ancestor_configs)
-display_effective_config_values() {
-    echo "Effective Configuration:"
+# Show a report of effective configuration values and sources
+# Arguments:
+#   $1 - Project root path, optional
+#   $2 - Workflow name, optional
+show_effective_config() {
+    local project_root="${1:-$PROJECT_ROOT}"
+    local workflow_name="${2:-$WORKFLOW_NAME}"
+    local indent="  "
 
-    # Use CONFIG_SOURCE_MAP if keys exist, otherwise default to "global"
-    local model_source="${CONFIG_SOURCE_MAP[MODEL]:-global}"
-    local temp_source="${CONFIG_SOURCE_MAP[TEMPERATURE]:-global}"
-    local tokens_source="${CONFIG_SOURCE_MAP[MAX_TOKENS]:-global}"
-    local prompts_source="${CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]:-global}"
-    local format_source="${CONFIG_SOURCE_MAP[OUTPUT_FORMAT]:-global}"
+    # Helper function to print configs from a source-map array
+    print_config() {
+        local -n keys=$1
+        local -n source_map=$2
+        local title="${3:-"Configuration Values"}"
+        local indent="$4"
 
-    # Helper function to format source (from lib/core.sh, duplicated here for clarity)
-    format_config_source() {
-        local source="$1"
-        if [[ "$source" == "global" || "$source" == "workflow" || "$source" == "project" ]]; then
-            echo "$source"
-        elif [[ "$source" =~ ^/ ]]; then
-            local rel_path
-            rel_path=$(format_path_with_tilde "$source")
-            echo "ancestor:$(basename "$source")"
-        else
-            echo "$source"
+        # Check if array has any entries
+        if [[ ${#source_map[@]} -eq 0 ]]; then
+            echo "$indent$title: (none)"
+            return
         fi
+
+        # Print config values and sources
+        echo "$indent$title:"
+        for key in "${keys[@]}"; do
+            local display_value
+            local is_array=false
+
+            # Check if this is an array variable
+            if declare -p "$key" 2>/dev/null | grep -q '^declare -a'; then
+                is_array=true
+                local -n arr="$key"
+
+                if [[ ${#arr[@]} -eq 0 ]]; then
+                    display_value="()"
+                elif [[ ${#arr[@]} -eq 1 ]]; then
+                    # Single element
+                    display_value="${arr[0]}"
+                else
+                    # Multiple elements - will show on separate lines
+                    display_value="(${#arr[@]} items)"
+                fi
+                unset -n arr
+            else
+                # Regular scalar variable
+                display_value="${!key}"
+
+                # Truncate sensitive values
+                if [[ "$key" == *"API_KEY"* ]] || [[ "$key" == *"SECRET"* ]]; then
+                    display_value="${display_value:0:10}..."
+                elif [[ "$key" == *"_PATH" ]] || [[ "$key" == *"_PREFIX" ]]; then
+                    display_value="$(display_absolute_path "$display_value")"
+                fi
+            fi
+
+            # Print the parameter key, value, and source
+            printf "$indent$indent%-65s [%s]\n" "$key = $display_value" "${source_map[$key]}"
+
+            # If array with multiple items, show them indented
+            if $is_array; then
+                local -n arr="$key"
+                if [[ ${#arr[@]} -gt 1 ]]; then
+                    for item in "${arr[@]}"; do
+                        printf "$indent$indent$indent- %s\n" "$item"
+                    done
+                fi
+                unset -n arr
+            fi
+        done
+        printf "\n"
     }
 
-    echo "  MODEL: ${CONFIG_VALUE[MODEL]} ($(format_config_source "$model_source"))"
-    echo "  TEMPERATURE: ${CONFIG_VALUE[TEMPERATURE]} ($(format_config_source "$temp_source"))"
-    echo "  MAX_TOKENS: ${CONFIG_VALUE[MAX_TOKENS]} ($(format_config_source "$tokens_source"))"
-    echo "  SYSTEM_PROMPTS: ${CONFIG_VALUE[SYSTEM_PROMPTS]} ($(format_config_source "$prompts_source"))"
-    echo "  OUTPUT_FORMAT: ${CONFIG_VALUE[OUTPUT_FORMAT]} ($(format_config_source "$format_source"))"
-    echo ""
+    # Call with each source map
+    echo "Effective Configuration:"
+    print_config CONFIG_KEYS CONFIG_SOURCE_MAP "API Request Parameters" "$indent"
+    print_config USER_ENV_KEYS USER_ENV_SOURCE_MAP "User-Environment Variables" "$indent"
+    if [[ -n "$project_root" ]]; then
+        print_config PROJECT_KEYS PROJECT_SOURCE_MAP "Project-Level Settings" "$indent"
+        if [[ -n "$workflow_name" ]]; then
+            print_config WORKFLOW_KEYS WORKFLOW_SOURCE_MAP "Workflow-Specific Settings" "$indent"
+        fi
+    fi
 }
