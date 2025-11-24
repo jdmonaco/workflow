@@ -5,10 +5,7 @@
 # =============================================================================
 # Help text and usage documentation for workflow CLI tool.
 # Provides main help and subcommand-specific help functions.
-# This file is sourced by wireflow.sh.
 # =============================================================================
-
-SCRIPT_NAME="$(basename ${0})"
 
 # =============================================================================
 # Main Help
@@ -16,10 +13,8 @@ SCRIPT_NAME="$(basename ${0})"
 
 show_help() {
     cat <<EOF
+WireFlow - A tool for building flexible AI workflows anywhere
 Usage: $SCRIPT_NAME <subcommand> [options]
-
-WireFlow - A CLI tool for building AI workflows anywhere
-Version: $WIREFLOW_VERSION
 
 Available subcommands:
     init [dir]       Initialize workflow project
@@ -28,10 +23,10 @@ Available subcommands:
     config [NAME]    View/edit configuration
     run NAME         Execute workflow with full context
     task NAME|TEXT   Execute one-off task (lightweight)
-    cat NAME         Display workflow output
-    open NAME        Open workflow output in default app (macOS)
-    list, ls         List workflows in project
-    tasks            Manage task templates
+    cat NAME         Pipe workflow output to your shell
+    open NAME        Open workflow output file in default app (macOS)
+    tasks            Show available task templates
+    list             List workflows in project
     help [CMD]       Show help for subcommand
 
 Use '$SCRIPT_NAME help <subcommand>' for detailed help on a specific command.
@@ -49,13 +44,13 @@ Examples:
 
 Environment variables:
     ANTHROPIC_API_KEY         Your Anthropic API key (required)
-    WIREFLOW_PROMPT_PREFIX    System prompt directory (default: ~/.config/wireflow/prompts)
-    WIREFLOW_TASK_PREFIX      Named task directory (optional, for 'task' subcommand)
+    WIREFLOW_PROMPT_PREFIX    System prompt directory ($(display_absolute_path "$WIREFLOW_PROMPT_PREFIX"))
+    WIREFLOW_TASK_PREFIX      Named task directory ($(display_absolute_path "$WIREFLOW_TASK_PREFIX"))
 
 Configuration:
-    Global config:   ~/.config/wireflow/config
-    Project config:  .workflow/config
-    Workflow config: .workflow/<NAME>/config
+    Global config:   $(display_absolute_path "$GLOBAL_CONFIG_FILE")
+    Project config:  <PROJECT_ROOT>/.workflow/config
+    Workflow config: <PROJECT_ROOT>/.workflow/<NAME>/config
 
 For more information, see README.md or visit the documentation.
 EOF
@@ -144,32 +139,18 @@ Usage: $SCRIPT_NAME new <name> [options]
 Create a new workflow in the current project.
 
 Arguments:
-    <name>         Workflow name (required)
+    <name>        Workflow name (required)
 
 Options:
-    --task <template>  Use task template instead of default skeleton
-    -h, --help         Quick help
-
-Built-in Templates:
-    Use '$SCRIPT_NAME task ls' to see available templates
-
-    summarize     Create concise summary with key points
-    extract       Extract specific information and data
-    analyze       Deep analysis of patterns and insights
-    review        Critical evaluation with suggestions
-    compare       Side-by-side comparison
-    outline       Generate structured outline
-    explain       Simplify complex topics
-    critique      Identify problems and improvements
+    --from-task <template>  Use named task file as a template
+    -h, --help              Quick help
 
 Examples:
     $SCRIPT_NAME new 01-outline
-    $SCRIPT_NAME new paper-summary --task summarize
-    $SCRIPT_NAME new data-analysis --task analyze
+    $SCRIPT_NAME new data-analysis --from-task analyze
 
 See Also:
-    $SCRIPT_NAME task ls           # List all task templates
-    $SCRIPT_NAME task show <name>  # Preview task template
+    $SCRIPT_NAME tasks   # List all task templates
 EOF
 }
 
@@ -221,34 +202,34 @@ Usage: $SCRIPT_NAME run <name> [options]
 Execute a workflow with full context aggregation.
 
 Arguments:
-    <name>         Workflow name (required)
+    <name>                      Workflow name (required)
 
-Input Options (primary documents to analyze):
-    --input-file <file>       Add input document (repeatable)
-    --input-pattern <glob>    Add input files matching pattern
+Input Options (primary documents):
+    --input-file|-in <file>     Add input document (repeatable)
+    --input-pattern <glob>      Add input files matching pattern
 
-Context Options (supporting materials and references):
-    --context-file <file>     Add context file (repeatable)
-    --context-pattern <glob>  Add context files matching pattern
-    --depends-on <workflow>   Include output from another workflow
+Context Options (background and references):
+    --context-file|-cx <file>   Add context file (repeatable)
+    --context-pattern <glob>    Add context files matching pattern
+    --depends-on|-d <workflow>  Include output from another workflow
 
 API Options:
-    --model <model>           Override model
-    --temperature <temp>      Override temperature (0.0-1.0)
-    --max-tokens <num>        Override max tokens
-    --system-prompts <list>   Comma-separated prompt names
-    --output-format <ext>     Output format (md, txt, json, etc.)
-    --enable-citations        Enable Anthropic citations support
-    --disable-citations       Disable citations (default)
+    --model|-m <model>           Override model
+    --temperature|-t <temp>      Override temperature (0.0-1.0)
+    --max-tokens <num>           Override max tokens
+    --system|-p <list>           Comma-separated prompt names
+    --format|-f <ext>            Output format (md, txt, json, etc.)
+    --enable-citations           Enable Anthropic citations support
+    --disable-citations          Disable citations (default)
 
 Output Options:
-    --output-file <path>      Copy output to additional path
+    --output-file|-o <path>      Copy output to additional path
 
 Execution Options:
-    --stream                  Stream output in real-time
-    --count-tokens            Show token estimation only
-    --dry-run                 Save API request files and inspect in editor
-    -h, --help                Quick help
+    --stream|-s                  Stream output in real-time (default: true)
+    --count-tokens               Show token estimation only
+    --dry-run|-n                 Save API request files and inspect in editor
+    --help|-h                    Quick help
 
 Examples:
     $SCRIPT_NAME run 01-analysis --stream
@@ -268,31 +249,31 @@ Task Specification:
     -i, --inline <text>       Inline task specification
 
 Input Options (primary documents to analyze):
-    --input-file <file>       Add input document (repeatable)
+    --input-file|-in <file>   Add input document (repeatable)
     --input-pattern <glob>    Add input files matching pattern
 
 Context Options (supporting materials and references):
-    --context-file <file>     Add context file (repeatable)
+    --context-file|-cx <file> Add context file (repeatable)
     --context-pattern <glob>  Add context files matching pattern
 
 API Options:
-    --model <model>           Override model
-    --temperature <temp>      Override temperature
+    --model|-m <model>        Override model
+    --temperature|-t <temp>   Override temperature
     --max-tokens <num>        Override max tokens
-    --system-prompts <list>   Comma-separated prompt names
-    --output-format <ext>     Output format
+    --system|-p <list>        Comma-separated prompt names
+    --output-format|-f <ext>  Output format
     --enable-citations        Enable Anthropic citations support
     --disable-citations       Disable citations (default)
 
 Output Options:
-    --output-file <path>      Save to file (default: stdout)
+    --output-file|-o <path>   Save to file (default: stdout)
     --stream                  Stream output (default: true)
     --no-stream               Use batch mode
 
 Other Options:
     --count-tokens            Show token estimation only
-    --dry-run                 Save API request files and inspect in editor
-    -h, --help                Quick help
+    --dry-run|-n              Save API request files and inspect in editor
+    --help|-h                 Quick help
 
 Examples:
     $SCRIPT_NAME task summarize --context-file paper.pdf
@@ -317,7 +298,7 @@ Commands:
     tasks show <name>  Display task template in pager
     tasks edit <name>  Open task template in editor
 
-Note: Default task templates are stored in ~/.config/wireflow/tasks.
+Note: Default task templates are stored in ~/.config/wireflow/prompts/tasks.
 
 Examples:
     $SCRIPT_NAME tasks
@@ -374,8 +355,6 @@ List all workflows in the current project.
 
 Options:
     -h, --help     Quick help
-
-Alias: ls
 
 Example:
     $SCRIPT_NAME list
