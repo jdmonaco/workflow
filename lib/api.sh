@@ -6,12 +6,6 @@
 # Future: Support for OpenAI, Mistral, local models, etc.
 # =============================================================================
 
-# Source utility functions if not already loaded
-SCRIPT_LIB_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-if ! declare -f escape_json > /dev/null; then
-    source "$SCRIPT_LIB_DIR/utils.sh"
-fi
-
 # =============================================================================
 # Anthropic Provider Implementation
 # =============================================================================
@@ -230,8 +224,9 @@ anthropic_execute_stream() {
     > "${params[output_file]}"
 
     # Use error flag file to communicate from pipeline subshell
+    # Empty file = no error; write to it on error
     local error_flag="$(mktemp)"
-    rm "$error_flag"  # Remove, we'll create it if error occurs
+    : > "$error_flag"
 
     # For citations: track events in temp file
     local events_file=""
@@ -288,18 +283,19 @@ anthropic_execute_stream() {
                     echo ""
                     echo "API Error:"
                     echo "$json_data" | jq '.error'
-                    touch "$error_flag"  # Signal error
+                    echo "error" > "$error_flag"  # Signal error
                     exit 1
                     ;;
             esac
         fi
     done
 
-    # Check if error occurred in pipeline
-    if [[ -f "$error_flag" ]]; then
+    # Check if error occurred in pipeline (non-empty file = error)
+    if [[ -s "$error_flag" ]]; then
         rm -f "$error_flag"
         return 1
     fi
+    rm -f "$error_flag"
 
     echo ""
     echo "---"
@@ -686,7 +682,7 @@ format_citations_output() {
                 local num
                 num=$(echo "$citation" | jq -r '.citation_number')
 
-                html_text="${html_text//\[\^${num}\]/<sup><a href=\"#cite-${num}\">[${num}]<\/a><\/sup>}"
+                html_text="${html_text//\[\^${num}\]/<sup><a href=\"\#cite-${num}\">[${num}]<\/a><\/sup>}"
             done
 
             references="\n\n<div class=\"references\">\n<h2>References</h2>\n<ol>\n"
