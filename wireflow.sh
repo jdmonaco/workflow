@@ -38,19 +38,37 @@ DRY_RUN="${WIREFLOW_DRY_RUN:-false}"
 # =============================================================================
 
 # Config cascade: Set builtin values for config parameters
-BUILTIN_MODEL="claude-opus-4-5-20251101"
+
+# Model profile system: PROFILE selects tier, MODEL_* defines each tier's model
+# MODEL (if non-empty) overrides the profile system entirely
+BUILTIN_PROFILE="balanced"
+BUILTIN_MODEL_FAST="claude-haiku-4-5"
+BUILTIN_MODEL_BALANCED="claude-sonnet-4-5"
+BUILTIN_MODEL_DEEP="claude-opus-4-5"
+BUILTIN_MODEL=""  # Empty = use profile system; non-empty = explicit override
+
+# Extended thinking parameters
+BUILTIN_ENABLE_THINKING="false"
+BUILTIN_THINKING_BUDGET=10000
+
+# Effort parameter (Opus 4.5 only; high = API default)
+BUILTIN_EFFORT="high"
+
+# Other API parameters
 BUILTIN_TEMPERATURE=1.0
-BUILTIN_MAX_TOKENS=4096
+BUILTIN_MAX_TOKENS=16000
 BUILTIN_ENABLE_CITATIONS="false"
 BUILTIN_OUTPUT_FORMAT="md"
 BUILTIN_SYSTEM_PROMPTS=(base)
 
-# Initialize config source tracking:  
-#   builtin → global → ancestor → project → workflow → CLI  
-declare -A CONFIG_SOURCE_MAP  
-CONFIG_KEYS=(  
-    "MODEL" "TEMPERATURE" "MAX_TOKENS" "ENABLE_CITATIONS"  
-    "SYSTEM_PROMPTS" "OUTPUT_FORMAT"  
+# Initialize config source tracking:
+#   builtin → global → ancestor → project → workflow → CLI
+declare -A CONFIG_SOURCE_MAP
+CONFIG_KEYS=(
+    "PROFILE" "MODEL_FAST" "MODEL_BALANCED" "MODEL_DEEP" "MODEL"
+    "ENABLE_THINKING" "THINKING_BUDGET" "EFFORT"
+    "TEMPERATURE" "MAX_TOKENS" "ENABLE_CITATIONS"
+    "SYSTEM_PROMPTS" "OUTPUT_FORMAT"
 )  
 for key in "${CONFIG_KEYS[@]}"; do  
     builtin_key="BUILTIN_$key"

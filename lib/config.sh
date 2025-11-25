@@ -78,8 +78,21 @@ extract_config() {
     (
         source "$config_file" 2>/dev/null || true
 
-        # Scalars
+        # Model profile system
+        echo "PROFILE=${PROFILE:-}"
+        echo "MODEL_FAST=${MODEL_FAST:-}"
+        echo "MODEL_BALANCED=${MODEL_BALANCED:-}"
+        echo "MODEL_DEEP=${MODEL_DEEP:-}"
         echo "MODEL=${MODEL:-}"
+
+        # Extended thinking
+        echo "ENABLE_THINKING=${ENABLE_THINKING:-}"
+        echo "THINKING_BUDGET=${THINKING_BUDGET:-}"
+
+        # Effort parameter
+        echo "EFFORT=${EFFORT:-}"
+
+        # Other API parameters
         echo "TEMPERATURE=${TEMPERATURE:-}"
         echo "MAX_TOKENS=${MAX_TOKENS:-}"
         echo "ENABLE_CITATIONS=${ENABLE_CITATIONS:-}"
@@ -261,25 +274,72 @@ PROMPT_EOF
 #   builtin defaults → global config → ancestor → project → workflow → CLI
 #
 # How to set values:
-#   - Leave EMPTY to use builtin default:     MODEL=
-#   - Set VALUE to override builtin:          MODEL=claude-opus-4
+#   - Leave EMPTY to use builtin default:     PROFILE=
+#   - Set VALUE to override builtin:          PROFILE=deep
 #
 # This file sets defaults for all Wireflow projects and workflows.
 # Run 'wfw config' from any project to view effective configuration.
 
 # =============================================================================
-# Configuration Parameters
+# Model Selection (Profile System)
+# =============================================================================
+#
+# Three-tier profile system: fast, balanced, deep
+# Each profile maps to a configurable model.
+# Set MODEL to bypass the profile system entirely.
+
+# Profile selection: fast | balanced | deep
+PROFILE=$BUILTIN_PROFILE
+
+# Model for each profile tier
+MODEL_FAST=$BUILTIN_MODEL_FAST
+MODEL_BALANCED=$BUILTIN_MODEL_BALANCED
+MODEL_DEEP=$BUILTIN_MODEL_DEEP
+
+# Explicit model override (bypasses profile system if non-empty)
+MODEL=$BUILTIN_MODEL
+
+# =============================================================================
+# Extended Thinking
+# =============================================================================
+#
+# Extended thinking enables Claude to reason step-by-step before responding.
+# Supported models: Sonnet 4/4.5, Opus 4/4.1/4.5, Haiku 4.5
+#
+# ENABLE_THINKING: true | false
+# THINKING_BUDGET: Token budget for thinking (min 1024, must be < MAX_TOKENS)
+
+ENABLE_THINKING=$BUILTIN_ENABLE_THINKING
+THINKING_BUDGET=$BUILTIN_THINKING_BUDGET
+
+# =============================================================================
+# Effort Parameter (Claude Opus 4.5 only)
+# =============================================================================
+#
+# Controls token usage vs thoroughness trade-off.
+# Only supported on Claude Opus 4.5 models.
+#
+# EFFORT: low | medium | high
+#   high   - Maximum capability (default, equivalent to omitting)
+#   medium - Balanced token savings
+#   low    - Most efficient, some capability reduction
+
+EFFORT=$BUILTIN_EFFORT
+
+# =============================================================================
+# API Request Parameters
 # =============================================================================
 
-# API Request Parameters
-MODEL=$BUILTIN_MODEL
 TEMPERATURE=$BUILTIN_TEMPERATURE
 MAX_TOKENS=$BUILTIN_MAX_TOKENS
 ENABLE_CITATIONS=$BUILTIN_ENABLE_CITATIONS
 SYSTEM_PROMPTS=(${BUILTIN_SYSTEM_PROMPTS[@]})
 OUTPUT_FORMAT=$BUILTIN_OUTPUT_FORMAT
 
+# =============================================================================
 # User-Environment Variables
+# =============================================================================
+
 WIREFLOW_PROMPT_PREFIX=$BUILTIN_WIREFLOW_PROMPT_PREFIX
 WIREFLOW_TASK_PREFIX=$BUILTIN_WIREFLOW_TASK_PREFIX
 
@@ -294,6 +354,20 @@ WIREFLOW_TASK_PREFIX=$BUILTIN_WIREFLOW_TASK_PREFIX
 # Configuration Guide
 # =============================================================================
 #
+# Profile System:
+#   PROFILE=balanced    # Use the balanced tier (claude-sonnet-4-5)
+#   PROFILE=fast        # Use the fast tier (claude-haiku-4-5)
+#   PROFILE=deep        # Use the deep tier (claude-opus-4-5)
+#   MODEL=claude-opus-4-5-20251101  # Bypass profiles with explicit model
+#
+# Extended Thinking:
+#   ENABLE_THINKING=true
+#   THINKING_BUDGET=15000   # More budget = deeper reasoning
+#
+# Effort (Opus 4.5 only):
+#   EFFORT=medium       # Balance speed and quality
+#   EFFORT=low          # Fastest, most economical
+#
 # Scalar Variables:
 #   Leave EMPTY to use builtin:    TEMPERATURE=
 #   Set VALUE to override:         TEMPERATURE=0.7
@@ -307,31 +381,6 @@ WIREFLOW_TASK_PREFIX=$BUILTIN_WIREFLOW_TASK_PREFIX
 # │ SYSTEM_PROMPTS=(base)    │ Replace (override builtin)          │
 # │ SYSTEM_PROMPTS+=(custom) │ Append (add to builtin)             │
 # └──────────────────────────┴─────────────────────────────────────┘
-#
-# System Prompts:
-#   Prompt files are loaded from \$WIREFLOW_PROMPT_PREFIX/{name}.txt
-#   Default prompts created at: $BUILTIN_WIREFLOW_PROMPT_PREFIX/{meta,base}.txt
-#
-#   Examples:
-#     SYSTEM_PROMPTS=(base)              # Use base prompt only
-#     SYSTEM_PROMPTS=(base research)     # Use base + research prompts
-#     SYSTEM_PROMPTS+=(custom)           # Add custom to builtin
-#
-# Task Files:
-#   Named task files stored in: \$WIREFLOW_TASK_PREFIX/{name}.txt
-#   Used by: wfw task NAME
-#
-# API Key Security:
-#   Environment variable (recommended):
-#     export ANTHROPIC_API_KEY="sk-ant-..."
-#   
-#   Config file (less secure):
-#     ANTHROPIC_API_KEY="sk-ant-..."
-#
-# Model Options:
-#   claude-opus-4      - Highest capability, complex reasoning
-#   claude-sonnet-4-5  - Balanced quality and speed (default)
-#   claude-haiku-4     - Fast, efficient for simple tasks
 #
 # Temperature Guide:
 #   0.0-0.4  - Focused, deterministic (analysis, code)
@@ -604,6 +653,92 @@ TASK_EOF
   For each criticism, suggest a constructive path forward.
 </output-format>
 TASK_EOF
+
+    return 0
+}
+
+# =============================================================================
+# Model Profile Resolution
+# =============================================================================
+
+# Resolve effective model from profile system or explicit override
+# Uses MODEL if non-empty, otherwise resolves from PROFILE → MODEL_{PROFILE}
+# Arguments: None (uses global variables)
+# Returns:
+#   stdout - Resolved model identifier
+#   Sets RESOLVED_MODEL global variable
+resolve_model() {
+    local effective_model=""
+
+    # If MODEL is explicitly set (non-empty), use it directly
+    if [[ -n "$MODEL" ]]; then
+        effective_model="$MODEL"
+    else
+        # Resolve from profile system
+        case "$PROFILE" in
+            fast)
+                effective_model="$MODEL_FAST"
+                ;;
+            balanced)
+                effective_model="$MODEL_BALANCED"
+                ;;
+            deep)
+                effective_model="$MODEL_DEEP"
+                ;;
+            *)
+                echo "Warning: Unknown profile '$PROFILE', using balanced" >&2
+                effective_model="$MODEL_BALANCED"
+                ;;
+        esac
+    fi
+
+    # Set global and output
+    RESOLVED_MODEL="$effective_model"
+    echo "$effective_model"
+}
+
+# Validate API configuration for model compatibility
+# Checks extended thinking and effort parameter support
+# Arguments:
+#   $1 - Model identifier
+#   $2 - Enable thinking (true/false)
+#   $3 - Effort level (low/medium/high)
+# Returns:
+#   0 - Valid (may emit warnings)
+#   Sets EFFORT to "high" if model doesn't support effort
+validate_api_config() {
+    local model="$1"
+    local enable_thinking="$2"
+    local effort="$3"
+
+    # Extended thinking validation
+    if [[ "$enable_thinking" == "true" ]]; then
+        case "$model" in
+            claude-sonnet-4*|claude-opus-4*|claude-haiku-4-5*)
+                ;; # Supported
+            *)
+                echo "Warning: Extended thinking may not be supported on model: $model" >&2
+                ;;
+        esac
+
+        # Validate thinking budget
+        if [[ "$THINKING_BUDGET" -lt 1024 ]]; then
+            echo "Warning: THINKING_BUDGET must be >= 1024, using 1024" >&2
+            THINKING_BUDGET=1024
+        fi
+        if [[ "$THINKING_BUDGET" -ge "$MAX_TOKENS" ]]; then
+            echo "Warning: THINKING_BUDGET must be < MAX_TOKENS, adjusting" >&2
+            THINKING_BUDGET=$((MAX_TOKENS - 1000))
+        fi
+    fi
+
+    # Effort validation (Opus 4.5 only)
+    if [[ "$effort" != "high" ]]; then
+        if [[ ! "$model" =~ ^claude-opus-4-5 ]]; then
+            echo "Warning: Effort parameter only supported on Claude Opus 4.5; ignoring for: $model" >&2
+            EFFORT="high"  # Reset to avoid API error
+        fi
+    fi
 
     return 0
 }

@@ -72,11 +72,42 @@ execute_run_mode() {
                 WORKFLOW_SOURCE_MAP[EXPORT_FILE]="cli"
                 shift
                 ;;
+            --profile)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --profile requires argument" >&2; return 1; }
+                PROFILE="$1"
+                CONFIG_SOURCE_MAP[PROFILE]="cli"
+                shift
+                ;;
             --model|-m)
                 shift
                 [[ $# -eq 0 ]] && { echo "Error: --model requires argument" >&2; return 1; }
                 MODEL="$1"
                 CONFIG_SOURCE_MAP[MODEL]="cli"
+                shift
+                ;;
+            --enable-thinking)
+                ENABLE_THINKING=true
+                CONFIG_SOURCE_MAP[ENABLE_THINKING]="cli"
+                shift
+                ;;
+            --disable-thinking)
+                ENABLE_THINKING=false
+                CONFIG_SOURCE_MAP[ENABLE_THINKING]="cli"
+                shift
+                ;;
+            --thinking-budget)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --thinking-budget requires argument" >&2; return 1; }
+                THINKING_BUDGET="$1"
+                CONFIG_SOURCE_MAP[THINKING_BUDGET]="cli"
+                shift
+                ;;
+            --effort)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --effort requires argument" >&2; return 1; }
+                EFFORT="$1"
+                CONFIG_SOURCE_MAP[EFFORT]="cli"
                 shift
                 ;;
             --temperature|-t)

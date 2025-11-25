@@ -213,8 +213,17 @@ Context Options (background and references):
     --context-pattern <glob>      Add context files matching pattern
     --depends-on, -d <workflow>   Include output from another workflow
 
+Model Options:
+    --profile <tier>              Model tier: fast, balanced, deep
+    --model, -m <model>           Explicit model override (bypasses profile)
+
+Thinking & Effort Options:
+    --enable-thinking             Enable extended thinking mode
+    --disable-thinking            Disable extended thinking (default)
+    --thinking-budget <num>       Token budget for thinking (min 1024)
+    --effort <level>              Effort level: low, medium, high (Opus 4.5 only)
+
 API Options:
-    --model, -m <model>           Override model
     --temperature, -t <temp>      Override temperature (0.0-1.0)
     --max-tokens <num>            Override max tokens
     --system, -p <list>           Comma-separated prompt names
@@ -233,8 +242,9 @@ Execution Options:
 
 Examples:
     $SCRIPT_NAME run 01-analysis --stream
+    $SCRIPT_NAME run 01-analysis --profile deep --enable-thinking
+    $SCRIPT_NAME run 01-analysis --model claude-opus-4-5 --effort medium
     $SCRIPT_NAME run 01-analysis --count-tokens
-    $SCRIPT_NAME run 01-analysis --dry-run --count-tokens
 EOF
 }
 
@@ -256,8 +266,17 @@ Context Options (supporting materials and references):
     --context-file, -cx <file>    Add context file (repeatable)
     --context-pattern <glob>      Add context files matching pattern
 
+Model Options:
+    --profile <tier>              Model tier: fast, balanced, deep
+    --model, -m <model>           Explicit model override (bypasses profile)
+
+Thinking & Effort Options:
+    --enable-thinking             Enable extended thinking mode
+    --disable-thinking            Disable extended thinking (default)
+    --thinking-budget <num>       Token budget for thinking (min 1024)
+    --effort <level>              Effort level: low, medium, high (Opus 4.5 only)
+
 API Options:
-    --model, -m <model>           Override model
     --temperature, -t <temp>      Override temperature
     --max-tokens <num>            Override max tokens
     --system, -p <list>           Comma-separated prompt names
@@ -277,8 +296,8 @@ Other Options:
 
 Examples:
     $SCRIPT_NAME task summarize --context-file paper.pdf
-    $SCRIPT_NAME task -i "Summarize these notes" --context-file notes.md
-    $SCRIPT_NAME task analyze --input-pattern "data/*.csv" --stream
+    $SCRIPT_NAME task -i "Summarize these notes" --profile fast
+    $SCRIPT_NAME task analyze --input-pattern "data/*.csv" --enable-thinking
 
 See Also:
     $SCRIPT_NAME tasks              # List available task templates

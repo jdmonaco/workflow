@@ -221,11 +221,26 @@ wfw run <name> [options]
 | `--context-pattern <glob>` | | Add context files matching pattern |
 | `--depends-on <workflow>` | `-d` | Include output from another workflow |
 
+**Model Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile <tier>` | | Model tier: fast, balanced, deep |
+| `--model <model>` | `-m` | Explicit model override (bypasses profile) |
+
+**Thinking & Effort Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--enable-thinking` | | Enable extended thinking mode |
+| `--disable-thinking` | | Disable extended thinking (default) |
+| `--thinking-budget <num>` | | Token budget for thinking (min 1024) |
+| `--effort <level>` | | Effort level: low, medium, high (Opus 4.5 only) |
+
 **API Options:**
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--model <model>` | `-m` | Override model |
 | `--temperature <temp>` | `-t` | Override temperature (0.0-1.0) |
 | `--max-tokens <num>` | | Override max tokens |
 | `--system <list>` | `-p` | Comma-separated prompt names |
@@ -252,8 +267,8 @@ wfw run <name> [options]
 
 ```bash
 wfw run 01-analysis --stream
-wfw run 01-analysis --count-tokens
-wfw run 01-analysis --dry-run --count-tokens
+wfw run 01-analysis --profile deep --enable-thinking
+wfw run 01-analysis --model claude-opus-4-5 --effort medium
 wfw run report --input-file data.csv --context-file notes.md
 ```
 
@@ -288,11 +303,26 @@ wfw task <name>|--inline <text> [options]
 | `--context-file <file>` | `-cx` | Add context file (repeatable) |
 | `--context-pattern <glob>` | | Add context files matching pattern |
 
+**Model Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile <tier>` | | Model tier: fast, balanced, deep |
+| `--model <model>` | `-m` | Explicit model override (bypasses profile) |
+
+**Thinking & Effort Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--enable-thinking` | | Enable extended thinking mode |
+| `--disable-thinking` | | Disable extended thinking (default) |
+| `--thinking-budget <num>` | | Token budget for thinking (min 1024) |
+| `--effort <level>` | | Effort level: low, medium, high (Opus 4.5 only) |
+
 **API Options:**
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--model <model>` | `-m` | Override model |
 | `--temperature <temp>` | `-t` | Override temperature |
 | `--max-tokens <num>` | | Override max tokens |
 | `--system <list>` | `-p` | Comma-separated prompt names |
@@ -320,8 +350,8 @@ wfw task <name>|--inline <text> [options]
 
 ```bash
 wfw task summarize --context-file paper.pdf
-wfw task -i "Summarize these notes" --context-file notes.md
-wfw task analyze --input-pattern "data/*.csv" --stream
+wfw task -i "Summarize these notes" --profile fast
+wfw task analyze --input-pattern "data/*.csv" --enable-thinking
 ```
 
 **See Also:**

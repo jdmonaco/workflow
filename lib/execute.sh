@@ -1399,6 +1399,13 @@ execute_api_request() {
     # Validate API key
     anthropic_validate "$ANTHROPIC_API_KEY" || exit 1
 
+    # Resolve effective model from profile system
+    local effective_model
+    effective_model=$(resolve_model)
+
+    # Validate API configuration for model compatibility
+    validate_api_config "$effective_model" "$ENABLE_THINKING" "$EFFORT"
+
     # Pass JSON via temp files to avoid parameter parsing issues
     local temp_system=$(mktemp)
     local temp_user=$(mktemp)
@@ -1409,7 +1416,7 @@ execute_api_request() {
     if [[ "$STREAM_MODE" == true ]]; then
         anthropic_execute_stream \
             api_key="$ANTHROPIC_API_KEY" \
-            model="$MODEL" \
+            model="$effective_model" \
             max_tokens="$MAX_TOKENS" \
             temperature="$TEMPERATURE" \
             system_blocks_file="$temp_system" \
@@ -1417,11 +1424,14 @@ execute_api_request() {
             output_file="$output_file" \
             enable_citations="$ENABLE_CITATIONS" \
             output_format="$OUTPUT_FORMAT" \
-            doc_map_file="$DOCUMENT_MAP_FILE" || exit 1
+            doc_map_file="$DOCUMENT_MAP_FILE" \
+            enable_thinking="$ENABLE_THINKING" \
+            thinking_budget="$THINKING_BUDGET" \
+            effort="$EFFORT" || exit 1
     else
         anthropic_execute_single \
             api_key="$ANTHROPIC_API_KEY" \
-            model="$MODEL" \
+            model="$effective_model" \
             max_tokens="$MAX_TOKENS" \
             temperature="$TEMPERATURE" \
             system_blocks_file="$temp_system" \
@@ -1429,7 +1439,10 @@ execute_api_request() {
             output_file="$output_file" \
             enable_citations="$ENABLE_CITATIONS" \
             output_format="$OUTPUT_FORMAT" \
-            doc_map_file="$DOCUMENT_MAP_FILE" || exit 1
+            doc_map_file="$DOCUMENT_MAP_FILE" \
+            enable_thinking="$ENABLE_THINKING" \
+            thinking_budget="$THINKING_BUDGET" \
+            effort="$EFFORT" || exit 1
 
         # Task mode: Display output to stdout if no explicit output file
         if [[ "$mode" == "task" && -z "$output_file_path" ]]; then
@@ -1448,9 +1461,10 @@ execute_api_request() {
         # Save user blocks
         echo "$user_blocks_json" | jq '.' > "$USER_BLOCKS_FILE" 2>/dev/null || true
 
-        # Save complete request payload
-        jq -n \
-            --arg model "$MODEL" \
+        # Save complete request payload (includes resolved model and all params)
+        local request_json
+        request_json=$(jq -n \
+            --arg model "$effective_model" \
             --argjson max_tokens "$MAX_TOKENS" \
             --argjson temperature "$TEMPERATURE" \
             --argjson system "$system_blocks_json" \
@@ -1461,7 +1475,23 @@ execute_api_request() {
                 temperature: $temperature,
                 system: $system,
                 messages: [{role: "user", content: $user_content}]
-            }' > "$REQUEST_JSON_FILE" 2>/dev/null || true
+            }')
+
+        # Add thinking config if enabled
+        if [[ "$ENABLE_THINKING" == "true" ]]; then
+            request_json=$(echo "$request_json" | jq \
+                --argjson budget "$THINKING_BUDGET" \
+                '. + {thinking: {type: "enabled", budget_tokens: $budget}}')
+        fi
+
+        # Add effort config if not high (high = API default)
+        if [[ "$EFFORT" != "high" ]]; then
+            request_json=$(echo "$request_json" | jq \
+                --arg effort "$EFFORT" \
+                '. + {output_config: {effort: $effort}}')
+        fi
+
+        echo "$request_json" > "$REQUEST_JSON_FILE" 2>/dev/null || true
     fi
 
     # Cleanup temp files

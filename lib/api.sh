@@ -49,6 +49,9 @@ anthropic_validate() {
 #   enable_citations=...     - "true" or "false" (optional, default: false)
 #   output_format=...        - Output format for citation formatting (optional, default: md)
 #   doc_map_file=...         - Path to document index map JSON file (optional)
+#   enable_thinking=...      - "true" or "false" (optional, default: false)
+#   thinking_budget=...      - Token budget for thinking (optional, default: 10000)
+#   effort=...               - Effort level: low, medium, high (optional, default: high)
 #
 # Returns:
 #   0 - Success (response written to output_file)
@@ -96,15 +99,42 @@ anthropic_execute_single() {
         }'
     )
 
+    # Add extended thinking if enabled
+    local enable_thinking="${params[enable_thinking]:-false}"
+    local thinking_budget="${params[thinking_budget]:-10000}"
+    if [[ "$enable_thinking" == "true" ]]; then
+        json_payload=$(echo "$json_payload" | jq \
+            --argjson budget "$thinking_budget" \
+            '. + {thinking: {type: "enabled", budget_tokens: $budget}}')
+    fi
+
+    # Add effort if not "high" (high is API default)
+    local effort="${params[effort]:-high}"
+    if [[ "$effort" != "high" ]]; then
+        json_payload=$(echo "$json_payload" | jq \
+            --arg effort "$effort" \
+            '. + {output_config: {effort: $effort}}')
+    fi
+
+    # Build curl headers
+    local -a curl_headers=(
+        -H "content-type: application/json"
+        -H "x-api-key: ${params[api_key]}"
+        -H "anthropic-version: 2023-06-01"
+    )
+
+    # Add beta header for effort parameter
+    if [[ "$effort" != "high" ]]; then
+        curl_headers+=(-H "anthropic-beta: effort-2025-11-24")
+    fi
+
     # Execute request
     echo -n "Sending Messages API request... "
 
     # Pass JSON payload via stdin to avoid "Argument list too long" with large images
     local response
     response=$(echo "$json_payload" | curl -s https://api.anthropic.com/v1/messages \
-        -H "content-type: application/json" \
-        -H "x-api-key: ${params[api_key]}" \
-        -H "anthropic-version: 2023-06-01" \
+        "${curl_headers[@]}" \
         -d @-)
 
     echo "done!"
@@ -141,8 +171,9 @@ anthropic_execute_single() {
             echo "Citations saved to: $CITATIONS_FILE_PATH" >&2
         fi
     else
-        # No citations - extract first text block as before
-        echo "$response" | jq -r '.content[0].text' > "${params[output_file]}"
+        # No citations - extract text blocks (skip thinking blocks)
+        # With extended thinking, response may have thinking blocks before text
+        echo "$response" | jq -r '.content[] | select(.type == "text") | .text' > "${params[output_file]}"
     fi
 
     # Display with less
@@ -161,6 +192,9 @@ anthropic_execute_single() {
 #   enable_citations=...     - "true" or "false" (optional, default: false)
 #   output_format=...        - Output format for citation formatting (optional, default: md)
 #   doc_map_file=...         - Path to document index map JSON file (optional)
+#   enable_thinking=...      - "true" or "false" (optional, default: false)
+#   thinking_budget=...      - Token budget for thinking (optional, default: 10000)
+#   effort=...               - Effort level: low, medium, high (optional, default: high)
 #
 # Returns:
 #   0 - Success (response written to output_file)
@@ -212,8 +246,37 @@ anthropic_execute_stream() {
         }'
     )
 
+    # Add extended thinking if enabled
+    local enable_thinking="${params[enable_thinking]:-false}"
+    local thinking_budget="${params[thinking_budget]:-10000}"
+    if [[ "$enable_thinking" == "true" ]]; then
+        json_payload=$(echo "$json_payload" | jq \
+            --argjson budget "$thinking_budget" \
+            '. + {thinking: {type: "enabled", budget_tokens: $budget}}')
+    fi
+
+    # Add effort if not "high" (high is API default)
+    local effort="${params[effort]:-high}"
+    if [[ "$effort" != "high" ]]; then
+        json_payload=$(echo "$json_payload" | jq \
+            --arg effort "$effort" \
+            '. + {output_config: {effort: $effort}}')
+    fi
+
     # Add streaming flag to payload
     json_payload=$(echo "$json_payload" | jq '. + {stream: true}')
+
+    # Build curl headers
+    local -a curl_headers=(
+        -H "content-type: application/json"
+        -H "x-api-key: ${params[api_key]}"
+        -H "anthropic-version: 2023-06-01"
+    )
+
+    # Add beta header for effort parameter
+    if [[ "$effort" != "high" ]]; then
+        curl_headers+=(-H "anthropic-beta: effort-2025-11-24")
+    fi
 
     # Execute streaming request
     echo "Sending Messages API request (streaming)..."
@@ -238,9 +301,7 @@ anthropic_execute_stream() {
     # Stream response and parse SSE events
     # Pass JSON payload via stdin to avoid "Argument list too long" with large images
     echo "$json_payload" | curl -Ns https://api.anthropic.com/v1/messages \
-        -H "content-type: application/json" \
-        -H "x-api-key: ${params[api_key]}" \
-        -H "anthropic-version: 2023-06-01" \
+        "${curl_headers[@]}" \
         -d @- | while IFS= read -r line; do
         # Skip empty lines
         [[ -z "$line" ]] && continue
@@ -273,8 +334,26 @@ anthropic_execute_stream() {
                             printf '%s' "$delta_text"
                             printf '%s' "$delta_text" >> "${params[output_file]}"
                         fi
+                    elif [[ "$delta_type" == "thinking_delta" ]]; then
+                        # Extended thinking: show thinking progress (dimmed/italics via ANSI)
+                        thinking_text=$(echo "$json_data" | jq -r '.delta.thinking // empty')
+                        if [[ -n "$thinking_text" ]]; then
+                            # Print thinking in dim text (not saved to output file)
+                            printf '\e[2m%s\e[0m' "$thinking_text"
+                        fi
                     fi
                     # Note: citations_delta events are logged but not processed inline
+                    ;;
+                "content_block_start")
+                    # Check if this is a thinking block starting
+                    block_type=$(echo "$json_data" | jq -r '.content_block.type // empty')
+                    if [[ "$block_type" == "thinking" ]]; then
+                        printf '\e[2m[Thinking...]\e[0m\n'
+                    fi
+                    ;;
+                "content_block_stop")
+                    # Add newline between blocks
+                    printf '\n'
                     ;;
                 "message_stop")
                     printf '\n'

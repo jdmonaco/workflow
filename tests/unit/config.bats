@@ -231,3 +231,159 @@ EOF
 
     assert_success
 }
+
+# =============================================================================
+# resolve_model() tests
+# =============================================================================
+
+@test "resolve_model: returns MODEL when explicitly set" {
+    MODEL="claude-explicit-model"
+    PROFILE="balanced"
+    MODEL_BALANCED="claude-sonnet-4-5"
+
+    run resolve_model
+    assert_success
+    assert_output "claude-explicit-model"
+}
+
+@test "resolve_model: resolves fast profile to MODEL_FAST" {
+    MODEL=""
+    PROFILE="fast"
+    MODEL_FAST="claude-haiku-4-5"
+    MODEL_BALANCED="claude-sonnet-4-5"
+    MODEL_DEEP="claude-opus-4-5"
+
+    run resolve_model
+    assert_success
+    assert_output "claude-haiku-4-5"
+}
+
+@test "resolve_model: resolves balanced profile to MODEL_BALANCED" {
+    MODEL=""
+    PROFILE="balanced"
+    MODEL_FAST="claude-haiku-4-5"
+    MODEL_BALANCED="claude-sonnet-4-5"
+    MODEL_DEEP="claude-opus-4-5"
+
+    run resolve_model
+    assert_success
+    assert_output "claude-sonnet-4-5"
+}
+
+@test "resolve_model: resolves deep profile to MODEL_DEEP" {
+    MODEL=""
+    PROFILE="deep"
+    MODEL_FAST="claude-haiku-4-5"
+    MODEL_BALANCED="claude-sonnet-4-5"
+    MODEL_DEEP="claude-opus-4-5"
+
+    run resolve_model
+    assert_success
+    assert_output "claude-opus-4-5"
+}
+
+@test "resolve_model: falls back to balanced for unknown profile" {
+    MODEL=""
+    PROFILE="unknown"
+    MODEL_FAST="claude-haiku-4-5"
+    MODEL_BALANCED="claude-sonnet-4-5"
+    MODEL_DEEP="claude-opus-4-5"
+
+    run resolve_model
+    assert_success
+    assert_output --partial "claude-sonnet-4-5"
+    assert_output --partial "Warning: Unknown profile"
+}
+
+@test "resolve_model: sets RESOLVED_MODEL global variable" {
+    MODEL=""
+    PROFILE="deep"
+    MODEL_DEEP="claude-opus-4-5"
+    MODEL_BALANCED="claude-sonnet-4-5"
+
+    resolve_model > /dev/null
+    assert_equal "$RESOLVED_MODEL" "claude-opus-4-5"
+}
+
+# =============================================================================
+# validate_api_config() tests
+# =============================================================================
+
+@test "validate_api_config: passes for valid thinking config" {
+    THINKING_BUDGET=10000
+    MAX_TOKENS=16000
+
+    run validate_api_config "claude-sonnet-4-5" "true" "high"
+    assert_success
+}
+
+@test "validate_api_config: warns for thinking on unsupported model" {
+    THINKING_BUDGET=10000
+    MAX_TOKENS=16000
+
+    run validate_api_config "claude-3-opus" "true" "high"
+    assert_success
+    assert_output --partial "Extended thinking may not be supported"
+}
+
+@test "validate_api_config: adjusts THINKING_BUDGET below minimum" {
+    THINKING_BUDGET=500
+    MAX_TOKENS=16000
+
+    validate_api_config "claude-sonnet-4-5" "true" "high" 2>/dev/null
+    assert_equal "$THINKING_BUDGET" "1024"
+}
+
+@test "validate_api_config: adjusts THINKING_BUDGET exceeding MAX_TOKENS" {
+    THINKING_BUDGET=20000
+    MAX_TOKENS=16000
+
+    validate_api_config "claude-sonnet-4-5" "true" "high" 2>/dev/null
+    # Should be adjusted to MAX_TOKENS - 1000
+    assert_equal "$THINKING_BUDGET" "15000"
+}
+
+@test "validate_api_config: allows effort on Opus 4.5" {
+    THINKING_BUDGET=10000
+    MAX_TOKENS=16000
+    EFFORT="medium"
+
+    run validate_api_config "claude-opus-4-5-20251101" "false" "medium"
+    assert_success
+    refute_output --partial "Effort parameter only supported"
+}
+
+@test "validate_api_config: warns and resets effort for non-Opus 4.5" {
+    THINKING_BUDGET=10000
+    MAX_TOKENS=16000
+    EFFORT="medium"
+
+    # Run validation - must not use subshell to test EFFORT modification
+    # Redirect stderr to a temp file to capture warning
+    local tmpfile="$TEST_TEMP_DIR/stderr.txt"
+    validate_api_config "claude-sonnet-4-5" "false" "medium" 2>"$tmpfile"
+
+    # Check warning was emitted
+    grep -q "Effort parameter only supported" "$tmpfile"
+
+    # Check EFFORT was reset to high
+    assert_equal "$EFFORT" "high"
+}
+
+@test "validate_api_config: passes silently for effort=high" {
+    THINKING_BUDGET=10000
+    MAX_TOKENS=16000
+
+    run validate_api_config "claude-sonnet-4-5" "false" "high"
+    assert_success
+    assert_output ""
+}
+
+@test "validate_api_config: skips thinking validation when disabled" {
+    THINKING_BUDGET=500  # Invalid but should be ignored
+    MAX_TOKENS=16000
+
+    run validate_api_config "claude-3-opus" "false" "high"
+    assert_success
+    assert_output ""
+}

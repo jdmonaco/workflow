@@ -237,13 +237,35 @@ MODEL=claude-opus-4  # Inline comment
 
 ## Configuration Variables
 
+### Model Profile System
+
+| Variable | Type | Description | Default |
+|----------|------|-------------|---------|
+| `PROFILE` | String | Model tier: `fast`, `balanced`, `deep` | `balanced` |
+| `MODEL_FAST` | String | Model for fast profile | `claude-haiku-4-5` |
+| `MODEL_BALANCED` | String | Model for balanced profile | `claude-sonnet-4-5` |
+| `MODEL_DEEP` | String | Model for deep profile | `claude-opus-4-5` |
+| `MODEL` | String | Explicit model override (bypasses profile) | (empty) |
+
+### Extended Thinking
+
+| Variable | Type | Description | Default |
+|----------|------|-------------|---------|
+| `ENABLE_THINKING` | Boolean | Enable extended thinking mode | `false` |
+| `THINKING_BUDGET` | Integer | Token budget for thinking (min 1024) | `10000` |
+
+### Effort Parameter (Opus 4.5 only)
+
+| Variable | Type | Description | Default |
+|----------|------|-------------|---------|
+| `EFFORT` | String | Effort level: `low`, `medium`, `high` | `high` |
+
 ### API Settings
 
 | Variable | Type | Description | Default |
 |----------|------|-------------|---------|
-| `MODEL` | String | Claude model name | `claude-sonnet-4-5` |
 | `TEMPERATURE` | Float | Response randomness (0.0-1.0) | `1.0` |
-| `MAX_TOKENS` | Integer | Maximum response tokens | `4096` |
+| `MAX_TOKENS` | Integer | Maximum response tokens | `16000` |
 | `ENABLE_CITATIONS` | Boolean | Enable source citations | `false` |
 
 ### Output Settings
@@ -568,7 +590,11 @@ Effective Configuration:
 
 | Flag | Config Variable | Example |
 |------|----------------|---------|
-| `--model` | `MODEL` | `--model claude-opus-4` |
+| `--profile` | `PROFILE` | `--profile deep` |
+| `--model` | `MODEL` | `--model claude-opus-4-5` |
+| `--enable-thinking` | `ENABLE_THINKING` | `--enable-thinking` |
+| `--thinking-budget` | `THINKING_BUDGET` | `--thinking-budget 15000` |
+| `--effort` | `EFFORT` | `--effort medium` |
 | `--temperature` | `TEMPERATURE` | `--temperature 0.5` |
 | `--max-tokens` | `MAX_TOKENS` | `--max-tokens 8192` |
 | `--system` | `SYSTEM_PROMPTS` | `--system base,research` |
@@ -583,8 +609,14 @@ Effective Configuration:
 ### Usage Examples
 
 ```bash
-# One-time model override
-wfw run analysis --model claude-opus-4
+# Use fast profile for quick iterations
+wfw run analysis --profile fast
+
+# Use deep profile with extended thinking
+wfw run analysis --profile deep --enable-thinking
+
+# Explicit model with effort control (Opus 4.5)
+wfw run analysis --model claude-opus-4-5 --effort medium
 
 # Experiment with temperature
 wfw run creative --temperature 1.0
@@ -594,8 +626,9 @@ wfw run analysis --context-file extra-notes.md
 
 # Multiple overrides
 wfw run analysis \
-  --model claude-opus-4 \
-  --temperature 0.3 \
+  --profile deep \
+  --enable-thinking \
+  --thinking-budget 20000 \
   --context-file data.csv
 ```
 
@@ -627,15 +660,25 @@ wfw run analysis \
 - **Medium (0.5-0.7):** Balanced tasks, general writing
 - **High (0.8-1.0):** Creative writing, brainstorming, varied outputs
 
-**Model:**
-- **Haiku:** Fast iterations, simple tasks, testing
-- **Sonnet:** Balanced quality and cost (default)
-- **Opus:** Complex reasoning, highest quality needed
+**Profile (Model Tier):**
+- **fast:** Quick iterations, simple tasks, testing (Haiku)
+- **balanced:** General use, good quality/cost ratio (Sonnet) - default
+- **deep:** Complex reasoning, highest quality (Opus)
+
+**Extended Thinking:**
+- Enable for complex multi-step reasoning tasks
+- Increase budget for deeper analysis
+- Works best with Sonnet 4.5 and Opus 4.5
+
+**Effort (Opus 4.5 only):**
+- **high:** Maximum capability (default)
+- **medium:** Balanced speed and quality
+- **low:** Fastest, most economical
 
 **Max Tokens:**
-- **Low (1024-2048):** Summaries, short responses
-- **Medium (4096-8192):** Standard workflows
-- **High (16384+):** Comprehensive reports, long-form content
+- **Low (1024-4096):** Summaries, short responses
+- **Medium (8192-16384):** Standard workflows (default: 16000)
+- **High (32768+):** Comprehensive reports, long-form content
 
 ### Organization Tips
 
