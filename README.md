@@ -1,23 +1,25 @@
-# WireFlow: Reproducible AI Workflows for Research and Development
+# WireFlow
 
-**Version:** 0.3.0 (pre-release)
+**Reproducible AI Workflows for Research & Development**
 
-A terminal-based tool for building reproducible AI workflows for research, development, and analysis, featuring flexible configuration cascades, comprehensive document processing (PDFs, Office files, images), workflow dependencies and chaining, and intelligent context management.
+Version 0.3.0 (pre-release) · [Documentation](https://docs.joemona.co/wireflow/) · [GitHub](https://github.com/jdmonaco/wireflow)
+
+A terminal-based tool for building reproducible AI workflows with the Anthropic API. Process documents, chain workflows, and manage context—all from the command line.
 
 ## Key Features
 
-- 🎯 **Git-like Project Discovery:** Automatic `.workflow/` directory detection walking up from any subdirectory, enabling project-aware execution from anywhere in your tree (stops at `$HOME` for safety).
-- 📄 **Native Document Processing:** Unified handling of PDFs (32MB, joint text+visual analysis), Microsoft Office files (.docx/.pptx auto-converted via LibreOffice), images (Vision API with automatic resizing), and text files with intelligent format detection and caching.
-- 🔧 **Configuration Cascade with Pass-Through:** Multi-tier inheritance (global → ancestors → project → workflow → CLI) where empty values automatically inherit from parent tiers while explicit values override and decouple, enabling change-once affect-many configuration management.
-- 🏗️ **Nested Project Support:** Automatic discovery and inheritance from all ancestor projects in the directory hierarchy, with transparent source tracking showing exactly where each configuration value originates.
-- 🔗 **Workflow Dependencies & Chaining:** Create multi-stage processing pipelines with `DEPENDS_ON` declarations, automatically passing outputs as context to dependent workflows via hardlinks for efficient DAG-based orchestration.
-- 📦 **Semantic Content Aggregation:** Distinguish INPUT documents (primary analysis targets) from CONTEXT materials (supporting information) using three methods: glob patterns, explicit file lists, and workflow dependencies, with optimized ordering for cost-effective caching.
-- 💰 **Prompt Caching Architecture:** Strategic cache breakpoint placement (max 4) at semantic boundaries enables 90% cost reduction on stable content, with intelligent ordering (system prompts → project descriptions → PDFs → text → images → task) and date-only timestamps to prevent minute-by-minute invalidation.
-- 📚 **Citations Support:** Optional Anthropic citations API integration with document mapping for source attribution, generating sidecar citation files and enabling proper references for AI-generated content.
-- ⚡ **Dual Execution Modes:** Persistent workflows with configuration, context, dependencies, and outputs for iterative development, or lightweight task mode for one-off queries without workflow directories, both sharing optimized execution logic.
-- 💾 **Safe Output Management:** Automatic timestamped backups before overwriting, hardlinked copies for convenient access (`.workflow/output/`), atomic file operations, and format-specific post-processing (mdformat, jq).
-- 📊 **Dual Token Estimation:** Fast heuristic character-based estimates plus exact counts via Anthropic's Token Counting API, with detailed breakdowns showing contribution from system prompts, task, input documents, context, and images.
-- 🌊 **Streaming & Batch Modes:** Real-time streaming output with SSE parsing for immediate feedback, or single-request batch mode with pager display, both supporting identical configuration and context aggregation.
+- 🎯 **Git-like Discovery:** Run from anywhere in your project tree. WireFlow walks up to find `.workflow/` automatically.
+- 📄 **Native Documents:** PDFs, Office files, and images handled natively. No preprocessing required.
+- 🔧 **Config Cascade:** Global → project → workflow → CLI. Set once, override where needed.
+- 🏗️ **Nested Projects:** Inherit settings from parent projects. Perfect for monorepos.
+- 🔗 **Workflow Chains:** Build pipelines with `--depends-on`. Outputs feed into dependent workflows.
+- 📦 **Input vs Context:** Separate primary documents from supporting materials for cleaner prompts.
+- 💰 **90% Cost Savings:** Smart prompt caching puts stable content first. Pay less for repeated runs.
+- 📚 **Citations:** Enable source attribution with `--enable-citations`. Get references you can verify.
+- ⚡ **Two Modes:** Persistent workflows for iteration, or quick `task` mode for one-off queries.
+- 💾 **Safe Outputs:** Timestamped backups, hardlinked copies, atomic writes. Never lose work.
+- 📊 **Token Counting:** Instant estimates plus exact API counts. Know costs before you run.
+- 🌊 **Streaming:** Watch responses in real-time with `--stream`, or batch for long-form output.
 
 ## Quick Start
 
@@ -111,7 +113,7 @@ Ancestor Projects (grandparent → parent)
     ↓
 Project (.workflow/config)
     ↓
-Workflow (.workflow/<workflow_name>/config)
+Workflow (.workflow/run/<name>/config)
     ↓
 CLI Flags (--model, --temperature, etc.)
 ```
@@ -162,7 +164,7 @@ Created by `wfw init`:
 
 - `.workflow/config` - Project-level settings
 - `.workflow/project.txt` - Project description (optional)
-- `.workflow/<workflow-name>/` - Individual workflows
+- `.workflow/run/<name>/` - Individual workflows
 
 ## Help
 
