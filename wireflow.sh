@@ -38,7 +38,7 @@ DRY_RUN="${WIREFLOW_DRY_RUN:-false}"
 # =============================================================================
 
 # Config cascade: Set builtin values for config parameters
-BUILTIN_MODEL="claude-sonnet-4-5"
+BUILTIN_MODEL="claude-opus-4-5-20251101"
 BUILTIN_TEMPERATURE=1.0
 BUILTIN_MAX_TOKENS=4096
 BUILTIN_ENABLE_CITATIONS="false"

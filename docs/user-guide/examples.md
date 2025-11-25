@@ -224,7 +224,7 @@ In `config`:
 
 ```bash
 CONTEXT_PATTERN="src/*.py"
-MODEL=claude-3-5-sonnet-20241022
+MODEL=claude-opus-4-5-20251101
 TEMPERATURE=0.3
 ```
 
@@ -280,7 +280,7 @@ wfw init .
 Edit parent `.workflow/config`:
 
 ```bash
-MODEL=claude-3-opus-4-20250514
+MODEL=claude-opus-4-5-20251101
 TEMPERATURE=0.8
 MAX_TOKENS=8192
 SYSTEM_PROMPTS=(base research neuroscience)
@@ -299,7 +299,7 @@ You'll be prompted:
 Found parent workflow project at: /Users/name/research/neuroai-study/.workflow
 
 Inherit configuration from parent?
-- MODEL: claude-3-opus-4-20250514
+- MODEL: claude-opus-4-5-20251101
 - TEMPERATURE: 0.8
 - MAX_TOKENS: 8192
 - SYSTEM_PROMPTS: base, research, neuroscience
@@ -339,16 +339,16 @@ Experiment with different models and parameters without changing configs.
 
 ```bash
 # Test with Haiku (fast, economical)
-wfw run analysis --model claude-3-5-haiku-20241022 --count-tokens
+wfw run analysis --model claude-haiku-4-5-20251001 --count-tokens
 
 # Test with Sonnet (balanced)
-wfw run analysis --model claude-3-5-sonnet-20241022 --count-tokens
+wfw run analysis --model claude-sonnet-4-5-20250929 --count-tokens
 
 # Test with Opus (most capable)
-wfw run analysis --model claude-3-opus-4-20250514 --count-tokens
+wfw run analysis --model claude-opus-4-5-20251101 --count-tokens
 
 # Choose best and run
-wfw run analysis --model claude-3-5-sonnet-20241022 --stream
+wfw run analysis --model claude-opus-4-5-20251101 --stream
 ```
 
 ### Testing Parameters
@@ -541,7 +541,7 @@ Reporting: APA format, journal submission
 EOF
 
 cat > .workflow/config << 'EOF'
-MODEL=claude-3-opus-4-20250514
+MODEL=claude-opus-4-5-20251101
 SYSTEM_PROMPTS=(base research stats)
 TEMPERATURE=0.4
 MAX_TOKENS=8192

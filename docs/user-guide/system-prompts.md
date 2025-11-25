@@ -195,7 +195,7 @@ SYSTEM_PROMPTS=(base code)
 #### CLI Override
 
 ```bash
-wfw run analysis --system-prompts "base,stats,research"
+wfw run analysis --system "base,stats,research"
 ```
 
 ### Prompt Order
@@ -231,7 +231,7 @@ SYSTEM_PROMPTS=(base research stats)
 In CLI, use comma-separated list:
 
 ```bash
---system-prompts "base,research,stats"
+--system "base,research,stats"
 ```
 
 ## Project Description

@@ -50,7 +50,7 @@ After running `wfw init`, the tool:
 
 # Second buffer: config
 # Default values are shown as comments
-MODEL=claude-3-5-sonnet-20241022
+MODEL=claude-opus-4-5-20251101
 TEMPERATURE=1.0
 MAX_TOKENS=8192
 SYSTEM_PROMPTS=base
@@ -122,7 +122,7 @@ The project `config` file sets defaults for all workflows in the project.
 
 ```bash
 # Model selection
-MODEL=claude-3-5-sonnet-20241022
+MODEL=claude-opus-4-5-20251101
 
 # Response parameters
 TEMPERATURE=1.0
@@ -183,7 +183,7 @@ When initializing inside an existing project, you'll be prompted:
 Found parent workflow project at: /path/to/my-research/.workflow
 
 Inherit configuration from parent?
-- MODEL: claude-3-5-sonnet-20241022
+- MODEL: claude-opus-4-5-20251101
 - TEMPERATURE: 0.8
 - MAX_TOKENS: 4096
 - SYSTEM_PROMPTS: base,research

@@ -195,7 +195,7 @@ Works across formats:
 
 ```bash
 # JSON output
-wfw run extract --format-hint json
+wfw run extract --format json
 
 # Depends on JSON (included as text context)
 wfw run analyze --depends-on extract
@@ -259,6 +259,74 @@ Key findings:
 - Further validation needed
 </file>
 ```
+
+## Supported File Types
+
+WireFlow supports various file types with automatic format detection and processing:
+
+### Text Documents
+
+Standard text files are included directly:
+
+| Format | Extensions | Handling |
+|--------|------------|----------|
+| Plain text | `.txt` | Direct inclusion |
+| Markdown | `.md`, `.markdown` | Direct inclusion |
+| Code | `.py`, `.js`, `.sh`, etc. | Direct inclusion |
+| Data | `.csv`, `.json`, `.yaml` | Direct inclusion |
+| Structured | `.xml`, `.html` | Direct inclusion |
+
+### PDF Documents
+
+PDF files are automatically processed using the Anthropic document API:
+
+```bash
+wfw task summarize --context-file paper.pdf
+wfw run analysis --input-file report.pdf
+```
+
+**Requirements:**
+
+- Maximum file size: 32MB per PDF
+- PDFs are sent as base64-encoded document blocks
+
+### Office Documents
+
+Microsoft Office files (`.docx`, `.pptx`) are automatically converted to PDF:
+
+```bash
+wfw task review --context-file presentation.pptx
+```
+
+**Requirements:**
+
+- LibreOffice must be installed (`soffice` command)
+- Converted PDFs are cached for performance
+
+### Images (Vision API)
+
+Image files are processed using Claude's vision capabilities:
+
+| Format | Extensions |
+|--------|------------|
+| JPEG | `.jpg`, `.jpeg` |
+| PNG | `.png` |
+| GIF | `.gif` |
+| WebP | `.webp` |
+
+```bash
+wfw task describe --context-file diagram.png
+wfw run analysis --input-pattern "figures/*.jpg"
+```
+
+**Constraints:**
+
+- Maximum dimension: 8000px (longer edge)
+- Recommended maximum: 1568px (longer edge)
+- Maximum file size: 5MB per image
+- Images exceeding limits are automatically resized
+
+**Optional dependency:** ImageMagick (`convert` command) for resizing large images.
 
 ## Advanced Patterns
 

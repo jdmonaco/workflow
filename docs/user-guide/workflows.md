@@ -98,7 +98,7 @@ In `config`, override project defaults if needed:
 
 ```bash
 # Use a more capable model for complex analysis
-MODEL=claude-3-5-sonnet-20241022
+MODEL=claude-opus-4-5-20251101
 
 # Lower temperature for more focused output
 TEMPERATURE=0.5
@@ -184,7 +184,7 @@ Shows the complete configuration cascade:
 ```
 Configuration for workflow: analysis-01
 
-MODEL: claude-3-5-sonnet-20241022 (project)
+MODEL: claude-opus-4-5-20251101 (project)
 TEMPERATURE: 0.5 (workflow)
 MAX_TOKENS: 8192 (workflow)
 STREAM_MODE: true (default)
@@ -239,16 +239,17 @@ Both `list` and `ls` work identically.
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `MODEL` | Claude model to use | `claude-3-5-sonnet-20241022` |
+| `MODEL` | Claude model to use | `claude-sonnet-4-5-20250929` |
 | `TEMPERATURE` | Response randomness (0-1) | `0.7` |
 | `MAX_TOKENS` | Maximum response tokens | `8192` |
 | `SYSTEM_PROMPTS` | System prompts (comma-separated) | `base,research` |
 | `OUTPUT_FORMAT` | Output file extension | `markdown`, `json`, `txt` |
+| `INPUT_FILES` | Primary input documents (comma-separated) | `report.pdf,data.csv` |
+| `INPUT_PATTERN` | Glob pattern for input files | `docs/*.md` |
+| `CONTEXT_FILES` | Context/reference files (comma-separated) | `intro.md,methods.md` |
 | `CONTEXT_PATTERN` | Glob pattern for context files | `data/*.csv` |
-| `CONTEXT_FILES` | Specific context files (comma-separated) | `intro.md,methods.md` |
 | `DEPENDS_ON` | Workflow dependencies (comma-separated) | `00-context,01-analysis` |
 | `STREAM_MODE` | Enable streaming | `true` or `false` |
-| `CONTEXT_FILE_PREFIX` | Base path for relative context files | `./` or `data/` |
 
 ### Configuration Priorities
 
@@ -423,22 +424,16 @@ wfw run 03-final-report \
 
 ### Output Location
 
-Outputs are saved in `.workflow/<name>/output/`:
+Outputs are saved to `.workflow/<name>/output.<format>`:
 
 ```
-.workflow/analysis-01/output/
-├── <name>.md                      # Latest output
-├── <name>-20241115143022.md  # Previous version
-└── <name>-20241115141530.md  # Older version
+.workflow/analysis-01/
+├── task.txt            # Task prompt
+├── config              # Workflow config
+└── output.md           # Latest output (format depends on OUTPUT_FORMAT)
 ```
 
-### Automatic Backups
-
-Each time you re-run a workflow:
-
-- Previous output is renamed to `<name>-TIMESTAMP.<ext>`
-- New output is written to `<name>.<ext>`
-- All backups are preserved
+A hardlink copy is also created at `.workflow/output/<name>.<format>` for convenience.
 
 ### Output Formats
 
@@ -449,7 +444,7 @@ Specify output format to change file extension:
 OUTPUT_FORMAT=json
 
 # Or at runtime
-wfw run analysis-01 --format-hint json
+wfw run analysis-01 --format json
 ```
 
 Supported formats: `md`, `markdown`, `txt`, `json`, `html`, `xml`, `csv`, `yaml`, etc.
@@ -457,16 +452,15 @@ Supported formats: `md`, `markdown`, `txt`, `json`, `html`, `xml`, `csv`, `yaml`
 ### Reading Outputs
 
 ```bash
-# Latest output
+# Latest output (either path works)
 cat .workflow/analysis-01/output.md
+cat .workflow/output/analysis-01.md
 
-# View all versions
-ls -lt .workflow/analysis-01/output/
-
-# Compare versions
-diff .workflow/analysis-01/output.md \
-     .workflow/analysis-01/output.md
+# Using wfw cat command
+wfw cat analysis-01
 ```
+
+See [Execution Guide](execution.md#output-files) for complete details on output handling.
 
 ## Deleting Workflows
 

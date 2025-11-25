@@ -56,7 +56,7 @@ OUTPUT_FORMAT=md  # Default for all workflows
 ### Via CLI Flag
 
 ```bash
-wfw run extract-data --format-hint json
+wfw run extract-data --format json
 ```
 
 CLI flags override config files.
@@ -387,7 +387,7 @@ Format choice affects diff readability:
 ### For Single Run
 
 ```bash
-wfw run analysis --format-hint json
+wfw run analysis --format json
 ```
 
 Original config unchanged, applies only to this run.
@@ -434,7 +434,7 @@ Use dependencies for format conversion:
 
 ```bash
 # Extract as JSON
-wfw run extract-data --format-hint json
+wfw run extract-data --format json
 
 # Convert to markdown table
 wfw new format-as-table

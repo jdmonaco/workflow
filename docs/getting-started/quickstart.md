@@ -179,7 +179,7 @@ nano .workflow/extract-actions/config
 Add configuration like:
 
 ```bash
-MODEL=claude-3-5-sonnet-20241022
+MODEL=claude-opus-4-5-20251101
 TEMPERATURE=0.7
 MAX_TOKENS=2000
 ```

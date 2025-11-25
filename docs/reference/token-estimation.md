@@ -35,7 +35,7 @@ Estimated context tokens: ~4,500
   - notes.md: 800
 
 Total estimated input tokens: ~6,150
-Estimated cost: ~$0.0185 (claude-3-5-sonnet-20241022)
+Estimated cost: ~$0.0185 (claude-opus-4-5-20251101)
 
 Sending Messages API request...
 ```
@@ -62,7 +62,7 @@ Context:          ~4,500 tokens
   - notes.md (800 tokens)
 
 Total estimated:  ~6,150 tokens
-Estimated cost:   $0.0185 (claude-3-5-sonnet-20241022)
+Estimated cost:   $0.0185 (claude-opus-4-5-20251101)
 ─────────────────────────────────────────────────────────
 
 Use --stream to execute
@@ -82,13 +82,13 @@ This is a reasonable approximation for English text. Actual tokenization may var
 
 Costs are calculated using current Anthropic API pricing:
 
-**Input token costs (as of 2024):**
+**Input token costs (see [Anthropic pricing](https://anthropic.com/pricing) for current rates):**
 
 | Model | Cost per 1M tokens |
 |-------|-------------------|
-| Claude 3.5 Haiku | $1.00 |
-| Claude 3.5 Sonnet | $3.00 |
-| Claude Opus 4 | $15.00 |
+| Claude Haiku 4.5 | $1.00 |
+| Claude Sonnet 4.5 | $3.00 |
+| Claude Opus 4.5 | $5.00 |
 
 **Output tokens:** Not estimated (depends on response length)
 
@@ -220,9 +220,9 @@ Different models have different context windows:
 
 | Model | Input Token Limit |
 |-------|------------------|
-| Claude 3.5 Haiku | 200K tokens |
-| Claude 3.5 Sonnet | 200K tokens |
-| Claude Opus 4 | 200K tokens |
+| Claude Haiku 4.5 | 200K tokens |
+| Claude Sonnet 4.5 | 200K tokens |
+| Claude Opus 4.5 | 200K tokens |
 
 ### Practical Limits
 
@@ -234,57 +234,20 @@ While the limit is 200K tokens:
 
 **Recommended:** Keep input under 50K tokens for best results and reasonable cost.
 
-## Output Token Estimation
+## Output Tokens
 
-Workflow does **not** estimate output tokens because:
-
-- Output length is unpredictable
-- Depends on task complexity
-- Varies by model behavior
+WireFlow does not estimate output tokens (they depend on task complexity and model behavior).
 
 ### Controlling Output Length
 
-Use `MAX_TOKENS` to limit response size:
+Limit response size with `MAX_TOKENS`:
 
 ```bash
-# In config
-MAX_TOKENS=4096
-
-# Or via CLI
-wfw run analysis --max-tokens 4096
+MAX_TOKENS=4096          # In config
+wfw run analysis --max-tokens 4096   # Or via CLI
 ```
 
-**Default:** 8192 tokens
-
-**Range:** 1 to 8192 (model-dependent)
-
-### Output Token Costs
-
-**As of 2024:**
-
-| Model | Cost per 1M output tokens |
-|-------|--------------------------|
-| Claude 3.5 Haiku | $5.00 |
-| Claude 3.5 Sonnet | $15.00 |
-| Claude Opus 4 | $75.00 |
-
-Output costs are **higher** than input costs.
-
-### Estimating Total Cost
-
-Rough estimate:
-
-```
-total_cost ≈ input_cost + (expected_output_tokens / 1,000,000) × output_cost_per_million
-```
-
-Example with Sonnet, 6K input, 2K output:
-
-```
-input_cost = (6,000 / 1,000,000) × $3 = $0.018
-output_cost = (2,000 / 1,000,000) × $15 = $0.030
-total ≈ $0.048
-```
+**Default:** 8192 tokens. Output token costs are typically higher than input costs - see [Anthropic pricing](https://anthropic.com/pricing) for current rates.
 
 ## Monitoring Actual Usage
 

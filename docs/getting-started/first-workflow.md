@@ -100,7 +100,7 @@ nano .workflow/01-analyze-code/config
 Add these settings:
 
 ```bash
-MODEL=claude-3-5-sonnet-20241022
+MODEL=claude-opus-4-5-20251101
 TEMPERATURE=0.3
 MAX_TOKENS=4000
 ```

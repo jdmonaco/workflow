@@ -87,7 +87,7 @@ Override model, temperature, or tokens:
 
 ```bash
 wfw run 01-analysis \
-    --model claude-3-5-sonnet-20241022 \
+    --model claude-opus-4-5-20251101 \
     --temperature 0.5 \
     --max-tokens 8192
 ```
@@ -97,7 +97,7 @@ wfw run 01-analysis \
 Override system prompts:
 
 ```bash
-wfw run 01-analysis --system-prompts "base,research,stats"
+wfw run 01-analysis --system "base,research,stats"
 ```
 
 ### Specify Output Format
@@ -105,8 +105,8 @@ wfw run 01-analysis --system-prompts "base,research,stats"
 Change output file extension:
 
 ```bash
-wfw run 01-analysis --format-hint json  # Creates <name>.json
-wfw run 01-analysis --format-hint txt   # Creates <name>.txt
+wfw run 01-analysis --format json  # Creates <name>.json
+wfw run 01-analysis --format txt   # Creates <name>.txt
 ```
 
 ### Estimate Tokens
@@ -525,12 +525,12 @@ Each re-run creates timestamped backups:
 
 ### Output Formats
 
-Specify output format with `--format-hint`:
+Specify output format with `--format`:
 
 ```bash
-wfw run analysis --format-hint json    # <name>.json
-wfw run analysis --format-hint txt     # <name>.txt
-wfw run analysis --format-hint html    # <name>.html
+wfw run analysis --format json    # <name>.json
+wfw run analysis --format txt     # <name>.txt
+wfw run analysis --format html    # <name>.html
 ```
 
 Or set in config:
@@ -545,8 +545,8 @@ OUTPUT_FORMAT=json
 If a dependency has a different format, it's still included:
 
 ```bash
-wfw run 01-data --format-hint json  # Creates <name>.json
-wfw run 02-analysis --depends-on 01-data --format-hint md
+wfw run 01-data --format json  # Creates <name>.json
+wfw run 02-analysis --depends-on 01-data --format md
 # Includes the JSON file as context
 ```
 
@@ -554,14 +554,14 @@ wfw run 02-analysis --depends-on 01-data --format-hint md
 
 ### Model Selection
 
-Available models (as of 2024):
+Available models:
 
-- `claude-3-5-sonnet-20241022` - Balanced (default)
-- `claude-3-5-haiku-20241022` - Fast, economical
-- `claude-3-opus-4-20250514` - Most capable
+- `claude-opus-4-5-20251101` - Premium, maximum intelligence (default)
+- `claude-sonnet-4-5-20250929` - Balanced, best for most use cases
+- `claude-haiku-4-5-20251001` - Fast, economical
 
 ```bash
-wfw run analysis --model claude-3-opus-4-20250514
+wfw run analysis --model claude-sonnet-4-5-20250929
 ```
 
 ### Temperature

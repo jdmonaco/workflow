@@ -1,90 +1,45 @@
-# Configuration Guide
+# Configuration Guide  
 
-Master the multi-tier configuration cascade system that makes Workflow flexible and powerful.
+Master the multi-tier configuration cascade system that makes Wireflow flexible and powerful.  
 
-## Configuration Overview
+## Configuration Overview  
 
-Workflow uses a **multi-tier cascade** where each level can override the previous:
+Wireflow uses a **cascading configuration system** where each level inherits from and can override previous levels:  
 
-```
-1. Global Config (~/.config/wireflow/config)
-        ↓
-2. Ancestor Projects (grandparent → parent)
-        ↓
-3. Project Config (.workflow/config)
-        ↓
-4. Workflow Config (.workflow/<name>/config)
-        ↓
-5. CLI Flags (--model, --temperature, etc.)
-```
+```  
+Builtin Defaults
+        ↓  
+Global Config (~/.config/wireflow/config)  
+        ↓  
+Ancestor Projects (grandparent → parent)  
+        ↓  
+Project Config (.workflow/config)  
+        ↓  
+Workflow Config (.workflow/run/<name>/config)  
+        ↓  
+CLI Flags (--model, --temperature, etc.)  
+```  
 
-Lower tiers override higher tiers. **Empty values pass through** to inherit from above.
+**Key principle:** Empty values pass through to inherit from parent levels. Set a value to override.
 
-## Global Configuration
+## Quick Start
 
-### Location
+### First-Time Setup
 
-`~/.config/wireflow/config`
+On first use, Wireflow automatically creates:  
 
-### Auto-Creation
+- `~/.config/wireflow/config` - Your global configuration  
+- `~/.config/wireflow/prompts/base.txt` - Default system prompt  
 
-On first use, Workflow automatically creates:
-
-- `~/.config/wireflow/config` - Global configuration file
-- `~/.config/wireflow/prompts/base.txt` - Default system prompt
-
-This makes the tool self-contained and ready to use immediately.
-
-### Default Contents
-
-```bash
-# Global Workflow Configuration
-MODEL="claude-sonnet-4-5"
-TEMPERATURE=1.0
-MAX_TOKENS=4096
-OUTPUT_FORMAT="md"
-SYSTEM_PROMPTS=(base)
-
-# System prompt directory
-WIREFLOW_PROMPT_PREFIX="$HOME/.config/wireflow/prompts"
-
-# Optional: Store API key (environment variable preferred)
-# ANTHROPIC_API_KEY="sk-ant-..."
-
-# Optional: Named task directory
-# WIREFLOW_TASK_PREFIX="$HOME/.config/wireflow/tasks"
-```
-
-### Why Global Config?
-
-Set your preferences **once** and they apply to **all projects**:
-
-- ✅ Consistent defaults across projects
-- ✅ Single place to update API key
-- ✅ Change model globally when new versions release
-- ✅ Manage system prompts centrally
-
-### Editing Global Config
+Edit global config to set your preferences:
 
 ```bash
 nano ~/.config/wireflow/config
 ```
 
-Or from any directory:
+### Project Setup
 
-```bash
-wfw config  # Shows global config if not in a project
-```
-
-## Project Configuration
-
-### Location
-
-`.workflow/config` (in your project root)
-
-### Creation
-
-Created automatically when you run `wfw init`:
+Initialize a project to create local configuration:
 
 ```bash
 cd my-project
@@ -92,287 +47,193 @@ wfw init .
 # Creates .workflow/config
 ```
 
-### Purpose
+### View Configuration
 
-Set defaults for all workflows in the project without affecting other projects.
-
-### Example Project Config
+See your effective configuration at any level:
 
 ```bash
-# Use more capable model for this complex project
-MODEL="claude-3-opus-4-20250514"
+wfw config              # Project configuration
+wfw config <workflow>   # Workflow configuration
+```
+
+## Configuration Levels
+
+### 1. Global Configuration
+
+**Location:** `~/.config/wireflow/config`
+
+**Purpose:** Set your personal defaults for all projects
+
+**Example:**
+```bash
+# API Settings
+MODEL=claude-sonnet-4-5
+TEMPERATURE=1.0
+MAX_TOKENS=4096
+OUTPUT_FORMAT=md
+
+# System Prompts
+SYSTEM_PROMPTS=(base)
+WIREFLOW_PROMPT_PREFIX=$HOME/.config/wireflow/prompts
+
+# Optional: Store API key (environment variable preferred)
+# ANTHROPIC_API_KEY=sk-ant-...
+```
+
+**When to use:**
+- Set your preferred model and parameters
+- Store API key (or use environment variable)
+- Define reusable system prompts
+- Establish personal defaults across all projects
+
+### 2. Ancestor Projects
+
+**Location:** Parent project `.workflow/config` files
+
+**Purpose:** Nested projects automatically inherit configuration from all ancestor projects
+
+**Example hierarchy:**
+```bash
+~/research/                    # Parent project
+├── .workflow/config          # Sets MODEL=claude-opus-4
+└── data-analysis/            # Nested project
+    └── .workflow/config      # Inherits opus-4, adds CONTEXT_FILES
+```
+
+**When to use:**
+- Monorepo organization with subprojects
+- Shared defaults across related projects
+- Hierarchical configuration management
+
+### 3. Project Configuration
+
+**Location:** `.workflow/config` (in project root)
+
+**Purpose:** Set defaults for all workflows in this project
+
+**Example:**
+```bash
+# Override model for this project
+MODEL=claude-opus-4
 
 # Lower temperature for technical accuracy
 TEMPERATURE=0.5
 
-# Higher token limit for comprehensive outputs
-MAX_TOKENS=8192
-
-# Project-specific system prompts
+# Project-specific prompts
 SYSTEM_PROMPTS=(base research)
 
-# Default to markdown output
-OUTPUT_FORMAT=md
-```
-
-### Pass-Through Pattern (Recommended)
-
-Leave values empty to inherit from global config:
-
-```bash
-# Inherit everything from global config
-MODEL=
-TEMPERATURE=
+# Inherit other settings from global
 MAX_TOKENS=
-SYSTEM_PROMPTS=()
 OUTPUT_FORMAT=
 ```
 
-This allows you to change global defaults and affect all projects that don't explicitly override.
+**When to use:**
+- Project requires specific model or parameters
+- All workflows share common settings
+- Override global defaults for this project only
 
-### Editing Project Config
+### 4. Workflow Configuration
 
+**Location:** `.workflow/run/<name>/config`
+
+**Purpose:** Configure individual workflows with specific context and parameters
+
+**Example:**
 ```bash
-wfw edit  # Without workflow name, edits project config
-```
+# Workflow-specific context
+CONTEXT_FILES=(
+    "project-notes.md"
+    "reference data.csv"
+)
+DEPENDS_ON=(preprocessing analysis)
 
-Or directly:
+# Override temperature for this workflow
+TEMPERATURE=0.3
 
-```bash
-nano .workflow/config
-```
-
-## Nested Projects and Ancestor Cascade
-
-### Overview
-
-You can initialize workflow projects inside other workflow projects, creating a hierarchy where nested projects automatically inherit configuration from all ancestor projects.
-
-### How It Works
-
-When you initialize a project inside an existing workflow project:
-
-```bash
-cd ~/projects/research
-wfw init .                    # Parent project
-
-cd data-analysis
-wfw init .                    # Nested project
-```
-
-The nested project inherits configuration from the full cascade:
-
-```
-Global config
-    ↓
-Parent project(s) config
-    ↓
-Current project config
-```
-
-### Viewing Effective Configuration
-
-Use `wfw config` to see which ancestor set each value:
-
-```bash
-wfw config
-```
-
-Output shows:
-```
-Configuration Cascade:
-  Global:   ~/.config/wireflow/config
-  Ancestor: ~/projects/research/.workflow/config
-  Project:  ~/projects/research/data-analysis/.workflow/config
-
-Effective Configuration:
-  MODEL: claude-opus-4 (ancestor:projects/research)
-  TEMPERATURE: 0.5 (project)
-  ...
-```
-
-### Use Cases
-
-- **Monorepo organization:** Separate workflows for different subprojects
-- **Hierarchical defaults:** Set model/prompts at project level, override in subprojects
-- **Shared context:** Parent project.txt automatically included in nested projects
-
-## Workflow Configuration
-
-### Location
-
-`.workflow/<name>/config`
-
-### Creation
-
-Created when you run `wfw new`:
-
-```bash
-wfw new analysis-01
-# Creates .workflow/analysis-01/config
-```
-
-### Purpose
-
-Override settings for specific workflows without affecting others.
-
-### Example Workflow Config
-
-```bash
-# Input and context aggregation (workflow-specific)
-INPUT_PATTERN="data/*.csv"
-CONTEXT_FILES=("notes.md" "references.txt")
-DEPENDS_ON=("00-context" "01-preprocessing")
-
-# Output configuration (workflow-specific)
-OUTPUT_FILE="reports/analysis-output.json"  # Copy output to additional location
-
-# API overrides (optional, empty = inherit)
+# Inherit other settings from project
 MODEL=
-TEMPERATURE=0.3  # Override: use lower temperature for this workflow
 MAX_TOKENS=
-SYSTEM_PROMPTS=(base stats)  # Override: add stats prompt
-OUTPUT_FORMAT=json  # Override: JSON output for this workflow
+SYSTEM_PROMPTS+=(statistics)  # Append to project's prompts
 ```
 
-### Input and Context Configuration
+**When to use:**
+- Specify input files and context
+- Set workflow dependencies
+- Fine-tune parameters for specific tasks
+- Add workflow-specific prompts
 
-Workflow configs distinguish between primary input documents and supporting context:
+### 5. CLI Overrides
 
-**Input Documents** (data to be analyzed or transformed):
-- `INPUT_PATTERN` - Glob pattern relative to project root
-- `INPUT_FILES` - Array of files relative to project root
+**Purpose:** One-time parameter changes without modifying config files
 
-**Context Materials** (supporting information and references):
-- `CONTEXT_PATTERN` - Glob pattern relative to project root
-- `CONTEXT_FILES` - Array of files relative to project root
-- `DEPENDS_ON` - Array of workflow names to include outputs from
-
-**Output Configuration**:
-- `OUTPUT_FILE` - Additional path to copy output (absolute, `~/`, or relative to project root)
-
-### Editing Workflow Config
-
-```bash
-wfw edit analysis-01  # Edits workflow-specific config
-```
-
-Or directly:
-
-```bash
-nano .workflow/analysis-01/config
-```
-
-## CLI Overrides
-
-### Highest Priority
-
-Command-line flags **always override** all config levels.
-
-### Common CLI Flags
-
-| Flag | Config Variable | Example |
-|------|----------------|---------|
-| `--model` | `MODEL` | `--model claude-3-opus-4-20250514` |
-| `--temperature` | `TEMPERATURE` | `--temperature 0.5` |
-| `--max-tokens` | `MAX_TOKENS` | `--max-tokens 8192` |
-| `--system-prompts` | `SYSTEM_PROMPTS` | `--system-prompts "base,research"` |
-| `--format-hint` | `OUTPUT_FORMAT` | `--format-hint json` |
-| `--input-file` | `INPUT_FILES` | `--input-file data.csv` |
-| `--input-pattern` | `INPUT_PATTERN` | `--input-pattern "data/*.csv"` |
-| `--context-file` | `CONTEXT_FILES` | `--context-file notes.md` |
-| `--context-pattern` | `CONTEXT_PATTERN` | `--context-pattern "*.md"` |
-| `--depends-on` | `DEPENDS_ON` | `--depends-on 01-analysis` |
-| `--output-file` | `OUTPUT_FILE` | `--output-file reports/output.md` |
-
-### One-Time Overrides
-
-CLI flags don't modify config files - they apply only to the current execution:
-
+**Example:**
 ```bash
 # Use opus just for this run
-wfw run analysis --model claude-3-opus-4-20250514
+wfw run analysis --model claude-opus-4
 
-# Next run uses config default
-wfw run analysis
+# Experiment with lower temperature
+wfw run analysis --temperature 0.3
+
+# Add extra context file
+wfw run analysis --context-file extra-notes.md
 ```
 
-### When to Use CLI Flags
-
-- ✅ **Use CLI flags for:**
-
-- One-time experiments
-- Temporary overrides
+**When to use:**
 - Testing different parameters
+- One-time experiments
 - Quick adjustments
+- Temporary overrides
 
-- ✅ **Use config files for:**
+## Configuration Syntax
 
-- Persistent settings
-- Workflow defaults
-- Project standards
-- Shared configurations
+### Scalar Variables
 
-## Configuration Pass-Through
-
-### The Pass-Through Rule
-
-**Empty values inherit from parent tier. Non-empty values override.**
-
-This enables transparent cascading where global changes affect uncustomized projects.
-
-### Example: Transparent Cascade
+Most settings are simple key-value pairs:
 
 ```bash
-# Global config
-MODEL="claude-3-5-sonnet-20241022"
+# Set a value (overrides parent)
+MODEL=claude-opus-4
+TEMPERATURE=0.7
 
-# Project config
-MODEL=  # Empty - passes through
-
-# Workflow config
-MODEL=  # Empty - passes through
-
-# Result: Uses claude-3-5-sonnet-20241022 from global
+# Leave empty (inherits from parent)
+MODEL=
+TEMPERATURE=
 ```
 
-**Change global config:**
+### Array Variables
+
+Some settings accept multiple values (SYSTEM_PROMPTS, CONTEXT_FILES, INPUT_FILES, DEPENDS_ON):
 
 ```bash
-# Global config
-MODEL="claude-3-opus-4-20250514"  # Changed
+# Array Operations:
+# ┌──────────────────────────┬─────────────────────────────────────┐
+# │ Syntax                   │ Behavior                            │
+# ├──────────────────────────┼─────────────────────────────────────┤
+# │ CONTEXT_FILES=           │ Inherit from parent (pass-through)  │
+# │ CONTEXT_FILES=()         │ Clear (reset to empty)              │
+# │ CONTEXT_FILES=(file.pdf) │ Replace (override parent)           │
+# │ CONTEXT_FILES+=(add.pdf) │ Append (add to parent)              │
+# └──────────────────────────┴─────────────────────────────────────┘
 
-# Result: All empty configs now automatically use opus-4
+# Multi-line arrays (recommended for readability):
+CONTEXT_FILES=(
+    "notes/project background.md"
+    "data/experiment results.csv"
+    "references/related work.pdf"
+)
+
+# Append to inherited array:
+SYSTEM_PROMPTS+=(statistics grant-writing)
 ```
 
-### Example: Explicit Override
+### Comments
+
+Use `#` for comments in config files:
 
 ```bash
-# Global config
-MODEL="claude-3-5-sonnet-20241022"
-
-# Project config
-MODEL="claude-3-opus-4-20250514"  # Explicit value
-
-# Workflow config
-MODEL=  # Empty - inherits from project
-
-# Result: Uses opus-4 from project (ignores global changes)
+# This is a comment
+MODEL=claude-opus-4  # Inline comment
 ```
-
-### Why This Matters
-
-**Without pass-through:**
-
-- Must update every config file when you want to change a default
-- Can't manage settings centrally
-- Hard to maintain consistency
-
-**With pass-through:**
-
-- Change global config once → affects all empty configs
-- Explicit values stay independent
-- Best of both worlds: central defaults + local overrides
 
 ## Configuration Variables
 
@@ -380,90 +241,96 @@ MODEL=  # Empty - inherits from project
 
 | Variable | Type | Description | Default |
 |----------|------|-------------|---------|
-| `MODEL` | String | Claude model name | `claude-3-5-sonnet-20241022` |
+| `MODEL` | String | Claude model name | `claude-sonnet-4-5` |
 | `TEMPERATURE` | Float | Response randomness (0.0-1.0) | `1.0` |
-| `MAX_TOKENS` | Integer | Maximum response tokens | `8192` |
+| `MAX_TOKENS` | Integer | Maximum response tokens | `4096` |
+| `ENABLE_CITATIONS` | Boolean | Enable source citations | `false` |
 
 ### Output Settings
 
 | Variable | Type | Description | Default |
 |----------|------|-------------|---------|
-| `OUTPUT_FORMAT` | String | Output file extension | `md` |
-| `STREAM_MODE` | Boolean | Enable streaming | `true` (workflow mode defaults to batch) |
+| `OUTPUT_FORMAT` | String | Output file extension (`md`, `txt`, `json`) | `md` |
 
 ### System Prompts
 
 | Variable | Type | Description | Default |
 |----------|------|-------------|---------|
-| `SYSTEM_PROMPTS` | Array | Prompt names (no `.txt`) | `(base)` |
-| `WIREFLOW_PROMPT_PREFIX` | String | Prompt directory path | `~/.config/wireflow/prompts` |
+| `SYSTEM_PROMPTS` | Array | Prompt names (without `.txt` extension) | `(base)` |
+| `WIREFLOW_PROMPT_PREFIX` | String | Directory containing prompt files | `~/.config/wireflow/prompts` |
 
 ### Context Configuration
 
 | Variable | Type | Description | Scope |
 |----------|------|-------------|-------|
-| `CONTEXT_PATTERN` | String | Glob pattern for files | Project, Workflow |
-| `CONTEXT_FILES` | Array | Explicit file paths | Project, Workflow |
-| `DEPENDS_ON` | Array | Workflow dependencies | Workflow only |
-| `CONTEXT_FILE_PREFIX` | String | Base path for relative paths | All |
+| `CONTEXT_PATTERN` | String | Glob pattern for context files | Project, Workflow |
+| `CONTEXT_FILES` | Array | Explicit context file paths | Project, Workflow |
+
+### Input Configuration
+
+| Variable | Type | Description | Scope |
+|----------|------|-------------|-------|
+| `INPUT_PATTERN` | String | Glob pattern for input files | Workflow only |
+| `INPUT_FILES` | Array | Explicit input file paths | Workflow only |
+
+### Workflow Dependencies
+
+| Variable | Type | Description | Scope |
+|----------|------|-------------|-------|
+| `DEPENDS_ON` | Array | Workflow names to include outputs from | Workflow only |
 
 ### Output Configuration
 
 | Variable | Type | Description | Scope |
 |----------|------|-------------|-------|
-| `OUTPUT_FILE` | String | Additional copy destination | Workflow only |
-
-### Task Mode Settings
-
-| Variable | Type | Description | Default |
-|----------|------|-------------|---------|
-| `WIREFLOW_TASK_PREFIX` | String | Named task directory | `~/.config/wireflow/tasks` |
+| `EXPORT_FILE` | String | Additional path to copy output | Workflow only |
 
 ### Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `ANTHROPIC_API_KEY` | Anthropic API key | ✅ Yes |
+| `WIREFLOW_PROMPT_PREFIX` | System prompt directory | No (has default) |
+| `WIREFLOW_TASK_PREFIX` | Named task directory | No (has default) |
 | `EDITOR` | Text editor for editing files | No (defaults to `vi`) |
 
 ## Path Resolution
 
-Understanding path resolution is critical for context aggregation.
+Understanding path resolution is critical for context and input file aggregation.
 
-### Config File Paths (Relative to Project Root)
+### Config File Paths
 
-When paths appear in config files, they're **relative to project root**:
+Paths in config files are **relative to project root**:
 
 ```bash
-# In .workflow/config or .workflow/<name>/config
-CONTEXT_PATTERN="data/*.csv"
-CONTEXT_FILES=("notes/analysis.md" "refs/paper.pdf")
+# In .workflow/config or .workflow/run/<name>/config
+CONTEXT_PATTERN=data/*.csv
+CONTEXT_FILES=(notes/analysis.md refs/paper.pdf)
 ```
 
 **Benefits:**
-
-- Works regardless of where you run `workflow` from
+- Works regardless of where you run `wfw` from
 - Consistent paths across the project
 - Easy to share configs
 
 **Example:**
-
 ```bash
 # Project structure
 /home/user/project/
 ├── .workflow/
-│   └── analysis/
-│       └── config  # CONTEXT_PATTERN="data/*.csv"
+│   └── run/
+│       └── analysis/
+│           └── config  # CONTEXT_PATTERN=data/*.csv
 └── data/
     ├── file1.csv
     └── file2.csv
 
 # Works from anywhere:
 cd /home/user/project/subdir
-wfw run analysis  # Still finds /home/user/project/data/*.csv
+wfw run analysis  # Finds /home/user/project/data/*.csv
 ```
 
-### CLI Paths (Relative to PWD)
+### CLI Paths
 
 Command-line paths are **relative to current working directory**:
 
@@ -473,99 +340,66 @@ wfw run analysis --context-file local-notes.md
 # Looks for: /home/user/project/subdir/local-notes.md
 ```
 
-**This is standard CLI behavior:** Same as `cp`, `cat`, etc.
+This is standard CLI behavior (same as `cp`, `cat`, etc.).
 
-### Glob Pattern Features
+### Special Path Syntax
 
-#### Brace Expansion
-
+**Tilde expansion:**
 ```bash
-CONTEXT_PATTERN="data/{experiment1,experiment2}/*.csv"
-# Expands to: data/experiment1/*.csv data/experiment2/*.csv
+CONTEXT_FILES=(~/documents/notes.md)  # Expands to home directory
 ```
 
-#### Recursive Patterns
-
+**Absolute paths:**
 ```bash
-CONTEXT_PATTERN="notes/**/*.md"
-# Matches all .md files in notes/ and subdirectories
+CONTEXT_FILES=(/absolute/path/to/file.pdf)
 ```
 
-#### Spaces in Names
-
+**Relative paths (from project root in config):**
 ```bash
-CONTEXT_PATTERN="{Name\ One,Name\ Two}/*.txt"
-# Handles directories with spaces
+CONTEXT_FILES=(data/file.csv notes/background.md)
 ```
 
-### Array Values
+### Glob Patterns
 
-For multiple files, use bash array syntax:
-
+**Basic wildcards:**
 ```bash
-# Config file
-CONTEXT_FILES=("file1.md" "file2.md" "data/file3.csv")
-
-DEPENDS_ON=("workflow1" "workflow2" "workflow3")
-
-SYSTEM_PROMPTS=(base research stats)
+CONTEXT_PATTERN=data/*.csv           # All CSV files in data/
+INPUT_PATTERN=notes/*.md             # All markdown files in notes/
 ```
 
-## Viewing Configuration
-
-### View Current Configuration
-
+**Recursive patterns:**
 ```bash
-# Project config
-wfw config
-
-# Workflow config
-wfw config <name>
+CONTEXT_PATTERN=notes/**/*.md        # All .md files in notes/ and subdirectories
 ```
 
-### Output Format
-
-```
-Configuration for workflow: analysis-01
-
-MODEL: claude-3-opus-4-20250514 (project)
-TEMPERATURE: 0.3 (workflow)
-MAX_TOKENS: 8192 (default)
-STREAM_MODE: true (default)
-SYSTEM_PROMPTS: base, stats (workflow)
-OUTPUT_FORMAT: json (workflow)
-CONTEXT_FILE_PREFIX: ./ (default)
-
-Workflow-specific settings:
-  CONTEXT_PATTERN: data/*.csv
-  CONTEXT_FILES: notes.md, references.txt
-  DEPENDS_ON: 00-context, 01-preprocessing
+**Brace expansion:**
+```bash
+CONTEXT_PATTERN=data/{exp1,exp2}/*.csv  # Multiple directories
 ```
 
-**Source labels:**
+**Spaces in names:**
+```bash
+CONTEXT_PATTERN="Name\ With\ Spaces/*.txt"
+CONTEXT_FILES=("file with spaces.pdf")
+```
 
-- `(default)` - Hard-coded default
-- `(global)` - Global config file
-- `(project)` - Project config
-- `(workflow)` - Workflow config
+## Configuration Patterns
 
-This shows you exactly where each value comes from!
+### Pattern 1: Minimal (All Defaults)
 
-## Configuration Examples
-
-### Example 1: Minimal (All Defaults)
+**Use case:** Quick start, standard workflows
 
 **Global:**
 ```bash
-# Use all defaults (created automatically)
-MODEL="claude-3-5-sonnet-20241022"
+# Use defaults (auto-created)
+MODEL=claude-sonnet-4-5
 TEMPERATURE=1.0
-MAX_TOKENS=8192
+MAX_TOKENS=4096
 ```
 
 **Project:**
 ```bash
-# Empty - inherit global
+# Inherit everything
 MODEL=
 TEMPERATURE=
 MAX_TOKENS=
@@ -574,176 +408,312 @@ MAX_TOKENS=
 **Workflow:**
 ```bash
 # Only specify context
-CONTEXT_PATTERN="data/*.csv"
+CONTEXT_FILES=(data.csv notes.md)
 ```
 
-### Example 2: Project Override
+### Pattern 2: Project Specialization
+
+**Use case:** Project needs different model or parameters
 
 **Global:**
 ```bash
-MODEL="claude-3-5-sonnet-20241022"
+MODEL=claude-sonnet-4-5
 TEMPERATURE=1.0
-MAX_TOKENS=4096
 ```
 
 **Project:**
 ```bash
-# This is a complex project - use opus
-MODEL="claude-3-opus-4-20250514"
+# Complex project - use opus
+MODEL=claude-opus-4
 MAX_TOKENS=8192
 # Inherit temperature
 TEMPERATURE=
 ```
 
-**Workflow:**
+**Workflows:**
 ```bash
-# Inherit project settings
+# All workflows inherit opus-4 from project
 MODEL=
 TEMPERATURE=
-MAX_TOKENS=
-
-# Add context
-CONTEXT_FILES=("data.csv")
 ```
 
-### Example 3: Workflow Specialization
+### Pattern 3: Workflow Variations
+
+**Use case:** Different workflows need different parameters
+
+**Global & Project:**
+```bash
+# Standard defaults
+MODEL=claude-sonnet-4-5
+TEMPERATURE=1.0
+```
+
+**Workflow 1 (creative):**
+```bash
+TEMPERATURE=1.0  # High creativity
+SYSTEM_PROMPTS+=(creative-writing)
+```
+
+**Workflow 2 (analysis):**
+```bash
+TEMPERATURE=0.3  # Low, focused
+MODEL=claude-opus-4  # More capable
+SYSTEM_PROMPTS+=(data-analysis)
+```
+
+### Pattern 4: Incremental Prompts
+
+**Use case:** Build up specialized prompt combinations
 
 **Global:**
 ```bash
-MODEL="claude-3-5-sonnet-20241022"
-TEMPERATURE=1.0
+SYSTEM_PROMPTS=(base)
 ```
 
 **Project:**
 ```bash
-# Inherit global
-MODEL=
-TEMPERATURE=
+SYSTEM_PROMPTS+=(research neuroai)  # Add project domain
 ```
 
-**Workflow 1 (creative writing):**
+**Workflow:**
 ```bash
-TEMPERATURE=1.0  # Creative
-MODEL=  # Use project default
+SYSTEM_PROMPTS+=(grant-writing)  # Add workflow task
+# Result: (base research neuroai grant-writing)
 ```
 
-**Workflow 2 (data analysis):**
+### Pattern 5: Shared Context
+
+**Use case:** All workflows share common context files
+
+**Project:**
 ```bash
-TEMPERATURE=0.3  # Focused
-MODEL="claude-3-opus-4-20250514"  # More capable
+CONTEXT_FILES=(
+    project-background.md
+    team-notes.md
+)
 ```
 
-### Example 4: Environment-Specific
-
-**Development:**
+**Workflow 1:**
 ```bash
-# Global config
-MODEL="claude-3-5-haiku-20241022"  # Fast, cheap
-MAX_TOKENS=4096  # Smaller
+CONTEXT_FILES+=(workflow1-specific.csv)
+# Has: project files + workflow1 file
 ```
 
-**Production:**
+**Workflow 2:**
 ```bash
-# Global config
-MODEL="claude-3-opus-4-20250514"  # Best quality
-MAX_TOKENS=8192  # Larger
+CONTEXT_FILES+=(workflow2-data.json)
+# Has: project files + workflow2 file
 ```
 
-Projects inherit appropriate defaults based on which environment.
+## Viewing Configuration
+
+### View Effective Configuration
+
+```bash
+# Project configuration
+wfw config
+
+# Workflow configuration
+wfw config <workflow-name>
+```
+
+### Sample Output
+
+```
+Current Project:
+  Root:       ~/projects/research
+  Project:    ~/projects/research/.workflow/project.txt
+  Output:     ~/projects/research/.workflow/output
+
+Configuration Paths:
+  Global:     ~/.config/wireflow/config                    [✓]
+  Project:    ~/projects/research/.workflow/config         [✓]
+  Workflow:   ~/projects/research/.workflow/run/analysis/config  [✓]
+
+Effective Configuration:
+  API Request Parameters:
+    MODEL = claude-opus-4                                  [project]
+    TEMPERATURE = 0.3                                      [workflow]
+    MAX_TOKENS = 8192                                      [global]
+    SYSTEM_PROMPTS = (3 items)                             [workflow]
+      - base
+      - research
+      - statistics
+
+  Project-Level Settings:
+    CONTEXT_FILES = (2 items)                              [workflow]
+      - project-background.md
+      - experiment-data.csv
+
+  Workflow-Specific Settings:
+    INPUT_FILES = (1 items)                                [workflow]
+      - data/input.txt
+    DEPENDS_ON = (1 items)                                 [workflow]
+      - preprocessing
+```
+
+**Source labels show where each value comes from:**
+- `[builtin]` - Hard-coded default
+- `[global]` - Global config file
+- `[ancestor]` - Ancestor project config
+- `[project]` - Project config
+- `[workflow]` - Workflow config
+- `[cli]` - Command-line flag
+- `[env]` - Environment variable
+- `[unset]` - No value set at any level
+
+## CLI Overrides
+
+### Common Flags
+
+| Flag | Config Variable | Example |
+|------|----------------|---------|
+| `--model` | `MODEL` | `--model claude-opus-4` |
+| `--temperature` | `TEMPERATURE` | `--temperature 0.5` |
+| `--max-tokens` | `MAX_TOKENS` | `--max-tokens 8192` |
+| `--system` | `SYSTEM_PROMPTS` | `--system base,research` |
+| `--format` | `OUTPUT_FORMAT` | `--format json` |
+| `--input-file` | `INPUT_FILES` | `--input-file data.csv` |
+| `--input-pattern` | `INPUT_PATTERN` | `--input-pattern "data/*.csv"` |
+| `--context-file` | `CONTEXT_FILES` | `--context-file notes.md` |
+| `--context-pattern` | `CONTEXT_PATTERN` | `--context-pattern "*.md"` |
+| `--depends-on` | `DEPENDS_ON` | `--depends-on preprocessing` |
+| `--export-file` | `EXPORT_FILE` | `--export-file reports/out.md` |
+
+### Usage Examples
+
+```bash
+# One-time model override
+wfw run analysis --model claude-opus-4
+
+# Experiment with temperature
+wfw run creative --temperature 1.0
+
+# Add extra context
+wfw run analysis --context-file extra-notes.md
+
+# Multiple overrides
+wfw run analysis \
+  --model claude-opus-4 \
+  --temperature 0.3 \
+  --context-file data.csv
+```
+
+**Important:** CLI flags apply only to the current execution and don't modify config files.
 
 ## Best Practices
 
 ### Configuration Strategy
 
-- ✅ **Do:**
-
-- Use global config for your personal defaults
+✅ **Do:**
+- Use global config for personal defaults
 - Use project config for project-wide settings
-- Use workflow config for workflow-specific context and specialization
-- Use CLI flags for one-time experiments
-- Leave values empty to enable pass-through
+- Use workflow config for context and specialization
+- Use CLI flags for experiments and one-time changes
+- Leave values empty to enable pass-through inheritance
+- Use array append (`+=`) to build on parent values
 - Document non-obvious configuration choices
 
 ❌ **Don't:**
-
-- Set the same value in multiple tiers (use pass-through)
-- Put sensitive data in project configs (use global or environment variables)
-- Hardcode absolute paths in configs (use project-relative paths)
+- Set the same value at multiple levels (use pass-through)
+- Put sensitive data in project configs (use global or environment)
+- Hardcode absolute paths (use project-relative paths)
 - Override everything at every level (defeats the cascade)
 
-### Organization Tips
-
-**Global config:**
-
-- Set your preferred model
-- Set your API key
-- Define reusable system prompts
-
-**Project config:**
-
-- Set project-specific model if needed
-- Set project-specific temperature range
-- Define project system prompts
-
-**Workflow config:**
-
-- Specify context sources (CONTEXT_PATTERN, CONTEXT_FILES)
-- Set dependencies (DEPENDS_ON)
-- Override temperature for specific workflows
-- Set output format if different from project default
-
-### When to Override
+### When to Override Settings
 
 **Temperature:**
-
 - **Low (0.0-0.4):** Technical analysis, data processing, code review
 - **Medium (0.5-0.7):** Balanced tasks, general writing
 - **High (0.8-1.0):** Creative writing, brainstorming, varied outputs
 
 **Model:**
-
 - **Haiku:** Fast iterations, simple tasks, testing
 - **Sonnet:** Balanced quality and cost (default)
 - **Opus:** Complex reasoning, highest quality needed
 
 **Max Tokens:**
-
 - **Low (1024-2048):** Summaries, short responses
-- **Medium (4096-8192):** Standard workflows (default)
+- **Medium (4096-8192):** Standard workflows
 - **High (16384+):** Comprehensive reports, long-form content
+
+### Organization Tips
+
+**Global config:**
+- Your preferred model and parameters
+- API key (or use environment variable)
+- Reusable system prompts
+
+**Project config:**
+- Project-specific model if needed
+- Project-wide prompts
+- Shared context files
+
+**Workflow config:**
+- Input and context files
+- Workflow dependencies
+- Task-specific parameter tweaks
+- Workflow-specific prompts (via `+=`)
 
 ## Troubleshooting
 
 ### "Configuration not found"
 
-You're not in a workflow project:
+You're not in a workflow project. Navigate to your project:
 
 ```bash
-cd /path/to/project  # Navigate to project
+cd /path/to/project
 wfw config
 ```
 
 ### Values Not Taking Effect
 
-Check the cascade - CLI flags override everything:
+Check the cascade to see where values come from:
 
 ```bash
-wfw config analysis  # See where each value comes from
+wfw config <workflow>  # Shows source for each value
 ```
+
+Remember: CLI flags override everything.
 
 ### Glob Patterns Not Matching
 
-- Check paths are relative to project root (config) or PWD (CLI)
-- Verify files exist: `ls data/*.csv`
-- Check pattern syntax: use quotes around patterns
+- Verify paths are relative to project root (in config) or PWD (in CLI)
+- Check files exist: `ls data/*.csv`
+- Use quotes around patterns with special characters
+- Enable extended globbing if needed: `shopt -s extglob`
+
+### Array Values Not Appending
+
+Check your syntax:
+
+```bash
+# Wrong (replaces)
+SYSTEM_PROMPTS=(new-prompt)
+
+# Correct (appends)
+SYSTEM_PROMPTS+=(new-prompt)
+```
 
 ### Dependencies Not Found
 
 Dependent workflows must exist and have outputs:
 
 ```bash
-wfw list  # Check workflow exists
-ls .workflow/dependency/output/  # Check output exists
+wfw list                              # Check workflow exists
+ls .workflow/run/dependency/output/   # Check output exists
+```
+
+### Empty Array Shows as Single Empty Element
+
+Use `()` to explicitly clear, not `('')`:
+
+```bash
+# Wrong
+CONTEXT_FILES=('')
+
+# Correct
+CONTEXT_FILES=()
 ```
 
 ## Next Steps

@@ -363,7 +363,7 @@ wfw config analysis
 
 # Verify OUTPUT_FORMAT
 # Use CLI override
-wfw run analysis --format-hint json
+wfw run analysis --format json
 
 # Or update config
 nano .workflow/analysis/config
@@ -422,7 +422,7 @@ bash -n ~/.config/wireflow/config
 # - Special characters not escaped
 
 # Example correct syntax:
-MODEL="claude-3-5-sonnet-20241022"
+MODEL="claude-opus-4-5-20251101"
 SYSTEM_PROMPTS=(base research)
 CONTEXT_FILES=("file1.md" "file2.txt")
 ```
@@ -515,7 +515,7 @@ wfw run analysis --count-tokens
 ping api.anthropic.com
 
 # Try smaller model for testing
-wfw run analysis --model claude-3-5-haiku-20241022 --stream
+wfw run analysis --model claude-haiku-4-5-20251001 --stream
 ```
 
 ### High API Costs

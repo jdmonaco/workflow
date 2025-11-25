@@ -70,7 +70,7 @@ Project-level configuration file.
 **Example:**
 
 ```bash
-MODEL=claude-3-5-sonnet-20241022
+MODEL=claude-opus-4-5-20251101
 TEMPERATURE=0.8
 MAX_TOKENS=8192
 SYSTEM_PROMPTS=(base research)
@@ -201,7 +201,7 @@ CONTEXT_FILES=("notes.md" "references.txt")
 DEPENDS_ON=("00-context" "01-preprocessing")
 
 # API overrides (optional)
-MODEL=claude-3-opus-4-20250514
+MODEL=claude-opus-4-5-20251101
 TEMPERATURE=0.5
 MAX_TOKENS=8192
 SYSTEM_PROMPTS=(base stats)
@@ -314,7 +314,7 @@ Optional named task directory.
 
 Format: `<name>.<format>`
 
-Where `<format>` is determined by `OUTPUT_FORMAT` config or `--format-hint` flag.
+Where `<format>` is determined by `OUTPUT_FORMAT` config or `--format` flag.
 
 **Examples:**
 

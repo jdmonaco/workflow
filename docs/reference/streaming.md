@@ -214,7 +214,7 @@ wfw run analysis --stream | tee custom-output.md
 wfw run analysis --stream > custom-output.md
 
 # Send to pipeline
-wfw run extract --format-hint json --stream | jq '.results[]'
+wfw run extract --format json --stream | jq '.results[]'
 ```
 
 ### Batch with Custom Display
