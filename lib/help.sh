@@ -13,21 +13,21 @@
 
 show_help() {
     cat <<EOF
-WireFlow - A tool for building flexible AI workflows anywhere
+WireFlow - Reproducible AI workflows from the command line
 Usage: $SCRIPT_NAME <subcommand> [options]
 
-Available subcommands:
-    init [dir]       Initialize workflow project
-    new NAME         Create new workflow
-    edit [NAME]      Edit workflow or project files
-    config [NAME]    View/edit configuration
-    run NAME         Execute workflow with full context
-    task NAME|TEXT   Execute one-off task (lightweight)
-    cat NAME         Pipe workflow output to your shell
-    open NAME        Open workflow output file in default app (macOS)
-    tasks            Show available task templates
-    list             List workflows in project
-    help [CMD]       Show help for subcommand
+Subcommands:
+    init [dir]       Initialize wireflow project
+    new NAME         Add a named workflow
+    edit [NAME]      Open files in editor
+    config [NAME]    Show effective config
+    run NAME         Execute workflow
+    task NAME|TEXT   Quick one-off query
+    cat NAME         Print output to stdout
+    open NAME        Open output in app (macOS)
+    tasks            Manage task templates
+    list             Show project workflows
+    help [CMD]       Show help
 
 Use '$SCRIPT_NAME help <subcommand>' for detailed help on a specific command.
 Use '$SCRIPT_NAME <subcommand> -h' for quick help.
@@ -118,7 +118,7 @@ show_help_init() {
     cat <<EOF
 Usage: $SCRIPT_NAME init [<directory>]
 
-Initialize a WireFlow project with .workflow/ structure.
+Initialize a wireflow project. Run once per project root.
 
 Arguments:
     <directory>    Directory to initialize (default: current directory)
@@ -136,7 +136,7 @@ show_help_new() {
     cat <<EOF
 Usage: $SCRIPT_NAME new <name> [options]
 
-Create a new workflow in the current project.
+Add a named workflow. Creates config and task files you can customize.
 
 Arguments:
     <name>        Workflow name (required)
@@ -158,7 +158,7 @@ show_help_edit() {
     cat <<EOF
 Usage: $SCRIPT_NAME edit [<name>]
 
-Edit workflow or project files in text editor.
+Open workflow or project files in your editor. Fast access to config and tasks.
 
 Arguments:
     <name>         Workflow name (optional)
@@ -180,7 +180,7 @@ show_help_config() {
     cat <<EOF
 Usage: $SCRIPT_NAME config [<name>] [options]
 
-Display configuration with source tracking.
+Show effective config. See where each value comes from in the cascade.
 
 Arguments:
     <name>         Workflow name (optional)
@@ -199,37 +199,37 @@ show_help_run() {
     cat <<EOF
 Usage: $SCRIPT_NAME run <name> [options]
 
-Execute a workflow with full context aggregation.
+Execute a workflow. Aggregates context, calls API, saves output.
 
 Arguments:
-    <name>                      Workflow name (required)
+    <name>                        Workflow name (required)
 
 Input Options (primary documents):
-    --input-file|-in <file>     Add input document (repeatable)
-    --input-pattern <glob>      Add input files matching pattern
+    --input-file, -in <file>      Add input document (repeatable)
+    --input-pattern <glob>        Add input files matching pattern
 
 Context Options (background and references):
-    --context-file|-cx <file>   Add context file (repeatable)
-    --context-pattern <glob>    Add context files matching pattern
-    --depends-on|-d <workflow>  Include output from another workflow
+    --context-file, -cx <file>    Add context file (repeatable)
+    --context-pattern <glob>      Add context files matching pattern
+    --depends-on, -d <workflow>   Include output from another workflow
 
 API Options:
-    --model|-m <model>           Override model
-    --temperature|-t <temp>      Override temperature (0.0-1.0)
-    --max-tokens <num>           Override max tokens
-    --system|-p <list>           Comma-separated prompt names
-    --format|-f <ext>            Output format (md, txt, json, etc.)
-    --enable-citations           Enable Anthropic citations support
-    --disable-citations          Disable citations (default)
+    --model, -m <model>           Override model
+    --temperature, -t <temp>      Override temperature (0.0-1.0)
+    --max-tokens <num>            Override max tokens
+    --system, -p <list>           Comma-separated prompt names
+    --format, -f <ext>            Output format (md, txt, json, etc.)
+    --enable-citations            Enable Anthropic citations support
+    --disable-citations           Disable citations (default)
 
 Output Options:
-    --output-file|-o <path>      Copy output to additional path
+    --output-file, -o <path>      Copy output to additional path
 
 Execution Options:
-    --stream|-s                  Stream output in real-time (default: true)
-    --count-tokens               Show token estimation only
-    --dry-run|-n                 Save API request files and inspect in editor
-    --help|-h                    Quick help
+    --stream, -s                  Stream output in real-time (default)
+    --count-tokens                Show token estimation only
+    --dry-run, -n                 Save request JSON, open in editor
+    --help, -h                    Quick help
 
 Examples:
     $SCRIPT_NAME run 01-analysis --stream
@@ -240,40 +240,40 @@ EOF
 
 show_help_task() {
     cat <<EOF
-Usage: $SCRIPT_NAME task <name>|--inline <text> [options]
+Usage: $SCRIPT_NAME task <name> | --inline <text> [options]
 
-Execute a one-off task outside of existing workflows.
+Quick one-off query. No workflow directory needed.
 
 Task Specification:
-    <name>                    Named task from \$WIREFLOW_TASK_PREFIX/<name>.txt
-    -i, --inline <text>       Inline task specification
+    <name>                        Named task from \$WIREFLOW_TASK_PREFIX/<name>.txt
+    --inline, -i <text>           Inline task specification
 
 Input Options (primary documents to analyze):
-    --input-file|-in <file>   Add input document (repeatable)
-    --input-pattern <glob>    Add input files matching pattern
+    --input-file, -in <file>      Add input document (repeatable)
+    --input-pattern <glob>        Add input files matching pattern
 
 Context Options (supporting materials and references):
-    --context-file|-cx <file> Add context file (repeatable)
-    --context-pattern <glob>  Add context files matching pattern
+    --context-file, -cx <file>    Add context file (repeatable)
+    --context-pattern <glob>      Add context files matching pattern
 
 API Options:
-    --model|-m <model>        Override model
-    --temperature|-t <temp>   Override temperature
-    --max-tokens <num>        Override max tokens
-    --system|-p <list>        Comma-separated prompt names
-    --output-format|-f <ext>  Output format
-    --enable-citations        Enable Anthropic citations support
-    --disable-citations       Disable citations (default)
+    --model, -m <model>           Override model
+    --temperature, -t <temp>      Override temperature
+    --max-tokens <num>            Override max tokens
+    --system, -p <list>           Comma-separated prompt names
+    --format, -f <ext>            Output format
+    --enable-citations            Enable Anthropic citations support
+    --disable-citations           Disable citations (default)
 
 Output Options:
-    --output-file|-o <path>   Save to file (default: stdout)
-    --stream                  Stream output (default: true)
-    --no-stream               Use batch mode
+    --output-file, -o <path>      Save to file (default: stdout)
+    --stream                      Stream output (default)
+    --no-stream                   Use batch mode
 
 Other Options:
-    --count-tokens            Show token estimation only
-    --dry-run|-n              Save API request files and inspect in editor
-    --help|-h                 Quick help
+    --count-tokens                Show token estimation only
+    --dry-run, -n                 Save request JSON, open in editor
+    --help, -h                    Quick help
 
 Examples:
     $SCRIPT_NAME task summarize --context-file paper.pdf
@@ -281,9 +281,8 @@ Examples:
     $SCRIPT_NAME task analyze --input-pattern "data/*.csv" --stream
 
 See Also:
-    $SCRIPT_NAME tasks           # List available task templates
+    $SCRIPT_NAME tasks              # List available task templates
     $SCRIPT_NAME tasks show <name>  # Preview template
-    $SCRIPT_NAME new <name> --task <template>  # Create workflow from template
 EOF
 }
 
@@ -291,7 +290,7 @@ show_help_tasks() {
     cat <<EOF
 Usage: $SCRIPT_NAME tasks [show|edit <name>]
 
-Manage task templates.
+List, view, or edit reusable task templates.
 
 Commands:
     tasks              List available task templates (default)
@@ -315,7 +314,7 @@ show_help_cat() {
     cat <<EOF
 Usage: $SCRIPT_NAME cat <name>
 
-Display workflow output to stdout.
+Print workflow output. Pipe it, grep it, use it.
 
 Arguments:
     <name>         Workflow name (required)
@@ -333,7 +332,7 @@ show_help_open() {
     cat <<EOF
 Usage: $SCRIPT_NAME open <name>
 
-Open workflow output in default application (macOS only).
+Open output in your default app. macOS only.
 
 Arguments:
     <name>         Workflow name (required)
@@ -351,7 +350,7 @@ show_help_list() {
     cat <<EOF
 Usage: $SCRIPT_NAME list
 
-List all workflows in the current project.
+Show all workflows in this project.
 
 Options:
     -h, --help     Quick help
