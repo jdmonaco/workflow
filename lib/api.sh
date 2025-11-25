@@ -946,3 +946,172 @@ write_citations_sidecar() {
     echo "$sidecar_file"
     return 0
 }
+
+# =============================================================================
+# Anthropic Message Batches API
+# =============================================================================
+
+# Create a message batch
+# Arguments (key=value format):
+#   api_key=...           - Anthropic API key
+#   requests_file=...     - Path to JSON file with requests array
+# Returns:
+#   0 - Success (outputs batch object JSON)
+#   1 - API error
+anthropic_create_batch() {
+    local -A params
+    while [[ $# -gt 0 ]]; do
+        IFS='=' read -r key value <<< "$1"
+        params["$key"]="$value"
+        shift
+    done
+
+    local requests_json
+    requests_json=$(<"${params[requests_file]}")
+
+    local json_payload
+    json_payload=$(jq -n --argjson requests "$requests_json" '{requests: $requests}')
+
+    local response
+    response=$(echo "$json_payload" | curl -s https://api.anthropic.com/v1/messages/batches \
+        -H "content-type: application/json" \
+        -H "x-api-key: ${params[api_key]}" \
+        -H "anthropic-version: 2023-06-01" \
+        -d @-)
+
+    # Check for errors
+    if echo "$response" | jq -e '.error' > /dev/null 2>&1; then
+        echo "Batch API Error:" >&2
+        echo "$response" | jq '.error' >&2
+        return 1
+    fi
+
+    echo "$response"
+    return 0
+}
+
+# Get batch status
+# Arguments (key=value format):
+#   api_key=...    - Anthropic API key
+#   batch_id=...   - Batch ID to retrieve
+# Returns:
+#   0 - Success (outputs batch object JSON)
+#   1 - API error
+anthropic_get_batch() {
+    local -A params
+    while [[ $# -gt 0 ]]; do
+        IFS='=' read -r key value <<< "$1"
+        params["$key"]="$value"
+        shift
+    done
+
+    local response
+    response=$(curl -s "https://api.anthropic.com/v1/messages/batches/${params[batch_id]}" \
+        -H "x-api-key: ${params[api_key]}" \
+        -H "anthropic-version: 2023-06-01")
+
+    if echo "$response" | jq -e '.error' > /dev/null 2>&1; then
+        echo "Batch API Error:" >&2
+        echo "$response" | jq '.error' >&2
+        return 1
+    fi
+
+    echo "$response"
+    return 0
+}
+
+# Get batch results (streaming JSONL)
+# Arguments (key=value format):
+#   api_key=...       - Anthropic API key
+#   batch_id=...      - Batch ID
+#   output_file=...   - File to write JSONL results
+# Returns:
+#   0 - Success
+#   1 - API error
+anthropic_get_batch_results() {
+    local -A params
+    while [[ $# -gt 0 ]]; do
+        IFS='=' read -r key value <<< "$1"
+        params["$key"]="$value"
+        shift
+    done
+
+    local output_file="${params[output_file]}"
+
+    # Stream results as JSONL to output file
+    curl -s "https://api.anthropic.com/v1/messages/batches/${params[batch_id]}/results" \
+        -H "x-api-key: ${params[api_key]}" \
+        -H "anthropic-version: 2023-06-01" \
+        -o "$output_file"
+
+    # Check if we got an error response (JSON object instead of JSONL)
+    if head -1 "$output_file" 2>/dev/null | jq -e '.error' > /dev/null 2>&1; then
+        echo "Batch API Error:" >&2
+        jq '.error' "$output_file" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# List all batches
+# Arguments (key=value format):
+#   api_key=...    - Anthropic API key
+#   limit=...      - Max results (optional, default 20)
+# Returns:
+#   0 - Success (outputs batch list JSON)
+#   1 - API error
+anthropic_list_batches() {
+    local -A params
+    while [[ $# -gt 0 ]]; do
+        IFS='=' read -r key value <<< "$1"
+        params["$key"]="$value"
+        shift
+    done
+
+    local limit="${params[limit]:-20}"
+
+    local response
+    response=$(curl -s "https://api.anthropic.com/v1/messages/batches?limit=${limit}" \
+        -H "x-api-key: ${params[api_key]}" \
+        -H "anthropic-version: 2023-06-01")
+
+    if echo "$response" | jq -e '.error' > /dev/null 2>&1; then
+        echo "Batch API Error:" >&2
+        echo "$response" | jq '.error' >&2
+        return 1
+    fi
+
+    echo "$response"
+    return 0
+}
+
+# Cancel a batch
+# Arguments (key=value format):
+#   api_key=...    - Anthropic API key
+#   batch_id=...   - Batch ID to cancel
+# Returns:
+#   0 - Success (outputs batch object JSON)
+#   1 - API error
+anthropic_cancel_batch() {
+    local -A params
+    while [[ $# -gt 0 ]]; do
+        IFS='=' read -r key value <<< "$1"
+        params["$key"]="$value"
+        shift
+    done
+
+    local response
+    response=$(curl -s -X POST "https://api.anthropic.com/v1/messages/batches/${params[batch_id]}/cancel" \
+        -H "x-api-key: ${params[api_key]}" \
+        -H "anthropic-version: 2023-06-01")
+
+    if echo "$response" | jq -e '.error' > /dev/null 2>&1; then
+        echo "Batch API Error:" >&2
+        echo "$response" | jq '.error' >&2
+        return 1
+    fi
+
+    echo "$response"
+    return 0
+}

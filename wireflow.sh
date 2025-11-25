@@ -20,6 +20,7 @@ SCRIPT_NAME="$(basename ${0})"
 # Source function libraries
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 source "$SCRIPT_DIR/lib/api.sh"
+source "$SCRIPT_DIR/lib/batch.sh"
 source "$SCRIPT_DIR/lib/config.sh"
 source "$SCRIPT_DIR/lib/core.sh"
 source "$SCRIPT_DIR/lib/execute.sh"
@@ -170,11 +171,12 @@ declare -a INPUT_FILES_CLI=()
 declare INPUT_PATTERN=""
 declare INPUT_PATTERN_CLI=""
 declare EXPORT_FILE=""
+declare BATCH_MODE="false"
 
-# Initialize workflow-specific source tracking:  
-#   workflow → CLI  
-declare -A WORKFLOW_SOURCE_MAP  
-WORKFLOW_KEYS=(  
+# Initialize workflow-specific source tracking:
+#   workflow → CLI
+declare -A WORKFLOW_SOURCE_MAP
+WORKFLOW_KEYS=(
     "DEPENDS_ON"
     "DEPENDS_ON_CLI"
     "INPUT_PATTERN"
@@ -182,7 +184,8 @@ WORKFLOW_KEYS=(
     "INPUT_FILES"
     "INPUT_FILES_CLI"
     "EXPORT_FILE"
-)  
+    "BATCH_MODE"
+)
 for key in "${WORKFLOW_KEYS[@]}"; do
     WORKFLOW_SOURCE_MAP[$key]="unset"
 done
@@ -341,14 +344,39 @@ case "$cmd" in
         ;;
     task)
         # Execute named task template
-        if [[ $# -eq 0 ]]; then  
-            echo "Error: Task name required" >&2  
-            show_quick_help_task  
-            exit 1  
+        if [[ $# -eq 0 ]]; then
+            echo "Error: Task name required" >&2
+            show_quick_help_task
+            exit 1
         fi
-        
+
         # Delegate to task execution handler
         cmd_task "$@"
+        exit $?
+        ;;
+    status)
+        # Show batch processing status
+        cmd_batch_status "$@"
+        exit $?
+        ;;
+    cancel)
+        # Cancel a pending batch
+        if [[ $# -eq 0 ]]; then
+            echo "Error: Workflow name required" >&2
+            echo "Usage: $SCRIPT_NAME cancel <name>" >&2
+            exit 1
+        fi
+        cmd_batch_cancel "$@"
+        exit $?
+        ;;
+    results)
+        # Retrieve batch results
+        if [[ $# -eq 0 ]]; then
+            echo "Error: Workflow name required" >&2
+            echo "Usage: $SCRIPT_NAME results <name>" >&2
+            exit 1
+        fi
+        cmd_batch_results "$@"
         exit $?
         ;;
     tasks)
@@ -406,6 +434,9 @@ case "$cmd" in
             config) show_help_config ;;
             run) show_help_run ;;
             task) show_help_task ;;
+            status) show_help_status ;;
+            cancel) show_help_cancel ;;
+            results) show_help_results ;;
             tasks) show_help_tasks ;;
             cat) show_help_cat ;;
             open) show_help_open ;;

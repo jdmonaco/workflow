@@ -148,6 +148,16 @@ execute_run_mode() {
                 CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
                 shift
                 ;;
+            --batch)
+                BATCH_MODE="true"
+                WORKFLOW_SOURCE_MAP[BATCH_MODE]="cli"
+                shift
+                ;;
+            --no-batch)
+                BATCH_MODE="false"
+                WORKFLOW_SOURCE_MAP[BATCH_MODE]="cli"
+                shift
+                ;;
             *)
                 echo "Error: Unknown option: $1" >&2
                 show_quick_help_run
@@ -234,16 +244,31 @@ execute_run_mode() {
     fi
     
     # =============================================================================
-    # Execute API Request
+    # Execute API Request (or Batch Submission)
     # =============================================================================
-    
+
+    # Check for batch mode
+    if [[ "$BATCH_MODE" == "true" ]]; then
+        # Execute batch mode - submit and return immediately
+        execute_batch_mode "run" "$PROJECT_ROOT" "$WORKFLOW_DIR"
+        local batch_result=$?
+
+        if [[ $batch_result -ne 0 ]]; then
+            echo "Error: Batch submission failed" >&2
+            return $batch_result
+        fi
+
+        # Batch mode returns immediately after submission
+        return 0
+    fi
+
     # Set streaming mode
     STREAM_MODE=$stream_mode
-    
+
     # Execute API request
     execute_api_request "run" "$output_file" ""
     local api_result=$?
-    
+
     if [[ $api_result -ne 0 ]]; then
         echo "Error: API request failed" >&2
         return $api_result

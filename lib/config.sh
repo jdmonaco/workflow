@@ -130,6 +130,9 @@ extract_config() {
         printf ')\n'
 
         echo "EXPORT_FILE=${EXPORT_FILE:-}"
+
+        # Batch mode
+        echo "BATCH_MODE=${BATCH_MODE:-}"
     )
 }
 

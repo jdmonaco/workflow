@@ -18,6 +18,9 @@ wfw <subcommand> [options]
 | `config` | View/edit configuration |
 | `run` | Execute workflow with full context |
 | `task` | Execute one-off task (lightweight) |
+| `status` | Show batch processing status |
+| `cancel` | Cancel a pending batch |
+| `results` | Retrieve completed batch results |
 | `cat` | Display workflow output to stdout |
 | `open` | Open workflow output in default app (macOS) |
 | `tasks` | Manage task templates |
@@ -263,6 +266,15 @@ wfw run <name> [options]
 | `--dry-run` | `-n` | Save API request files and inspect in editor |
 | `--help` | `-h` | Quick help |
 
+**Batch Processing Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--batch` | Enable batch mode (one request per input file) |
+| `--no-batch` | Disable batch mode (default) |
+
+Batch mode submits each input file as a separate API request via the Message Batches API, providing 50% cost reduction. Results are retrieved asynchronously with `wfw results <name>`.
+
 **Examples:**
 
 ```bash
@@ -270,6 +282,7 @@ wfw run 01-analysis --stream
 wfw run 01-analysis --profile deep --enable-thinking
 wfw run 01-analysis --model claude-opus-4-5 --effort medium
 wfw run report --input-file data.csv --context-file notes.md
+wfw run analysis --batch --input-pattern "data/*.txt"
 ```
 
 ---
@@ -346,12 +359,20 @@ wfw task <name>|--inline <text> [options]
 | `--dry-run` | `-n` | Save API request files and inspect in editor |
 | `--help` | `-h` | Quick help |
 
+**Batch Processing Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--batch` | Enable batch mode (one request per input file) |
+| `--no-batch` | Disable batch mode (default) |
+
 **Examples:**
 
 ```bash
 wfw task summarize --context-file paper.pdf
 wfw task -i "Summarize these notes" --profile fast
 wfw task analyze --input-pattern "data/*.csv" --enable-thinking
+wfw task analyze --batch --input-pattern "reports/*.pdf"
 ```
 
 **See Also:**
@@ -481,6 +502,103 @@ wfw list
 
 ---
 
+### wfw status
+
+Show batch processing status.
+
+```
+wfw status [<name>]
+```
+
+**Arguments:**
+
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `<name>` | Workflow name | None (project status) |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `-h`, `--help` | Quick help |
+
+**Behavior:**
+
+- Without `<name>`: Shows status of all batches in project
+- With `<name>`: Shows detailed status for specific workflow batch
+- Outside project: Lists recent batches from Anthropic API
+
+**Examples:**
+
+```bash
+wfw status
+wfw status my-analysis
+```
+
+---
+
+### wfw cancel
+
+Cancel a pending batch.
+
+```
+wfw cancel <name>
+```
+
+**Arguments:**
+
+| Argument | Description | Required |
+|----------|-------------|----------|
+| `<name>` | Workflow name | Yes |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `-h`, `--help` | Quick help |
+
+**Note:** Cancellation is asynchronous. Already-completed requests are not affected.
+
+**Examples:**
+
+```bash
+wfw cancel my-analysis
+```
+
+---
+
+### wfw results
+
+Retrieve results from a completed batch.
+
+```
+wfw results <name>
+```
+
+**Arguments:**
+
+| Argument | Description | Required |
+|----------|-------------|----------|
+| `<name>` | Workflow name | Yes |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `-h`, `--help` | Quick help |
+
+**Output:**
+
+Results are written to `.workflow/run/<name>/output/` directory, mirroring the input file structure.
+
+**Examples:**
+
+```bash
+wfw results my-analysis
+```
+
+---
+
 ### wfw help
 
 Show help for subcommands.
@@ -520,11 +638,12 @@ wfw help task
 | Feature | `wfw run` | `wfw task` |
 |---------|-----------|------------|
 | **Purpose** | Persistent workflows | One-off tasks |
-| **Output** | Saved to `.workflow/<name>/output.<ext>` | Stdout (or file with `-o`) |
+| **Output** | Saved to `.workflow/run/<name>/output.<ext>` | Stdout (or file with `-o`) |
 | **Configuration** | Full cascade (global → project → workflow) | Global only |
 | **Input Files** | `--input-file`, `--input-pattern` | `--input-file`, `--input-pattern` |
 | **Context Files** | `--context-file`, `--context-pattern` | `--context-file`, `--context-pattern` |
 | **Dependencies** | `--depends-on` supported | Not supported |
+| **Batch Mode** | `--batch` supported | `--batch` supported |
 | **Default Streaming** | Disabled (batch) | Enabled |
 
 ---
@@ -564,4 +683,17 @@ wfw run 03-draft --depends-on 02-outline
 
 ```bash
 wfw run analysis --dry-run --count-tokens
+```
+
+### Batch Process Multiple Files
+
+```bash
+# Submit batch job (returns immediately)
+wfw run analysis --batch --input-pattern "reports/*.pdf"
+
+# Check status
+wfw status analysis
+
+# Retrieve results when complete
+wfw results analysis
 ```

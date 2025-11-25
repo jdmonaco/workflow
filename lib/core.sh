@@ -481,17 +481,24 @@ cmd_list() {
             elif [[ ! -f "$workflow_dir/config" ]]; then
                 status=" [incomplete - missing config]"
             else
-                # Check for output file
-                local output_file=$(ls "$output_dir/$workflow".* 2>/dev/null | head -1)
-                if [[ -n "$output_file" ]]; then
-                    # Get modification time (cross-platform)
-                    local output_time
-                    if [[ "$(uname)" == "Darwin" ]]; then
-                        output_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$output_file" 2>/dev/null)
-                    else
-                        output_time=$(stat -c "%y" "$output_file" 2>/dev/null | cut -d'.' -f1)
+                # Check for batch status first
+                local batch_status
+                batch_status=$(get_batch_display_status "$workflow_dir")
+                if [[ -n "$batch_status" ]]; then
+                    status=" $batch_status"
+                else
+                    # Check for output file
+                    local output_file=$(ls "$output_dir/$workflow".* 2>/dev/null | head -1)
+                    if [[ -n "$output_file" ]]; then
+                        # Get modification time (cross-platform)
+                        local output_time
+                        if [[ "$(uname)" == "Darwin" ]]; then
+                            output_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$output_file" 2>/dev/null)
+                        else
+                            output_time=$(stat -c "%y" "$output_file" 2>/dev/null | cut -d'.' -f1)
+                        fi
+                        [[ -n "$output_time" ]] && status=" [last run: $output_time]"
                     fi
-                    [[ -n "$output_time" ]] && status=" [last run: $output_time]"
                 fi
             fi
             printf "$indent%-11s%s\n" "$workflow" "$status"

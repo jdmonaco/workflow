@@ -156,6 +156,14 @@ execute_task_mode() {
                 dry_run=true
                 shift
                 ;;
+            --batch)
+                BATCH_MODE="true"
+                shift
+                ;;
+            --no-batch)
+                BATCH_MODE="false"
+                shift
+                ;;
             *)
                 echo "Error: Unknown option: $1" >&2
                 show_quick_help_task
@@ -268,16 +276,31 @@ execute_task_mode() {
     fi
     
     # =============================================================================
-    # Execute API Request
+    # Execute API Request (or Batch Submission)
     # =============================================================================
-    
+
+    # Check for batch mode
+    if [[ "$BATCH_MODE" == "true" ]]; then
+        # Execute batch mode - submit and return immediately
+        execute_batch_mode "task" "$project_root" "$task_cache_dir"
+        local batch_result=$?
+
+        if [[ $batch_result -ne 0 ]]; then
+            echo "Error: Batch submission failed" >&2
+            return $batch_result
+        fi
+
+        # Batch mode returns immediately after submission
+        return 0
+    fi
+
     # Set streaming mode
     STREAM_MODE=$stream_mode
-    
+
     # Execute API request
     execute_api_request "task" "$output_file" "$output_file_path"
     local api_result=$?
-    
+
     if [[ $api_result -ne 0 ]]; then
         echo "Error: API request failed" >&2
         return $api_result
