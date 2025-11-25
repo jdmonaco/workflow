@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-11-25
+
+### Added
+- Test runner script `tests/run-tests.sh` with unit/integration/all/quick commands (6686886)
+- Unit test files for each lib/*.sh module: api, config, core, edit, execute, help, utils (6686886)
+- Integration test files for each CLI command: cat, config, help, init, list, new, run, task (6686886)
+- Enhanced test helpers: mock_env.sh, fixtures.sh, assertions.sh (6686886)
+- Bash completion script `share/bash-completion.bash` (b2bde30)
+- OUTPUT_FILE workflow configuration parameter (33189fc)
+- lib/run.sh module for run mode execution (f4afcfb)
+
+### Changed
+- Migrated test suite from flat structure (280+ tests) to unit/integration architecture (~137 tests) (6686886)
+- Streamlined Key Features in README.md and docs/index.md with punchier descriptions (6937f0a)
+- Updated CLI help text with concise descriptions and `--long, -s` option formatting (45ff128)
+- Refreshed all documentation for recent refactors (8dacf5a)
+- Fixed workflow paths to use `.workflow/run/<name>/` consistently
+- Updated contributing guides for new test structure
+- Refactored lib/core.sh with function fixes and naming improvements (d05cf0a)
+- Refactored wireflow.sh with bug fixes (51774fe)
+
+### Fixed
+- Circular dependency handling in lib/execute.sh (43328e9)
+- Config cascade behavior in lib/config.sh (fb911ce)
+- Task mode execution and critical fixes in lib/task.sh (696cff7)
+- API error handling in lib/api.sh (9a2dd46)
+- Path resolution and utility enhancements in lib/utils.sh (293857d)
+- Task subcommand description display and fallback (6a977a5)
+- Editor detection in lib/edit.sh (d6527cd)
+- Help documentation and path fixes in lib/help.sh (0a62bca)
+- Test failures after renaming (01f5087, 38f3ac8, d29b649)
+- Remaining workflow to wireflow renaming issues (bbfce00, e9fc82c)
+
 ## [0.3.0] - 2025-11-20
 
 ### Added

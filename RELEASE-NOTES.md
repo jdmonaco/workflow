@@ -1,5 +1,78 @@
 # Release Notes
 
+## Version 0.4.0 (2025-11-25)
+
+**Test Suite Overhaul & Documentation Refresh**
+
+This release focuses on maintainability and developer experience with a complete test suite reorganization and streamlined documentation across all user-facing content.
+
+### 🧪 Test Suite Migration
+
+Complete restructure from flat file organization (280+ tests in 17 files) to a lean unit/integration architecture (~137 tests in 15 files).
+
+**New Structure:**
+```
+tests/
+├── unit/                   # Function-level tests (95 tests)
+│   ├── api.bats           # API validation, citations
+│   ├── config.bats        # Config loading, cascade
+│   ├── core.bats          # Task file resolution
+│   ├── edit.bats          # Editor detection
+│   ├── execute.bats       # Dependency resolution
+│   ├── help.bats          # Help output
+│   └── utils.bats         # Path/file utilities
+├── integration/            # End-to-end tests (42 tests)
+│   ├── cat.bats, config.bats, help.bats
+│   ├── init.bats, list.bats, new.bats
+│   ├── run.bats           # Run mode (16 tests)
+│   └── task.bats          # Task mode (5 tests)
+├── test_helper/            # Enhanced helpers
+│   ├── common.bash, mock_env.sh
+│   ├── fixtures.sh, assertions.sh
+│   └── bats-*/            # Submodules
+└── run-tests.sh            # Test runner
+```
+
+**Benefits:**
+- 50% fewer tests with equivalent coverage
+- One unit test file per lib/*.sh module
+- One integration test file per CLI command
+- Faster test runs, easier maintenance
+- Test runner with `unit`, `integration`, `all`, `quick` commands
+
+### 📝 Documentation Refresh
+
+**Punchier Key Features:** Replaced verbose multi-sentence descriptions with concise one-liners across README.md and docs/index.md.
+
+Before:
+> "Automatic `.workflow/` directory detection walking up from any subdirectory, enabling project-aware execution from anywhere in your tree (stops at `$HOME` for safety)."
+
+After:
+> "Run from anywhere in your project tree. WireFlow walks up to find `.workflow/` automatically."
+
+**Streamlined CLI Help:** Updated all `show_help_*` functions with action-oriented descriptions and consistent `--long, -s` option formatting.
+
+**Documentation Updates:**
+- Contributing guides updated for new test structure
+- CLI reference streamlined
+- Configuration docs refreshed
+- All workflow paths corrected to `.workflow/run/<name>/`
+
+### 🔧 Library Refactors
+
+Multiple `lib/*.sh` modules received bug fixes and cleanup:
+- `lib/execute.sh`: Fixed circular dependency handling
+- `lib/config.sh`: Improved cascade behavior
+- `lib/task.sh`: Critical fixes for task mode
+- `lib/api.sh`: Better error handling
+- `lib/utils.sh`: Path resolution improvements
+
+### 📦 New: Bash Completion
+
+Added `share/bash-completion.bash` for command-line completion support.
+
+---
+
 ## Version 0.3.0 (2025-11-20)
 
 **Project Renamed: Workflow → WireFlow**

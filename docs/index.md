@@ -2,7 +2,7 @@
 
 **Reproducible AI Workflows for Research & Development**
 
-Version 0.3.0 (pre-release)
+Version 0.4.0 (pre-release)
 
 A terminal-based tool for building reproducible AI workflows with the Anthropic API. Process documents, chain workflows, and manage context—all from the command line.
 
