@@ -16,8 +16,15 @@ source_workflow_functions() {
 
 # Setup test environment with temp directories and mocked dependencies
 setup_test_env() {
-    # Create isolated temp directory
-    export TEST_TEMP_DIR="$(mktemp -d)"
+    # Use in-repo tmp directory instead of system temp
+    local repo_root
+    repo_root="$(cd "${BATS_TEST_DIRNAME:-$(dirname "$0")}/../.."; pwd)"
+    local base_tmp_dir="$repo_root/tmp"
+    mkdir -p "$base_tmp_dir"
+
+    # Create isolated temp directory within repo
+    export TEST_TEMP_DIR="$base_tmp_dir/test-$$-${RANDOM}"
+    mkdir -p "$TEST_TEMP_DIR"
     export TEST_PROJECT="$TEST_TEMP_DIR/project"
     mkdir -p "$TEST_PROJECT"
 
@@ -105,4 +112,90 @@ file_contains() {
 count_files() {
     local pattern="$1"
     ls -1 $pattern 2>/dev/null | wc -l | tr -d ' '
+}
+
+# ============================================================================
+# Additional utilities (from common.sh consolidation)
+# ============================================================================
+
+# Skip test if condition is met
+skip_if() {
+    local condition="$1"
+    local message="${2:-Skipping test}"
+    if eval "$condition"; then
+        skip "$message"
+    fi
+}
+
+# Skip test unless condition is met
+skip_unless() {
+    local condition="$1"
+    local message="${2:-Skipping test}"
+    if ! eval "$condition"; then
+        skip "$message"
+    fi
+}
+
+# Check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Create a temporary file with optional content
+create_temp_file() {
+    local content="${1:-}"
+    local suffix="${2:-.txt}"
+    local temp_file
+    temp_file="$(mktemp "${TEST_TEMP_DIR}/test_XXXXXX${suffix}")"
+    if [[ -n "$content" ]]; then
+        echo "$content" > "$temp_file"
+    fi
+    echo "$temp_file"
+}
+
+# Create a temporary directory
+create_temp_dir() {
+    local prefix="${1:-test}"
+    mktemp -d "${TEST_TEMP_DIR}/${prefix}_XXXXXX"
+}
+
+# Run command with timeout
+run_with_timeout() {
+    local timeout="${1:-5}"
+    shift
+    if command_exists timeout; then
+        run timeout "$timeout" "$@"
+    elif command_exists gtimeout; then
+        run gtimeout "$timeout" "$@"
+    else
+        run "$@"
+    fi
+}
+
+# Mock a command by creating a script in PATH
+mock_command() {
+    local cmd_name="$1"
+    local mock_output="${2:-mock output}"
+    local mock_exit_code="${3:-0}"
+
+    local mock_path="${TEST_TEMP_DIR}/mocks"
+    mkdir -p "$mock_path"
+
+    cat > "$mock_path/$cmd_name" <<EOF
+#!/usr/bin/env bash
+echo "$mock_output"
+exit $mock_exit_code
+EOF
+
+    chmod +x "$mock_path/$cmd_name"
+    export PATH="$mock_path:$PATH"
+}
+
+# Remove a mocked command
+unmock_command() {
+    local cmd_name="$1"
+    local mock_path="${TEST_TEMP_DIR}/mocks"
+    if [[ -f "$mock_path/$cmd_name" ]]; then
+        rm -f "$mock_path/$cmd_name"
+    fi
 }

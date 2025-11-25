@@ -30,9 +30,10 @@ lib/
 ├── utils.sh            # Utilities (file processing, project discovery, sanitization)
 └── api.sh              # Anthropic API interaction (streaming and batch)
 tests/
+├── unit/               # Function-level unit tests (one per lib/*.sh)
+├── integration/        # End-to-end command tests (one per subcommand)
 ├── test_helper/        # Bats support libraries (git submodules)
-├── *.bats             # Test files (280+ tests)
-└── common.bash        # Shared test utilities
+└── run-tests.sh        # Test runner script
 ```
 
 ### Project Structure

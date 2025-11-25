@@ -37,14 +37,16 @@ git submodule update --init --recursive
 ### Running Tests
 
 ```bash
-# Run specific test file (PREFERRED - fast)
-bats tests/config.bats
+# Using test runner (RECOMMENDED)
+./tests/run-tests.sh unit              # Run all unit tests
+./tests/run-tests.sh integration       # Run all integration tests
+./tests/run-tests.sh all               # Run all tests (~137 tests)
+./tests/run-tests.sh unit config.bats  # Run specific test file
 
-# Run all tests (slow - 280+ tests)
-bats tests/
-
-# Run with verbose output
-bats -t tests/config.bats
+# Direct bats invocation
+bats tests/unit/config.bats            # Specific unit test
+bats tests/integration/run.bats        # Specific integration test
+bats -t tests/unit/utils.bats          # Verbose output
 ```
 
 ### Project Structure
@@ -61,8 +63,10 @@ workflow/
 │   ├── utils.sh         # Utility functions
 │   └── api.sh           # API interaction
 ├── tests/               # Test suite
+│   ├── unit/            # Function-level unit tests
+│   ├── integration/     # End-to-end command tests
 │   ├── test_helper/     # Test helpers (submodules)
-│   └── *.bats          # Test files
+│   └── run-tests.sh     # Test runner script
 ├── docs/                # Documentation (MkDocs)
 └── mkdocs.yml           # Documentation configuration
 ```

@@ -16,45 +16,67 @@ This guide focuses on development processes and workflows. For deeper technical 
 
 **Framework:** Bats (Bash Automated Testing System)
 
+**Test structure:**
+```
+tests/
+├── unit/                   # Function-level unit tests
+│   ├── api.bats           # API validation, citations
+│   ├── config.bats        # Config loading, cascade
+│   ├── core.bats          # Task file resolution
+│   ├── edit.bats          # Editor detection
+│   ├── execute.bats       # Dependency resolution
+│   ├── help.bats          # Help output
+│   └── utils.bats         # Path/file utilities
+├── integration/            # End-to-end command tests
+│   ├── cat.bats           # cat command
+│   ├── config.bats        # config command
+│   ├── help.bats          # help/version commands
+│   ├── init.bats          # init command
+│   ├── list.bats          # list command
+│   ├── new.bats           # new command
+│   ├── run.bats           # run mode execution
+│   └── task.bats          # task mode execution
+├── test_helper/            # Bats support libraries
+│   ├── bats-support/      # Core assertions (submodule)
+│   ├── bats-assert/       # Extended assertions (submodule)
+│   ├── bats-file/         # File assertions (submodule)
+│   ├── common.bash        # Shared test setup
+│   ├── mock_env.sh        # Environment mocking
+│   ├── fixtures.sh        # Test fixture creation
+│   └── assertions.sh      # Custom assertions
+└── run-tests.sh            # Test runner script
+```
+
 **Running tests:**
 
 ```bash
-# Specific file (PREFERRED - fast, targeted)
-bats tests/config.bats
-bats tests/cache-control.bats
+# Using test runner (RECOMMENDED)
+./tests/run-tests.sh unit              # Run all unit tests
+./tests/run-tests.sh integration       # Run all integration tests
+./tests/run-tests.sh all               # Run all tests
+./tests/run-tests.sh unit config.bats  # Run specific unit test file
+./tests/run-tests.sh quick             # Run unit tests in parallel
 
-# Multiple specific files
-bats tests/init.bats tests/config.bats
-
-# All tests (AVOID running repeatedly - very slow, 280+ tests)
-bats tests/
-
-# Verbose output
-bats -t tests/config.bats
+# Direct bats invocation
+bats tests/unit/config.bats            # Specific unit test
+bats tests/integration/run.bats        # Specific integration test
+bats -t tests/unit/utils.bats          # Verbose output
 ```
 
-**IMPORTANT - Test Suite Performance:**
-
-The test suite is extensive (280+ tests) and takes several minutes to complete:
-- **DO NOT** run full suite (`bats tests/`) multiple times in a row
-- **DO NOT** run full suite to view output differently or process results
-- **DO** run specific test files during development: `bats tests/<feature>.bats`
-- **DO** run full suite once at the end to verify no regressions
-- **DO** run targeted tests iteratively as needed
+**Test counts:** ~137 tests (95 unit + 42 integration)
 
 **Test organization:**
-- One file per major feature (init, config, run, task, help, cache-control, etc.)
-- Mock global config via `setup_test_env()` in `tests/test_helper/common.sh`
-- 280+ tests covering all subcommands and features
-- Test files are independent and can be run individually
+- Unit tests: One file per lib/*.sh, testing individual functions
+- Integration tests: One file per major CLI command
+- Mock global config via `setup_test_env()` in `tests/test_helper/common.bash`
+- Use `WIREFLOW_DRY_RUN="true"` to avoid API calls in tests
 
 **Coverage expectations:**
-- All subcommands have basic tests
+- All lib/*.sh functions have unit tests (2-5 tests per function)
+- All CLI subcommands have integration tests
+- Dependency resolution and circular dependency handling
 - Configuration cascade tested
-- Path resolution tested
 - Error conditions tested
-- Edge cases covered
-- Cache control behavior validated
 
 ## Documentation Updates
 
@@ -177,15 +199,17 @@ Code comments           → Inline documentation
 2. Implement in `lib/core.sh` (or new lib file if complex)
 3. Add help function to `lib/help.sh`
 4. Add `-h` check to subcommand case
-5. Add test file `tests/<subcommand>.bats`
-6. Document in `docs/reference/cli-reference.md`
+5. Add integration test file `tests/integration/<subcommand>.bats`
+6. Add unit tests for new functions in `tests/unit/<lib>.bats`
+7. Document in `docs/reference/cli-reference.md`
 
 ### Modifying Configuration
 
 1. Update loading logic in `lib/config.sh`
 2. Update display in `show_config()` in `lib/core.sh`
 3. Document in `docs/user-guide/configuration.md`
-4. Add tests in `tests/config.bats`
+4. Add unit tests in `tests/unit/config.bats`
+5. Add integration tests in `tests/integration/config.bats` if needed
 
 ### Changing API Interaction
 

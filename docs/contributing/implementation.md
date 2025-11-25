@@ -408,23 +408,49 @@ Calls Anthropic's `/v1/messages/count_tokens` endpoint with full content blocks 
 
 ### Test File Organization
 
-- `tests/<subcommand>.bats` - One file per subcommand
-- `tests/test_helper/common.sh` - Shared utilities
-- Mock `$HOME`, `$XDG_CONFIG_HOME`, global config dir
+```
+tests/
+├── unit/                   # Function-level unit tests
+│   ├── api.bats           # API validation, citations
+│   ├── config.bats        # Config loading, cascade
+│   ├── core.bats          # Task file resolution
+│   ├── edit.bats          # Editor detection
+│   ├── execute.bats       # Dependency resolution
+│   ├── help.bats          # Help output
+│   └── utils.bats         # Path/file utilities
+├── integration/            # End-to-end command tests
+│   ├── cat.bats           # cat command
+│   ├── config.bats        # config command
+│   ├── help.bats          # help/version commands
+│   ├── init.bats          # init command
+│   ├── list.bats          # list command
+│   ├── new.bats           # new command
+│   ├── run.bats           # run mode execution
+│   └── task.bats          # task mode execution
+├── test_helper/            # Bats support libraries
+│   ├── common.bash        # Shared test setup
+│   ├── mock_env.sh        # Environment mocking
+│   ├── fixtures.sh        # Test fixture creation
+│   └── assertions.sh      # Custom assertions
+└── run-tests.sh            # Test runner script
+```
+
+**Test counts:** ~137 tests (95 unit + 42 integration)
 
 ### Common Test Patterns
 
 ```bash
 setup() {
     setup_test_env  # Mock HOME, create temp dirs
+    source "${WIREFLOW_LIB_DIR}/utils.sh"  # Source lib being tested
 }
 
 teardown() {
     cleanup_test_env  # Remove temp dirs
 }
 
-@test "feature: specific behavior" {
-    run bash "$WORKFLOW_SCRIPT" subcommand args
+@test "function_name: specific behavior" {
+    run function_name "arg1" "arg2"
     assert_success
     assert_output --partial "expected text"
 }
@@ -433,8 +459,8 @@ teardown() {
 ### Mock API Calls
 
 - Tests should not make real API calls
-- Use `--count-tokens` or `--dry-run` to avoid API calls in tests
-- Mock `lib/api.sh` functions for integration tests
+- Use `WIREFLOW_DRY_RUN="true"` to avoid API calls in tests
+- Mock environment variables for configuration testing
 
 ## Technical Gotchas
 
