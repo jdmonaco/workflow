@@ -142,7 +142,7 @@ teardown() {
 
     export WIREFLOW_DRY_RUN="true"
 
-    run "${SCRIPT_DIR}/wireflow.sh" run batch-test --batch --input-pattern "inputs/*.txt"
+    run "${SCRIPT_DIR}/wireflow.sh" run batch-test --batch -- inputs/*.txt
     # Should fail because dry-run happens before batch mode check
     # but should parse the batch option correctly
     assert_output --partial "batch"

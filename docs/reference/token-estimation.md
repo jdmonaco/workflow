@@ -288,11 +288,11 @@ Instead of many small API calls, combine into larger workflows:
 ```bash
 # Inefficient: Many small calls
 for file in data/*.csv; do
-  wfw task -i "Summarize" --context-file "$file"
+  wfw task -i "Summarize" -cx "$file"
 done
 
 # Better: One call with all files
-wfw run summarize-all --context-pattern "data/*.csv"
+wfw run summarize-all -cx "data/*.csv"
 ```
 
 ### Cache Intermediate Results

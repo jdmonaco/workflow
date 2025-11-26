@@ -43,7 +43,7 @@ Examples:
     $SCRIPT_NAME init .
     $SCRIPT_NAME new 01-analysis
     $SCRIPT_NAME run 01-analysis --stream
-    $SCRIPT_NAME task -i "Summarize findings" --context-file data.md
+    $SCRIPT_NAME task -i "Summarize findings" -cx data.md
 
 Environment variables:
     ANTHROPIC_API_KEY         Your Anthropic API key (required)
@@ -84,12 +84,12 @@ show_quick_help_config() {
 }
 
 show_quick_help_run() {
-    echo "Usage: $SCRIPT_NAME run <name> [options]"
+    echo "Usage: $SCRIPT_NAME run <name> [options] [-- <input>...]"
     echo "See '$SCRIPT_NAME help run' for complete usage details."
 }
 
 show_quick_help_task() {
-    echo "Usage: $SCRIPT_NAME task <name>|--inline <text> [options]"
+    echo "Usage: $SCRIPT_NAME task <name>|--inline <text> [options] [-- <input>...]"
     echo "See '$SCRIPT_NAME help task' for complete usage details."
 }
 
@@ -215,20 +215,19 @@ EOF
 
 show_help_run() {
     cat <<EOF
-Usage: $SCRIPT_NAME run <name> [options]
+Usage: $SCRIPT_NAME run <name> [options] [-- <input>...]
 
 Execute a workflow. Aggregates context, calls API, saves output.
 
 Arguments:
     <name>                        Workflow name (required)
+    -- <input>...                 Input files/directories (after --)
 
 Input Options (primary documents):
-    --input-file, -in <file>      Add input document (repeatable)
-    --input-pattern <glob>        Add input files matching pattern
+    --input, -in <path>           Add input file or directory (repeatable)
 
 Context Options (background and references):
-    --context-file, -cx <file>    Add context file (repeatable)
-    --context-pattern <glob>      Add context files matching pattern
+    --context, -cx <path>         Add context file or directory (repeatable)
     --depends-on, -d <workflow>   Include output from another workflow
 
 Model Options:
@@ -266,32 +265,37 @@ Batch Processing Options:
     the Message Batches API, providing 50% cost reduction. Results are
     retrieved asynchronously with '$SCRIPT_NAME results <name>'.
 
+Notes:
+    Directory paths are expanded non-recursively; all supported files in the
+    directory are included. Duplicate paths are ignored; inputs take precedence
+    over context if the same path appears in both.
+
 Examples:
     $SCRIPT_NAME run 01-analysis --stream
     $SCRIPT_NAME run 01-analysis --profile deep --enable-thinking
     $SCRIPT_NAME run 01-analysis --model claude-opus-4-5 --effort medium
     $SCRIPT_NAME run 01-analysis --count-tokens
-    $SCRIPT_NAME run 01-analysis --batch --input-pattern "data/*.txt"
+    $SCRIPT_NAME run 01-analysis --batch -in data/
+    $SCRIPT_NAME run 01-analysis -- reports/*.pdf
 EOF
 }
 
 show_help_task() {
     cat <<EOF
-Usage: $SCRIPT_NAME task <name> | --inline <text> [options]
+Usage: $SCRIPT_NAME task <name> | --inline <text> [options] [-- <input>...]
 
 Quick one-off query. No workflow directory needed.
 
 Task Specification:
     <name>                        Named task from \$WIREFLOW_TASK_PREFIX/<name>.txt
     --inline, -i <text>           Inline task specification
+    -- <input>...                 Input files/directories (after --)
 
 Input Options (primary documents to analyze):
-    --input-file, -in <file>      Add input document (repeatable)
-    --input-pattern <glob>        Add input files matching pattern
+    --input, -in <path>           Add input file or directory (repeatable)
 
 Context Options (supporting materials and references):
-    --context-file, -cx <file>    Add context file (repeatable)
-    --context-pattern <glob>      Add context files matching pattern
+    --context, -cx <path>         Add context file or directory (repeatable)
 
 Model Options:
     --profile <tier>              Model tier: fast, balanced, deep
@@ -325,11 +329,16 @@ Batch Processing Options:
     --batch                       Enable batch mode (one request per input file)
     --no-batch                    Disable batch mode (default)
 
+Notes:
+    Directory paths are expanded non-recursively; all supported files in the
+    directory are included. Duplicate paths are ignored; inputs take precedence
+    over context if the same path appears in both.
+
 Examples:
-    $SCRIPT_NAME task summarize --context-file paper.pdf
+    $SCRIPT_NAME task summarize -cx paper.pdf
     $SCRIPT_NAME task -i "Summarize these notes" --profile fast
-    $SCRIPT_NAME task analyze --input-pattern "data/*.csv" --enable-thinking
-    $SCRIPT_NAME task analyze --batch --input-pattern "reports/*.pdf"
+    $SCRIPT_NAME task analyze -in data/*.csv --enable-thinking
+    $SCRIPT_NAME task analyze --batch -- reports/*.pdf
 
 See Also:
     $SCRIPT_NAME tasks              # List available task templates

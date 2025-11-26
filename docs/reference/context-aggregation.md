@@ -23,8 +23,7 @@ Content is aggregated in this specific order (stable → volatile):
 
 1. Config `CONTEXT_FILES` (project-relative, run mode only)
 2. Config `CONTEXT_PATTERN` (project-relative, run mode only)
-3. CLI `--context-file` (PWD-relative, both modes)
-4. CLI `--context-pattern` (PWD-relative, both modes)
+3. CLI `-cx/--context` (PWD-relative, both modes)
 
 **Workflow Dependencies** (processed second, run mode only):
 
@@ -34,8 +33,7 @@ Content is aggregated in this specific order (stable → volatile):
 
 1. Config `INPUT_FILES` (project-relative, run mode only)
 2. Config `INPUT_PATTERN` (project-relative, run mode only)
-3. CLI `--input-file` (PWD-relative, both modes)
-4. CLI `--input-pattern` (PWD-relative, both modes)
+3. CLI `-in/--input` or `-- <files>` (PWD-relative, both modes)
 
 **Document Type Ordering:**
 
@@ -61,7 +59,7 @@ INPUT_PATTERN="data/*.csv"
 **From CLI:**
 
 ```bash
-wfw run analysis --input-pattern "data/*.csv"
+wfw run analysis -in "data/*.csv"
 ```
 
 ### Context Patterns
@@ -76,7 +74,7 @@ CONTEXT_PATTERN="references/*.md"
 **From CLI:**
 
 ```bash
-wfw run analysis --context-pattern "references/*.md"
+wfw run analysis -cx "references/*.md"
 ```
 
 ### Pattern Syntax
@@ -100,7 +98,7 @@ CONTEXT_PATTERN="data/*.csv notes/*.md"
 **CLI:**
 
 ```bash
---context-pattern "data/*.csv" --context-pattern "notes/*.md"
+-cx "data/*.csv" -cx "notes/*.md"
 ```
 
 ### Path Resolution
@@ -125,8 +123,8 @@ INPUT_FILES=("data/dataset1.json" "data/dataset2.json")
 
 ```bash
 wfw run analysis \
-  --input-file data/dataset1.json \
-  --input-file data/dataset2.json
+  -in data/dataset1.json \
+  -in data/dataset2.json
 ```
 
 ### Context Files
@@ -142,8 +140,8 @@ CONTEXT_FILES=("README.md" "notes/important.txt")
 
 ```bash
 wfw run analysis \
-  --context-file README.md \
-  --context-file notes/important.txt
+  -cx README.md \
+  -cx notes/important.txt
 ```
 
 ### Path Resolution
@@ -223,8 +221,8 @@ CONTEXT_FILES=("README.md" "notes/analysis-plan.txt")
 ```bash
 wfw run analysis \
   --depends-on 00-context \
-  --context-pattern "data/*.csv" \
-  --context-file additional-notes.md
+  -cx "data/*.csv" \
+  -cx additional-notes.md
 ```
 
 ### Result
@@ -281,8 +279,8 @@ Standard text files are included directly:
 PDF files are automatically processed using the Anthropic document API:
 
 ```bash
-wfw task summarize --context-file paper.pdf
-wfw run analysis --input-file report.pdf
+wfw task summarize -cx paper.pdf
+wfw run analysis -in report.pdf
 ```
 
 **Requirements:**
@@ -295,7 +293,7 @@ wfw run analysis --input-file report.pdf
 Microsoft Office files (`.docx`, `.pptx`) are automatically converted to PDF:
 
 ```bash
-wfw task review --context-file presentation.pptx
+wfw task review -cx presentation.pptx
 ```
 
 **Requirements:**
@@ -315,8 +313,8 @@ Image files are processed using Claude's vision capabilities:
 | WebP | `.webp` |
 
 ```bash
-wfw task describe --context-file diagram.png
-wfw run analysis --input-pattern "figures/*.jpg"
+wfw task describe -cx diagram.png
+wfw run analysis -in "figures/*.jpg"
 ```
 
 **Constraints:**
@@ -393,7 +391,7 @@ wfw run analysis  # Still finds /home/user/project/data/results.csv
 
 ```bash
 # Current directory: /home/user/project/subdir
-wfw run analysis --context-file local.csv
+wfw run analysis -cx local.csv
 # Looks for: /home/user/project/subdir/local.csv
 ```
 
@@ -538,7 +536,7 @@ Instead of copying files or including large outputs directly, use `--depends-on`
 ```bash
 # Inefficient:
 cp .workflow/preprocessing/output.md context/
-wfw run analysis --context-file context/<name>.md
+wfw run analysis -cx context/<name>.md
 
 # Better:
 wfw run analysis --depends-on preprocessing

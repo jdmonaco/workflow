@@ -168,26 +168,26 @@ EOF
 
 ```bash
 # Summarize meeting notes
-wfw task summarize --context-file meeting-notes.md
+wfw task summarize -cx meeting-notes.md
 
 # Extract data from report
-wfw task extract-data --context-file report.txt --output-file data.json
+wfw task extract-data -cx report.txt --output-file data.json
 ```
 
 ### Inline Tasks
 
 ```bash
 # Quick question about code
-wfw task -i "What does this function do?" --context-file script.py
+wfw task -i "What does this function do?" -cx script.py
 
 # Compare files
 wfw task -i "Compare these approaches and recommend the best one" \
-  --context-file approach-a.md \
-  --context-file approach-b.md
+  -cx approach-a.md \
+  -cx approach-b.md
 
 # Analyze pattern
 wfw task -i "What are the common themes across these files?" \
-  --context-pattern "reports/202401/*.md"
+  -cx "reports/202401/*.md"
 ```
 
 ## Example 4: Code Documentation
@@ -369,13 +369,13 @@ wfw run writeup --max-tokens 16384 --stream
 ```bash
 # Add new context without changing config
 wfw run analysis \
-  --context-file new-data.csv \
-  --context-file updated-notes.md \
+  -cx new-data.csv \
+  -cx updated-notes.md \
   --stream
 
 # Override context pattern
 wfw run analysis \
-  --context-pattern "data/2024-01/*.csv" \
+  -cx "data/2024-01/*.csv" \
   --stream
 ```
 
@@ -476,7 +476,7 @@ Focus on core concepts without technical jargon.
 ```
 
 ```bash
-wfw run draft-v1 --context-file outline.md --stream
+wfw run draft-v1 -cx outline.md --stream
 ```
 
 ### Review Output
@@ -644,8 +644,8 @@ Suggest specific optimizations with code examples.
 ### Execute
 
 ```bash
-wfw run security-review --context-pattern "src/**/*.py" --stream
-wfw run performance-review --context-pattern "src/**/*.py" --stream
+wfw run security-review -cx "src/**/*.py" --stream
+wfw run performance-review -cx "src/**/*.py" --stream
 ```
 
 ## Common Patterns Summary
@@ -728,7 +728,7 @@ Commit:
 Before creating full workflows, use task mode to experiment:
 
 ```bash
-wfw task -i "Try analyzing this" --context-file data.csv
+wfw task -i "Try analyzing this" -cx data.csv
 # If useful, create persistent workflow
 wfw new analysis
 ```

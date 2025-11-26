@@ -72,14 +72,14 @@ Your project files and folders are treated as read-only. All WireFlow files are 
 
 ```bash
 wfw new analyze-data
-wfw run analyze-data --context-pattern "data/*.csv" --stream
+wfw run analyze-data -cx "data/*.csv" --stream
 ```
 
 **One-Off Tasks:** Execute lightweight tasks without workflow persistence:
 
 ```bash
-wfw task -i "Extract key points" --context-file notes.md
-wfw task summarize --context-pattern "*.md"
+wfw task -i "Extract key points" -cx notes.md
+wfw task summarize -cx "*.md"
 ```
 
 **Workflow Chains:** Build dependent pipelines with automatic context passing:

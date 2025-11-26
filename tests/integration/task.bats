@@ -57,7 +57,7 @@ teardown() {
     # Execute task mode with template selection
     export WIREFLOW_DRY_RUN="true"
 
-    run "${SCRIPT_DIR}/wireflow.sh" task analysis --input-file document.md
+    run "${SCRIPT_DIR}/wireflow.sh" task analysis -in document.md
     assert_success
     assert_output --partial "DRY RUN MODE"
 }

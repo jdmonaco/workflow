@@ -206,8 +206,7 @@ EOF
     mkdir -p "$workflow_dir"
 
     # Empty input arrays
-    CLI_INPUT_FILES=()
-    CLI_INPUT_PATTERN=""
+    CLI_INPUT_PATHS=()
     INPUT_FILES=()
     INPUT_PATTERN=""
     SYSTEM_BLOCKS=('{"type":"text","text":"system"}')
@@ -227,8 +226,7 @@ EOF
     echo "Content 1" > "$TEST_TEMP_DIR/inputs/file1.txt"
     echo "Content 2" > "$TEST_TEMP_DIR/inputs/file2.txt"
 
-    CLI_INPUT_FILES=("$TEST_TEMP_DIR/inputs/file1.txt" "$TEST_TEMP_DIR/inputs/file2.txt")
-    CLI_INPUT_PATTERN=""
+    CLI_INPUT_PATHS=("$TEST_TEMP_DIR/inputs/file1.txt" "$TEST_TEMP_DIR/inputs/file2.txt")
     INPUT_FILES=()
     INPUT_PATTERN=""
     SYSTEM_BLOCKS=('{"type":"text","text":"system prompt"}')
@@ -263,8 +261,7 @@ EOF
     echo "Content 1" > "$TEST_TEMP_DIR/inputs/file1.txt"
     echo "Content 2" > "$TEST_TEMP_DIR/inputs/file2.txt"
 
-    CLI_INPUT_FILES=("$TEST_TEMP_DIR/inputs/file1.txt" "$TEST_TEMP_DIR/inputs/file2.txt")
-    CLI_INPUT_PATTERN=""
+    CLI_INPUT_PATHS=("$TEST_TEMP_DIR/inputs/file1.txt" "$TEST_TEMP_DIR/inputs/file2.txt")
     INPUT_FILES=()
     INPUT_PATTERN=""
     SYSTEM_BLOCKS=('{"type":"text","text":"system"}')
@@ -300,8 +297,7 @@ EOF
     mkdir -p "$TEST_TEMP_DIR/inputs"
     echo "Input content" > "$TEST_TEMP_DIR/inputs/input.txt"
 
-    CLI_INPUT_FILES=("$TEST_TEMP_DIR/inputs/input.txt")
-    CLI_INPUT_PATTERN=""
+    CLI_INPUT_PATHS=("$TEST_TEMP_DIR/inputs/input.txt")
     INPUT_FILES=()
     INPUT_PATTERN=""
     SYSTEM_BLOCKS=('{"type":"text","text":"system prompt"}')

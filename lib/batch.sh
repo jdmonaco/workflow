@@ -155,7 +155,7 @@ get_batch_display_status() {
 #   $3 - workflow_dir: Workflow directory (for output)
 # Requires:
 #   SYSTEM_BLOCKS, CONTEXT_BLOCKS, CONTEXT_PDF_BLOCKS, etc. already populated
-#   INPUT_FILES, INPUT_PATTERN, CLI_INPUT_FILES, CLI_INPUT_PATTERN
+#   INPUT_FILES, INPUT_PATTERN, CLI_INPUT_PATHS (paths can be files or directories)
 # Returns:
 #   0 - Success
 #   1 - Error (no input files)
@@ -187,23 +187,22 @@ build_batch_requests() {
         fi
     fi
 
-    # Both modes: Add from CLI
-    for file in "${CLI_INPUT_FILES[@]}"; do
-        [[ -n "$file" && -f "$file" ]] && all_input_files+=("$file")
+    # Both modes: Add from CLI (paths can be files or directories)
+    for path in "${CLI_INPUT_PATHS[@]}"; do
+        if [[ -f "$path" ]]; then
+            all_input_files+=("$path")
+        elif [[ -d "$path" ]]; then
+            # Non-recursive directory expansion
+            for file in "$path"/*; do
+                [[ -f "$file" ]] && is_supported_file "$file" && all_input_files+=("$file")
+            done
+        fi
     done
-
-    if [[ -n "$CLI_INPUT_PATTERN" ]]; then
-        local -a pattern_files
-        mapfile -t pattern_files < <(compgen -G "$CLI_INPUT_PATTERN" 2>/dev/null)
-        for file in "${pattern_files[@]}"; do
-            [[ -f "$file" ]] && all_input_files+=("$file")
-        done
-    fi
 
     # Validate we have input files
     if [[ ${#all_input_files[@]} -eq 0 ]]; then
         echo "Error: Batch mode requires at least one input file" >&2
-        echo "Use --input-file or --input-pattern to specify input files" >&2
+        echo "Use --input or -- to specify input files/directories" >&2
         return 1
     fi
 

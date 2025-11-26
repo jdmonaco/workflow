@@ -200,7 +200,7 @@ wfw config --edit
 Execute a workflow with full context aggregation.
 
 ```
-wfw run <name> [options]
+wfw run <name> [options] [-- <input>...]
 ```
 
 **Arguments:**
@@ -208,20 +208,19 @@ wfw run <name> [options]
 | Argument | Description | Required |
 |----------|-------------|----------|
 | `<name>` | Workflow name | Yes |
+| `-- <input>...` | Input files/directories (after `--`) | No |
 
 **Input Options (primary documents):**
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--input-file <file>` | `-in` | Add input document (repeatable) |
-| `--input-pattern <glob>` | | Add input files matching pattern |
+| `--input <path>` | `-in` | Add input file or directory (repeatable) |
 
 **Context Options (background and references):**
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--context-file <file>` | `-cx` | Add context file (repeatable) |
-| `--context-pattern <glob>` | | Add context files matching pattern |
+| `--context <path>` | `-cx` | Add context file or directory (repeatable) |
 | `--depends-on <workflow>` | `-d` | Include output from another workflow |
 
 **Model Options:**
@@ -275,14 +274,19 @@ wfw run <name> [options]
 
 Batch mode submits each input file as a separate API request via the Message Batches API, providing 50% cost reduction. Results are retrieved asynchronously with `wfw results <name>`.
 
+**Notes:**
+
+Directory paths are expanded non-recursively; all supported files in the directory are included. Duplicate paths are ignored; inputs take precedence over context if the same path appears in both.
+
 **Examples:**
 
 ```bash
 wfw run 01-analysis --stream
 wfw run 01-analysis --profile deep --enable-thinking
 wfw run 01-analysis --model claude-opus-4-5 --effort medium
-wfw run report --input-file data.csv --context-file notes.md
-wfw run analysis --batch --input-pattern "data/*.txt"
+wfw run report -in data.csv -cx notes.md
+wfw run analysis --batch -in data/
+wfw run analysis -- reports/*.pdf
 ```
 
 ---
@@ -292,7 +296,7 @@ wfw run analysis --batch --input-pattern "data/*.txt"
 Execute a one-off task outside of existing workflows.
 
 ```
-wfw task <name>|--inline <text> [options]
+wfw task <name>|--inline <text> [options] [-- <input>...]
 ```
 
 **Task Specification:**
@@ -301,20 +305,19 @@ wfw task <name>|--inline <text> [options]
 |--------|-------|-------------|
 | `<name>` | | Named task from `$WIREFLOW_TASK_PREFIX/<name>.txt` |
 | `--inline <text>` | `-i` | Inline task specification |
+| `-- <input>...` | | Input files/directories (after `--`) |
 
 **Input Options (primary documents to analyze):**
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--input-file <file>` | `-in` | Add input document (repeatable) |
-| `--input-pattern <glob>` | | Add input files matching pattern |
+| `--input <path>` | `-in` | Add input file or directory (repeatable) |
 
 **Context Options (supporting materials and references):**
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--context-file <file>` | `-cx` | Add context file (repeatable) |
-| `--context-pattern <glob>` | | Add context files matching pattern |
+| `--context <path>` | `-cx` | Add context file or directory (repeatable) |
 
 **Model Options:**
 
@@ -366,13 +369,17 @@ wfw task <name>|--inline <text> [options]
 | `--batch` | Enable batch mode (one request per input file) |
 | `--no-batch` | Disable batch mode (default) |
 
+**Notes:**
+
+Directory paths are expanded non-recursively; all supported files in the directory are included. Duplicate paths are ignored; inputs take precedence over context if the same path appears in both.
+
 **Examples:**
 
 ```bash
-wfw task summarize --context-file paper.pdf
+wfw task summarize -cx paper.pdf
 wfw task -i "Summarize these notes" --profile fast
-wfw task analyze --input-pattern "data/*.csv" --enable-thinking
-wfw task analyze --batch --input-pattern "reports/*.pdf"
+wfw task analyze -in data/*.csv --enable-thinking
+wfw task analyze --batch -- reports/*.pdf
 ```
 
 **See Also:**
@@ -640,8 +647,8 @@ wfw help task
 | **Purpose** | Persistent workflows | One-off tasks |
 | **Output** | Saved to `.workflow/run/<name>/output.<ext>` | Stdout (or file with `-o`) |
 | **Configuration** | Full cascade (global → project → workflow) | Global only |
-| **Input Files** | `--input-file`, `--input-pattern` | `--input-file`, `--input-pattern` |
-| **Context Files** | `--context-file`, `--context-pattern` | `--context-file`, `--context-pattern` |
+| **Input** | `-in/--input`, `-- <files>` | `-in/--input`, `-- <files>` |
+| **Context** | `-cx/--context` | `-cx/--context` |
 | **Dependencies** | `--depends-on` supported | Not supported |
 | **Batch Mode** | `--batch` supported | `--batch` supported |
 | **Default Streaming** | Disabled (batch) | Enabled |
@@ -653,22 +660,28 @@ wfw help task
 ### Quick Task with Inline Prompt
 
 ```bash
-wfw task -i "Summarize this document" --context-file report.pdf
+wfw task -i "Summarize this document" -cx report.pdf
 ```
 
 ### Workflow with Multiple Inputs
 
 ```bash
 wfw run analysis \
-    --input-file data.csv \
-    --input-file notes.md \
-    --context-file methodology.md
+    -in data.csv \
+    -in notes.md \
+    -cx methodology.md
 ```
 
-### Workflow with Glob Patterns
+### Workflow with Positional Inputs (after --)
 
 ```bash
-wfw run review --input-pattern "src/**/*.py" --context-file guidelines.md
+wfw run review -- src/**/*.py
+```
+
+### Workflow with Input Directory
+
+```bash
+wfw run analysis -in data/ -cx methodology.md
 ```
 
 ### Chain Workflows with Dependencies
@@ -689,7 +702,7 @@ wfw run analysis --dry-run --count-tokens
 
 ```bash
 # Submit batch job (returns immediately)
-wfw run analysis --batch --input-pattern "reports/*.pdf"
+wfw run analysis --batch -- reports/*.pdf
 
 # Check status
 wfw status analysis

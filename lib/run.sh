@@ -13,11 +13,9 @@ execute_run_mode() {
     local count_tokens_only=false
     local dry_run="${WIREFLOW_DRY_RUN:-false}"
     
-    # Initialize CLI override arrays
-    local -a cli_input_files=()
-    local -a cli_context_files=()
-    local cli_input_pattern=""
-    local cli_context_pattern=""
+    # Initialize CLI override arrays (paths can be files or directories)
+    local -a cli_input_paths=()
+    local -a cli_context_paths=()
     
     # Parse execution options
     while [[ $# -gt 0 ]]; do
@@ -34,29 +32,25 @@ execute_run_mode() {
                 count_tokens_only=true
                 shift
                 ;;
-            --input-file|-in)
+            --input|-in)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --input-file requires argument" >&2; return 1; }
-                cli_input_files+=("$1")
-                shift
-                ;;
-            --input-pattern)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --input-pattern requires argument" >&2; return 1; }
-                cli_input_pattern="$1"
+                [[ $# -eq 0 ]] && { echo "Error: --input requires argument" >&2; return 1; }
+                cli_input_paths+=("$1")
                 shift
                 ;;
-            --context-file|-cx)
+            --context|-cx)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --context-file requires argument" >&2; return 1; }
-                cli_context_files+=("$1")
+                [[ $# -eq 0 ]] && { echo "Error: --context requires argument" >&2; return 1; }
+                cli_context_paths+=("$1")
                 shift
                 ;;
-            --context-pattern)
+            --)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --context-pattern requires argument" >&2; return 1; }
-                cli_context_pattern="$1"
-                shift
+                # All remaining arguments are input file/directory paths
+                while [[ $# -gt 0 ]]; do
+                    cli_input_paths+=("$1")
+                    shift
+                done
                 ;;
             --depends-on|-d)
                 shift
@@ -191,10 +185,9 @@ execute_run_mode() {
     local output_link="$OUTPUT_DIR/${WORKFLOW_NAME}.${OUTPUT_FORMAT}"
     
     # Set CLI-provided paths for aggregation (must match execute.sh variable names)
-    CLI_INPUT_FILES=("${cli_input_files[@]}")
-    CLI_INPUT_PATTERN="$cli_input_pattern"
-    CLI_CONTEXT_FILES=("${cli_context_files[@]}")
-    CLI_CONTEXT_PATTERN="$cli_context_pattern"
+    # These can be files or directories; execute.sh handles expansion
+    CLI_INPUT_PATHS=("${cli_input_paths[@]}")
+    CLI_CONTEXT_PATHS=("${cli_context_paths[@]}")
 
     # Reset global content block arrays for this run
     SYSTEM_BLOCKS=()

@@ -175,7 +175,7 @@ wfw run analysis --model claude-opus-4
 wfw run analysis --temperature 0.3
 
 # Add extra context file
-wfw run analysis --context-file extra-notes.md
+wfw run analysis -cx extra-notes.md
 ```
 
 **When to use:**
@@ -358,7 +358,7 @@ Command-line paths are **relative to current working directory**:
 
 ```bash
 cd /home/user/project/subdir
-wfw run analysis --context-file local-notes.md
+wfw run analysis -cx local-notes.md
 # Looks for: /home/user/project/subdir/local-notes.md
 ```
 
@@ -599,10 +599,8 @@ Effective Configuration:
 | `--max-tokens` | `MAX_TOKENS` | `--max-tokens 8192` |
 | `--system` | `SYSTEM_PROMPTS` | `--system base,research` |
 | `--format` | `OUTPUT_FORMAT` | `--format json` |
-| `--input-file` | `INPUT_FILES` | `--input-file data.csv` |
-| `--input-pattern` | `INPUT_PATTERN` | `--input-pattern "data/*.csv"` |
-| `--context-file` | `CONTEXT_FILES` | `--context-file notes.md` |
-| `--context-pattern` | `CONTEXT_PATTERN` | `--context-pattern "*.md"` |
+| `-in/--input` | `INPUT_FILES` | `-in data.csv` |
+| `-cx/--context` | `CONTEXT_FILES` | `-cx notes.md` |
 | `--depends-on` | `DEPENDS_ON` | `--depends-on preprocessing` |
 | `--export-file` | `EXPORT_FILE` | `--export-file reports/out.md` |
 
@@ -622,14 +620,14 @@ wfw run analysis --model claude-opus-4-5 --effort medium
 wfw run creative --temperature 1.0
 
 # Add extra context
-wfw run analysis --context-file extra-notes.md
+wfw run analysis -cx extra-notes.md
 
 # Multiple overrides
 wfw run analysis \
   --profile deep \
   --enable-thinking \
   --thinking-budget 20000 \
-  --context-file data.csv
+  -cx data.csv
 ```
 
 **Important:** CLI flags apply only to the current execution and don't modify config files.

@@ -113,7 +113,7 @@ MAX_TOKENS=4000
 ### Run the Analysis
 
 ```bash
-wfw run 01-analyze-code --context-file string_utils.py --stream
+wfw run 01-analyze-code -cx string_utils.py --stream
 ```
 
 Watch as Claude analyzes the code in real-time!
@@ -167,7 +167,7 @@ This is where it gets powerful. Use `--depends-on` to automatically include the 
 
 ```bash
 wfw run 02-generate-docs \
-  --context-file string_utils.py \
+  -cx string_utils.py \
   --depends-on 01-analyze-code \
   --stream
 ```
@@ -221,7 +221,7 @@ Include both the original analysis and the documentation:
 
 ```bash
 wfw run 03-usage-examples \
-  --context-file string_utils.py \
+  -cx string_utils.py \
   --depends-on 01-analyze-code \
   --depends-on 02-generate-docs \
   --stream
@@ -283,7 +283,7 @@ Before running, check estimated costs:
 
 ```bash
 wfw run 03-usage-examples \
-  --context-file string_utils.py \
+  -cx string_utils.py \
   --depends-on 01-analyze-code \
   --depends-on 02-generate-docs \
   --estimate-tokens
@@ -303,7 +303,7 @@ wfw edit 02-generate-docs
 
 # Re-run (automatically backs up previous output)
 wfw run 02-generate-docs \
-  --context-file string_utils.py \
+  -cx string_utils.py \
   --depends-on 01-analyze-code \
   --stream
 ```
@@ -330,7 +330,7 @@ diff .workflow/02-generate-docs/output.md \
 If you had multiple Python files:
 
 ```bash
-wfw run 01-analyze-code --context-pattern "*.py" --stream
+wfw run 01-analyze-code -cx "*.py" --stream
 ```
 
 ### Different Output Formats
@@ -339,7 +339,7 @@ Request JSON output:
 
 ```bash
 wfw run 01-analyze-code \
-  --context-file string_utils.py \
+  -cx string_utils.py \
   --output-format json \
   --stream
 ```

@@ -347,7 +347,7 @@ Paths from command-line flags are **relative to PWD** (current working directory
 
 ```bash
 cd /project/subdir
-wfw run analysis --context-file local.md
+wfw run analysis -cx local.md
 # Looks for: /project/subdir/local.md
 ```
 

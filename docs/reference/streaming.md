@@ -34,7 +34,7 @@ wfw run analysis --stream
 **Task mode (default):**
 
 ```bash
-wfw task -i "Summarize" --context-file notes.md
+wfw task -i "Summarize" -cx notes.md
 # Streaming is automatic
 ```
 
@@ -91,7 +91,7 @@ wfw run analysis  # No --stream flag
 **Task mode:**
 
 ```bash
-wfw task -i "Summarize" --context-file notes.md --no-stream
+wfw task -i "Summarize" -cx notes.md --no-stream
 ```
 
 ### Behavior
@@ -158,7 +158,7 @@ CLI flags always override config:
 wfw run analysis --stream
 
 # Force batch (even if config says streaming)
-wfw task summarize --context-file notes.md --no-stream
+wfw task summarize -cx notes.md --no-stream
 ```
 
 ## Technical Details

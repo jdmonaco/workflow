@@ -21,11 +21,9 @@ execute_task_mode() {
         return 1
     fi
     
-    # Initialize task-specific variables
-    local -a cli_input_files=()
-    local -a cli_input_patterns=()
-    local -a cli_context_files=()
-    local -a cli_context_patterns=()
+    # Initialize task-specific variables (paths can be files or directories)
+    local -a cli_input_paths=()
+    local -a cli_context_paths=()
     local output_file_path=""
     local stream_mode=true  # Default to streaming in task mode
     local count_tokens_only=false
@@ -34,29 +32,25 @@ execute_task_mode() {
     # Parse execution options
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --input-file|-in)
+            --input|-in)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --input-file requires argument" >&2; return 1; }
-                cli_input_files+=("$1")
-                shift
-                ;;
-            --input-pattern)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --input-pattern requires argument" >&2; return 1; }
-                cli_input_patterns+=("$1")
+                [[ $# -eq 0 ]] && { echo "Error: --input requires argument" >&2; return 1; }
+                cli_input_paths+=("$1")
                 shift
                 ;;
-            --context-file|-cx)
+            --context|-cx)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --context-file requires argument" >&2; return 1; }
-                cli_context_files+=("$1")
+                [[ $# -eq 0 ]] && { echo "Error: --context requires argument" >&2; return 1; }
+                cli_context_paths+=("$1")
                 shift
                 ;;
-            --context-pattern)
+            --)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --context-pattern requires argument" >&2; return 1; }
-                cli_context_patterns+=("$1")
-                shift
+                # All remaining arguments are input file/directory paths
+                while [[ $# -gt 0 ]]; do
+                    cli_input_paths+=("$1")
+                    shift
+                done
                 ;;
             --output-file|-o)
                 shift
@@ -208,10 +202,9 @@ execute_task_mode() {
     # =============================================================================
     
     # Set CLI-provided paths for aggregation (must match execute.sh variable names)
-    CLI_INPUT_FILES=("${cli_input_files[@]}")
-    CLI_INPUT_PATTERN="${cli_input_patterns[0]:-}"
-    CLI_CONTEXT_FILES=("${cli_context_files[@]}")
-    CLI_CONTEXT_PATTERN="${cli_context_patterns[0]:-}"
+    # These can be files or directories; execute.sh handles expansion
+    CLI_INPUT_PATHS=("${cli_input_paths[@]}")
+    CLI_CONTEXT_PATHS=("${cli_context_paths[@]}")
     
     # Create temporary cache directory for image processing
     local task_cache_dir

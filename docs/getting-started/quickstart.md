@@ -83,7 +83,7 @@ EOF
 Add your notes file as context:
 
 ```bash
-wfw run extract-actions --context-file notes.txt --stream
+wfw run extract-actions -cx notes.txt --stream
 ```
 
 !!! tip "Streaming Mode"
@@ -147,7 +147,7 @@ my-analysis/
 **Task Mode** (quick one-offs):
 
 ```bash
-wfw task -i "Summarize these notes" --context-file notes.txt
+wfw task -i "Summarize these notes" -cx notes.txt
 ```
 
 - No persistent directories
@@ -161,7 +161,7 @@ wfw task -i "Summarize these notes" --context-file notes.txt
 Use glob patterns to add multiple files:
 
 ```bash
-wfw run extract-actions --context-pattern "*.txt" --stream
+wfw run extract-actions -cx "*.txt" --stream
 ```
 
 ### Modify the Configuration
@@ -208,12 +208,12 @@ For quick queries without creating workflows:
 
 ```bash
 # Inline task
-wfw task -i "What are the main themes in these notes?" --context-file notes.txt
+wfw task -i "What are the main themes in these notes?" -cx notes.txt
 
 # Named task (create reusable task templates)
 mkdir -p ~/.config/wireflow/tasks
 echo "Summarize the key points in bullet format" > ~/.config/wireflow/tasks/summarize.txt
-wfw task summarize --context-file notes.txt
+wfw task summarize -cx notes.txt
 ```
 
 ## Common Commands

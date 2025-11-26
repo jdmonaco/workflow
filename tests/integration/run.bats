@@ -73,7 +73,7 @@ teardown() {
     export WIREFLOW_DRY_RUN="true"
 
     # Step 6: Execute the workflow
-    run "${SCRIPT_DIR}/wireflow.sh" run data-analysis --input-file input.md --input-file data.json
+    run "${SCRIPT_DIR}/wireflow.sh" run data-analysis -in input.md -in data.json
     assert_success
     assert_output --partial "DRY RUN MODE"
     assert_output --partial "data-analysis"
@@ -143,7 +143,7 @@ teardown() {
     # Execute with multiple files using input pattern
     export WIREFLOW_DRY_RUN="true"
 
-    run "${SCRIPT_DIR}/wireflow.sh" run processor --input-pattern "inputs/*.md" --input-pattern "inputs/*.txt"
+    run "${SCRIPT_DIR}/wireflow.sh" run processor -- inputs/*.md inputs/*.txt
     assert_success
     assert_output --partial "DRY RUN MODE"
     assert_output --partial "processor"
@@ -191,7 +191,7 @@ EOF
     assert_output --partial "not found"
 }
 
-@test "integration: error handling for missing input files" {
+@test "integration: warning for missing input paths" {
     run "${SCRIPT_DIR}/wireflow.sh" init
     assert_success
 
@@ -199,9 +199,10 @@ EOF
     assert_success
 
     export WIREFLOW_DRY_RUN="true"
-    run "${SCRIPT_DIR}/wireflow.sh" run test-workflow --input-file non-existent-file.txt
-    assert_failure
-    assert_output --partial "Input file not found"
+    # Missing paths now generate a warning, not an error
+    run "${SCRIPT_DIR}/wireflow.sh" run test-workflow -in non-existent-file.txt
+    assert_success
+    assert_output --partial "Warning: Path not found"
 }
 
 # ============================================================================
@@ -352,7 +353,7 @@ EOF
 
     # Would need to mock/spy on build_prompts to verify cache control
     # For now, just verify the workflow runs with cache control enabled
-    run "${SCRIPT_DIR}/wireflow.sh" run cached-workflow --input-file input.txt
+    run "${SCRIPT_DIR}/wireflow.sh" run cached-workflow -in input.txt
     assert_success
 }
 

@@ -350,6 +350,40 @@ teardown() {
     assert_equal "$(get_image_media_type "file.svg")" "image/svg+xml"
 }
 
+@test "is_supported_file: returns true for supported types" {
+    # Text files
+    run is_supported_file "file.txt"
+    assert_success
+
+    run is_supported_file "file.md"
+    assert_success
+
+    run is_supported_file "file.py"
+    assert_success
+
+    # PDF files
+    run is_supported_file "file.pdf"
+    assert_success
+
+    # Image files
+    run is_supported_file "file.png"
+    assert_success
+
+    run is_supported_file "file.jpg"
+    assert_success
+}
+
+@test "is_supported_file: returns false for binary files" {
+    run is_supported_file "file.bin"
+    assert_failure
+
+    run is_supported_file "file.exe"
+    assert_failure
+
+    run is_supported_file "file.zip"
+    assert_failure
+}
+
 @test "get_image_dimensions: extracts dimensions from image files" {
     # This test would need actual image files or mocking of identify/file commands
     # For now, we'll test the function exists and handles missing files gracefully

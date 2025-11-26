@@ -44,13 +44,13 @@ wfw run 01-analysis --stream
 Add specific files as context:
 
 ```bash
-wfw run 01-analysis --context-file data.csv
+wfw run 01-analysis -cx data.csv
 ```
 
 Multiple files:
 
 ```bash
-wfw run 01-analysis --context-file data.csv --context-file notes.md
+wfw run 01-analysis -cx data.csv -cx notes.md
 ```
 
 ### With Glob Patterns
@@ -58,13 +58,13 @@ wfw run 01-analysis --context-file data.csv --context-file notes.md
 Add files matching patterns:
 
 ```bash
-wfw run 01-analysis --context-pattern "data/*.csv"
+wfw run 01-analysis -cx "data/*.csv"
 ```
 
 Multiple patterns:
 
 ```bash
-wfw run 01-analysis --context-pattern "data/*.csv" --context-pattern "notes/*.md"
+wfw run 01-analysis -cx "data/*.csv" -cx "notes/*.md"
 ```
 
 ### With Dependencies
@@ -150,14 +150,14 @@ Task mode provides lightweight, one-off task execution without workflow persiste
 Execute tasks with inline text:
 
 ```bash
-wfw task -i "Summarize these notes" --context-file notes.md
+wfw task -i "Summarize these notes" -cx notes.md
 ```
 
 Long form:
 
 ```bash
 wfw task --inline "Extract key action items from the meeting notes" \
-    --context-file meeting.md
+    -cx meeting.md
 ```
 
 ### Named Tasks
@@ -179,7 +179,7 @@ Format as structured markdown with bullet points.
 EOF
 
 # Use named task
-wfw task summarize --context-file notes.md
+wfw task summarize -cx notes.md
 ```
 
 ### Task Mode with Context
@@ -187,13 +187,13 @@ wfw task summarize --context-file notes.md
 Add context files:
 
 ```bash
-wfw task -i "Analyze this data" --context-file data.csv
+wfw task -i "Analyze this data" -cx data.csv
 ```
 
 Use glob patterns:
 
 ```bash
-wfw task -i "What are the common themes?" --context-pattern "reports/*.md"
+wfw task -i "What are the common themes?" -cx "reports/*.md"
 ```
 
 ### Saving Task Output
@@ -201,7 +201,7 @@ wfw task -i "What are the common themes?" --context-pattern "reports/*.md"
 By default, task mode streams to stdout. To save to a file:
 
 ```bash
-wfw task -i "Summarize notes" --context-file notes.md --output-file summary.md
+wfw task -i "Summarize notes" -cx notes.md --output-file summary.md
 ```
 
 ### Batch Mode for Tasks
@@ -209,7 +209,7 @@ wfw task -i "Summarize notes" --context-file notes.md --output-file summary.md
 Disable streaming and use single-batch mode:
 
 ```bash
-wfw task -i "Analyze data" --context-file data.csv --no-stream
+wfw task -i "Analyze data" -cx data.csv --no-stream
 ```
 
 ### Task Mode in Projects
@@ -250,7 +250,7 @@ PDF files are automatically processed using the **Claude API**, which jointly an
 
 Example:
 ```bash
-wfw run analysis --input-file report.pdf --context-file references.pdf
+wfw run analysis -in report.pdf -cx references.pdf
 ```
 
 #### Microsoft Office Files (.docx, .pptx)
@@ -264,7 +264,7 @@ Office files are automatically converted to PDF for processing using LibreOffice
 
 Example:
 ```bash
-wfw run summary --input-file presentation.pptx --context-file notes.docx
+wfw run summary -in presentation.pptx -cx notes.docx
 ```
 
 #### Image Files (.jpg, .png, .gif, .webp)
@@ -277,7 +277,7 @@ Images are processed using the **Claude Vision API**.
 
 Example:
 ```bash
-wfw run analyze-diagram --input-file flowchart.png --context-file screenshot.jpg
+wfw run analyze-diagram -in flowchart.png -cx screenshot.jpg
 ```
 
 #### Mixing Document Types
@@ -285,10 +285,10 @@ You can freely mix different document types in a single workflow:
 
 ```bash
 wfw run research \
-    --input-pattern "data/*.pdf" \
-    --context-file notes.docx \
-    --context-file diagram.png \
-    --context-file references.md
+    -in "data/*.pdf" \
+    -cx notes.docx \
+    -cx diagram.png \
+    -cx references.md
 ```
 
 The tool automatically detects file types and processes each appropriately. PDF and Office files are processed first for optimal performance, followed by text documents and images.
@@ -301,17 +301,15 @@ For **workflow mode (`run`)**:
 
 1. **System prompts:** From `$WIREFLOW_PROMPT_PREFIX/` directory
 2. **Project description:** From `.workflow/project.txt` (if non-empty)
-3. **Context files and patterns:**
+3. **Context files:**
      - Config `CONTEXT_FILES` (project-relative)
      - Config `CONTEXT_PATTERN` (project-relative)
-     - CLI `--context-file` flags (PWD-relative)
-     - CLI `--context-pattern` flags (PWD-relative)
+     - CLI `-cx/--context` (PWD-relative)
 4. **Workflow dependencies:** Via `--depends-on` or `DEPENDS_ON` config
-5. **Input files and patterns:**
+5. **Input files:**
      - Config `INPUT_FILES` (project-relative)
      - Config `INPUT_PATTERN` (project-relative)
-     - CLI `--input-file` flags (PWD-relative)
-     - CLI `--input-pattern` flags (PWD-relative)
+     - CLI `-in/--input` or `-- <files>` (PWD-relative)
 6. **Images:** Automatically detected from context/input sources
 7. **Task prompt:** The actual task description
 
@@ -319,12 +317,10 @@ For **task mode (`task`)**:
 
 1. **System prompts:** From `$WIREFLOW_PROMPT_PREFIX/` directory
 2. **Project description:** From `.workflow/project.txt` (if in a project)
-3. **Context files and patterns:**
-     - CLI `--context-file` flags (PWD-relative)
-     - CLI `--context-pattern` flags (PWD-relative)
-4. **Input files and patterns:**
-     - CLI `--input-file` flags (PWD-relative)
-     - CLI `--input-pattern` flags (PWD-relative)
+3. **Context files:**
+     - CLI `-cx/--context` (PWD-relative)
+4. **Input files:**
+     - CLI `-in/--input` or `-- <files>` (PWD-relative)
 5. **Images:** Automatically detected from context/input sources
 6. **Task prompt:** The actual task description
 
@@ -336,7 +332,7 @@ For **task mode (`task`)**:
 **Workflow mode:**
 
 - Config paths (CONTEXT_FILES, CONTEXT_PATTERN, INPUT_FILES, INPUT_PATTERN) are relative to **project root**
-- CLI paths (--context-file, --context-pattern, --input-file, --input-pattern) are relative to **PWD**
+- CLI paths (`-cx`, `-in`, `-- <files>`) are relative to **PWD**
 
 **Task mode:**
 
@@ -346,16 +342,16 @@ For **task mode (`task`)**:
 
 ```bash
 # All CSV files in data/
---context-pattern "data/*.csv"
+-cx "data/*.csv"
 
 # All markdown files recursively in notes/
---context-pattern "notes/**/*.md"
+-cx "notes/**/*.md"
 
 # Multiple patterns
---context-pattern "data/*.csv" --context-pattern "*.md"
+-cx "data/*.csv" -cx "*.md"
 
 # Complex pattern
---context-pattern "experiments/*/results.json"
+-cx "experiments/*/results.json"
 ```
 
 ### Context Order Matters
@@ -364,9 +360,9 @@ Files are processed in the order specified. For narrative context, order careful
 
 ```bash
 wfw run draft \
-    --context-file 00-outline.md \
-    --context-file 01-introduction.md \
-    --context-file 02-methods.md
+    -cx 00-outline.md \
+    -cx 01-introduction.md \
+    -cx 02-methods.md
 ```
 
 ## Streaming vs Batch Mode
@@ -382,7 +378,7 @@ wfw run analysis --stream
 **Task mode (default):**
 
 ```bash
-wfw task -i "Summarize" --context-file notes.md
+wfw task -i "Summarize" -cx notes.md
 ```
 
 **Behavior:**
@@ -403,7 +399,7 @@ wfw run analysis  # No --stream flag
 **Task mode (opt-in):**
 
 ```bash
-wfw task -i "Summarize" --context-file notes.md --no-stream
+wfw task -i "Summarize" -cx notes.md --no-stream
 ```
 
 **Behavior:**
@@ -592,13 +588,13 @@ Default: 8192 (from config)
 
 ```bash
 # First draft
-wfw run draft --context-file outline.md --stream
+wfw run draft -cx outline.md --stream
 
 # Review and refine
 nano .workflow/draft/task.txt  # Refine instructions
 
 # Re-run with improvements
-wfw run draft --context-file outline.md --stream
+wfw run draft -cx outline.md --stream
 
 # Compare outputs
 diff .workflow/draft/output.md \
@@ -609,7 +605,7 @@ diff .workflow/draft/output.md \
 
 ```bash
 # Stage 1: Analysis
-wfw run 01-analyze --context-pattern "data/*.csv" --stream
+wfw run 01-analyze -cx "data/*.csv" --stream
 
 # Stage 2: Initial draft (using analysis)
 wfw run 02-draft --depends-on 01-analyze --stream
@@ -627,15 +623,15 @@ Use task mode for quick tests:
 
 ```bash
 # Quick summary
-wfw task -i "Summarize in 3 bullets" --context-file paper.pdf
+wfw task -i "Summarize in 3 bullets" -cx paper.pdf
 
 # Quick analysis
-wfw task -i "What are the main findings?" --context-file results.json
+wfw task -i "What are the main findings?" -cx results.json
 
 # Quick comparison
 wfw task -i "Compare these approaches" \
-    --context-file approach-a.md \
-    --context-file approach-b.md
+    -cx approach-a.md \
+    -cx approach-b.md
 ```
 
 ## Error Handling
@@ -668,7 +664,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ```bash
 # Check paths are relative to PWD (for CLI) or project root (for config)
 ls -la data.csv  # Verify file exists
-wfw run analysis --context-file ./data.csv  # Use explicit path
+wfw run analysis -cx ./data.csv  # Use explicit path
 ```
 
 ### Interrupting Execution

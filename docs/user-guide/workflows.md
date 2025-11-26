@@ -280,7 +280,7 @@ CONTEXT_FILES=README.md,notes.txt
 **Option 2: At Runtime**
 
 ```bash
-wfw run analysis-01 --context-pattern "data/*.csv" --context-file README.md
+wfw run analysis-01 -cx "data/*.csv" -cx README.md
 ```
 
 Runtime flags override config file settings.
@@ -312,7 +312,7 @@ Use patterns to include multiple files:
 CONTEXT_PATTERN=data/*.csv,results/*.json
 
 # Or at runtime
-wfw run analysis-01 --context-pattern "data/*.csv"
+wfw run analysis-01 -cx "data/*.csv"
 ```
 
 ### Explicit Files
@@ -324,7 +324,7 @@ List specific files:
 CONTEXT_FILES=README.md,data/summary.csv,notes.txt
 
 # Or at runtime
-wfw run analysis-01 --context-file README.md --context-file data/summary.csv
+wfw run analysis-01 -cx README.md -cx data/summary.csv
 ```
 
 ### Dependencies

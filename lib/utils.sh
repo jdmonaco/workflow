@@ -567,6 +567,18 @@ detect_file_type() {
     esac
 }
 
+# Check if file type is supported for inclusion (non-binary)
+# Arguments:
+#   $1 - File path
+# Returns:
+#   0 (true) if supported, 1 (false) if binary/unsupported
+is_supported_file() {
+    local file="$1"
+    local file_type
+    file_type=$(detect_file_type "$file")
+    [[ "$file_type" != "binary" ]]
+}
+
 # Get image media type from file extension
 # Arguments:
 #   $1 - File path

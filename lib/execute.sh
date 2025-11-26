@@ -982,10 +982,8 @@ build_and_track_document_block() {
 #   CONTEXT_PATTERN: Config context pattern
 #   CONTEXT_FILES: Array of config context files
 # Requires (both modes):
-#   CLI_INPUT_PATTERN: CLI input pattern
-#   CLI_INPUT_FILES: Array of CLI input files
-#   CLI_CONTEXT_PATTERN: CLI context pattern
-#   CLI_CONTEXT_FILES: Array of CLI context files
+#   CLI_INPUT_PATHS: Array of CLI input paths (files or directories)
+#   CLI_CONTEXT_PATHS: Array of CLI context paths (files or directories)
 # Side effects:
 #   Populates CONTEXT_PDF_BLOCKS, INPUT_PDF_BLOCKS (PDFs, citable)
 #   Populates CONTEXT_BLOCKS, DEPENDENCY_BLOCKS, INPUT_BLOCKS (text, citable)
@@ -997,6 +995,25 @@ aggregate_context() {
     local workflow_dir="$3"
 
     echo "Building input documents and context..."
+
+    # Helper function: expand path (file or directory) to individual files
+    # For directories, non-recursively includes supported (non-binary) files
+    expand_path_to_files() {
+        local path="$1"
+        if [[ -f "$path" ]]; then
+            echo "$path"
+        elif [[ -d "$path" ]]; then
+            for file in "$path"/*; do
+                [[ -f "$file" ]] && is_supported_file "$file" && echo "$file"
+            done
+        else
+            echo "Warning: Path not found: $path" >&2
+        fi
+    }
+
+    # Associative arrays for deduplication (keys are absolute paths)
+    declare -A seen_input_files=()
+    declare -A seen_context_files=()
 
     # Initialize content block arrays
     CONTEXT_PDF_BLOCKS=()
@@ -1013,7 +1030,7 @@ aggregate_context() {
 
     # =============================================================================
     # CONTEXT FILES AGGREGATION (most stable)
-    # Order: CONTEXT_FILES → CONTEXT_PATTERN → CLI_CONTEXT_FILES → CLI_CONTEXT_PATTERN
+    # Order: CONTEXT_FILES → CONTEXT_PATTERN → CLI_CONTEXT_PATHS
     # =============================================================================
 
     # Run mode: Add explicit files from config CONTEXT_FILES (project-relative, most stable)
@@ -1046,34 +1063,9 @@ aggregate_context() {
         done
     fi
 
-    # Both modes: Add explicit files from CLI --context-file (PWD-relative)
-    if [[ ${#CLI_CONTEXT_FILES[@]} -gt 0 ]]; then
-        echo "  Adding explicit context files from CLI..."
-        for file in "${CLI_CONTEXT_FILES[@]}"; do
-            if [[ ! -f "$file" ]]; then
-                echo "Error: Context file not found: $file"
-                exit 1
-            fi
-
-            # Build and track document block
-            build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
-        done
-    fi
-
-    # Both modes: Add files from CLI --context-pattern (PWD-relative, most volatile)
-    if [[ -n "$CLI_CONTEXT_PATTERN" ]]; then
-        echo "  Adding context from CLI pattern: $CLI_CONTEXT_PATTERN"
-        local pattern_files
-        # Use compgen to properly handle filenames with spaces
-        mapfile -t pattern_files < <(compgen -G "$CLI_CONTEXT_PATTERN")
-
-        for file in "${pattern_files[@]}"; do
-            if [[ -f "$file" ]]; then
-                # Build and track document block
-                build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
-            fi
-        done
-    fi
+    # Both modes: Add files/directories from CLI --context (PWD-relative)
+    # Note: Context processing happens AFTER input processing below to check for duplicates
+    # We defer this to after INPUT processing due to input-takes-precedence rule
 
     # Cache control for context blocks will be added by adaptive strategy below
 
@@ -1107,7 +1099,8 @@ aggregate_context() {
 
     # =============================================================================
     # INPUT DOCUMENTS AGGREGATION (most volatile)
-    # Order: INPUT_FILES → INPUT_PATTERN → CLI_INPUT_FILES → CLI_INPUT_PATTERN
+    # Order: INPUT_FILES → INPUT_PATTERN → CLI_INPUT_PATHS
+    # Note: CLI_INPUT_PATHS processed first to establish precedence over context
     # =============================================================================
 
     # Run mode: Add explicit files from config INPUT_FILES (project-relative, most stable)
@@ -1140,37 +1133,44 @@ aggregate_context() {
         done
     fi
 
-    # Both modes: Add explicit files from CLI --input-file (PWD-relative)
-    if [[ ${#CLI_INPUT_FILES[@]} -gt 0 ]]; then
-        echo "  Adding explicit input files from CLI..."
-        for file in "${CLI_INPUT_FILES[@]}"; do
-            if [[ ! -f "$file" ]]; then
-                echo "Error: Input file not found: $file"
-                exit 1
-            fi
-
-            # Build and track document block
-            build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
+    # Both modes: Add files/directories from CLI --input (PWD-relative, with deduplication)
+    if [[ ${#CLI_INPUT_PATHS[@]} -gt 0 ]]; then
+        echo "  Adding input from CLI..."
+        for path in "${CLI_INPUT_PATHS[@]}"; do
+            while IFS= read -r file; do
+                [[ -z "$file" ]] && continue
+                local abs_path
+                abs_path=$(realpath "$file" 2>/dev/null) || abs_path="$file"
+                # Skip if already seen (deduplication)
+                if [[ -z "${seen_input_files[$abs_path]:-}" ]]; then
+                    seen_input_files[$abs_path]=1
+                    # Build and track document block
+                    build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
+                fi
+            done < <(expand_path_to_files "$path")
         done
     fi
 
-    # Both modes: Add files from CLI --input-pattern (PWD-relative, most volatile)
-    if [[ -n "$CLI_INPUT_PATTERN" ]]; then
-        echo "  Adding input documents from CLI pattern: $CLI_INPUT_PATTERN"
-        local pattern_files
-        # Use compgen to properly handle filenames with spaces
-        mapfile -t pattern_files < <(compgen -G "$CLI_INPUT_PATTERN")
+    # =============================================================================
+    # CLI CONTEXT PROCESSING (deferred to here for input precedence)
+    # =============================================================================
 
-        echo "  Found ${#pattern_files[@]} file(s) matching pattern" >&2
-
-        for file in "${pattern_files[@]}"; do
-            if [[ -f "$file" ]]; then
-                echo "    Checking file: $file (type: $(detect_file_type "$file"))" >&2
-                # Build and track document block
-                build_and_track_document_block "$file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
-            else
-                echo "    Skipping non-file: $file" >&2
-            fi
+    # Both modes: Add files/directories from CLI --context (PWD-relative)
+    # Input takes precedence: skip files already in input
+    if [[ ${#CLI_CONTEXT_PATHS[@]} -gt 0 ]]; then
+        echo "  Adding context from CLI..."
+        for path in "${CLI_CONTEXT_PATHS[@]}"; do
+            while IFS= read -r file; do
+                [[ -z "$file" ]] && continue
+                local abs_path
+                abs_path=$(realpath "$file" 2>/dev/null) || abs_path="$file"
+                # Skip if already in context OR if present in input files (input takes precedence)
+                if [[ -z "${seen_context_files[$abs_path]:-}" && -z "${seen_input_files[$abs_path]:-}" ]]; then
+                    seen_context_files[$abs_path]=1
+                    # Build and track document block
+                    build_and_track_document_block "$file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
+                fi
+            done < <(expand_path_to_files "$path")
         done
     fi
 
@@ -1267,9 +1267,9 @@ aggregate_context() {
     if [[ "$has_input" == false && "$has_context" == false ]]; then
         echo "Warning: No input documents or context provided. Task will run without supporting materials."
         if [[ "$mode" == "run" ]]; then
-            echo "  Use --input-file, --input-pattern, --context-file, --context-pattern, or --depends-on"
+            echo "  Use -in/--input, -cx/--context, or -d/--depends-on"
         else
-            echo "  Use --input-file, --input-pattern, --context-file, or --context-pattern"
+            echo "  Use -in/--input or -cx/--context"
         fi
     fi
 

@@ -112,9 +112,9 @@ When initializing a new nested project:
 **Processing order:**
 
 1. Config CONTEXT_PATTERN (project-relative)
-2. CLI --context-pattern (PWD-relative)
+2. CLI -cx (PWD-relative)
 3. Config CONTEXT_FILES (project-relative)
-4. CLI --context-file (PWD-relative)
+4. CLI -cx (PWD-relative)
 
 ## Content Aggregation
 
