@@ -318,16 +318,12 @@ API Options:
 Output Options:
     --output-file, -o <path>      Save to file (default: stdout)
     --stream                      Stream output (default)
-    --no-stream                   Use batch mode
+    --no-stream                   Buffered mode (wait for complete response)
 
 Other Options:
     --count-tokens                Show token estimation only
     --dry-run, -n                 Save request JSON, open in editor
     --help, -h                    Quick help
-
-Batch Processing Options:
-    --batch                       Enable batch mode (one request per input file)
-    --no-batch                    Disable batch mode (default)
 
 Notes:
     Directory paths are expanded non-recursively; all supported files in the
@@ -338,7 +334,6 @@ Examples:
     $SCRIPT_NAME task summarize -cx paper.pdf
     $SCRIPT_NAME task -i "Summarize these notes" --profile fast
     $SCRIPT_NAME task analyze -in data/*.csv --enable-thinking
-    $SCRIPT_NAME task analyze --batch -- reports/*.pdf
 
 See Also:
     $SCRIPT_NAME tasks              # List available task templates

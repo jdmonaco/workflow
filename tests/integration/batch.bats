@@ -53,11 +53,11 @@ teardown() {
     assert_output --partial "Batch Processing Options"
 }
 
-@test "integration: help task shows batch options" {
+@test "integration: help task does NOT show batch options" {
     run "${SCRIPT_DIR}/wireflow.sh" help task
     assert_success
-    assert_output --partial "--batch"
-    assert_output --partial "--no-batch"
+    refute_output --partial "--batch"
+    refute_output --partial "Batch Processing"
 }
 
 @test "integration: help status shows batch status command" {

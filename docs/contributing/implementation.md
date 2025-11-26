@@ -354,10 +354,10 @@ payload=$(jq -n \
 - Temporary files created by `execute_api_request()`, cleaned up after use
 - Each content block contains metadata as embedded XML tags
 
-**Streaming vs batch:**
+**Streaming vs buffered:**
 
 - Streaming: `stream: true` added to payload, parse SSE events
-- Batch: `stream: false`, single JSON response
+- Buffered: `stream: false`, single JSON response
 
 ### Output Format Hints
 

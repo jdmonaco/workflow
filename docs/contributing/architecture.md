@@ -306,7 +306,7 @@ All content is organized into typed arrays for proper ordering and cache managem
 - Writes incrementally to output file
 - Real-time terminal display
 
-**Batch mode:**
+**Buffered mode:**
 
 - Single request, buffers entire response
 - Atomic file write

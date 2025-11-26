@@ -13,7 +13,7 @@ Workflow provides two distinct modes for different use cases:
 | **Context** | Config + CLI + Dependencies | CLI only (+ project if available) |
 | **Use Case** | Iterative, persistent work | Quick, one-off queries |
 | **Dependencies** | Supports `--depends-on` | No workflow dependencies |
-| **Default Streaming** | Batch (file after complete) | Streaming (real-time) |
+| **Default Streaming** | Buffered (file after complete) | Streaming (real-time) |
 
 ## Workflow Mode (`run`)
 
@@ -204,13 +204,16 @@ By default, task mode streams to stdout. To save to a file:
 wfw task -i "Summarize notes" -cx notes.md --output-file summary.md
 ```
 
-### Batch Mode for Tasks
+### Disabling Streaming
 
-Disable streaming and use single-batch mode:
+By default, task mode streams output to stdout. To disable streaming:
 
 ```bash
 wfw task -i "Analyze data" -cx data.csv --no-stream
 ```
+
+!!! note "Batch API Processing"
+    The `--batch` option for bulk processing multiple inputs via the Message Batches API is only available with `wfw run`. Task mode is designed for lightweight, ephemeral operations and does not support batch processing. For batch workloads, create a workflow with `BATCH_MODE=true` or run any workflow with multiple input files using `wfw run <name> --batch`.
 
 ### Task Mode in Projects
 
@@ -365,7 +368,7 @@ wfw run draft \
     -cx 02-methods.md
 ```
 
-## Streaming vs Batch Mode
+## Streaming vs Buffered Mode
 
 ### Streaming Mode (Real-Time)
 
@@ -388,7 +391,7 @@ wfw task -i "Summarize" -cx notes.md
 - Better user experience for long responses
 - Can interrupt with Ctrl+C
 
-### Batch Mode (Single Response)
+### Buffered Mode (Single Response)
 
 **Workflow mode (default):**
 
@@ -721,7 +724,7 @@ Press **Ctrl+C** to interrupt during streaming:
 - Long responses expected
 - Testing and iterating
 
-- ✅ **Use batch mode when:**
+- ✅ **Use buffered mode when:**
 
 - Running automated pipelines
 - Want atomic file writes

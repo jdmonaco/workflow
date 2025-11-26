@@ -256,7 +256,7 @@ wfw run 02-final --depends-on 01-summarize  # Use summary only
 # Check API connectivity
 curl -I https://api.anthropic.com
 
-# Try batch mode
+# Try buffered mode
 wfw run analysis  # Without --stream
 
 # Check terminal

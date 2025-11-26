@@ -352,7 +352,7 @@ wfw task <name>|--inline <text> [options] [-- <input>...]
 |--------|-------|-------------|
 | `--output-file <path>` | `-o` | Save to file (default: stdout) |
 | `--stream` | | Stream output (default: true) |
-| `--no-stream` | | Use batch mode |
+| `--no-stream` | `-b` | Disable streaming |
 
 **Other Options:**
 
@@ -361,13 +361,6 @@ wfw task <name>|--inline <text> [options] [-- <input>...]
 | `--count-tokens` | | Show token estimation only |
 | `--dry-run` | `-n` | Save API request files and inspect in editor |
 | `--help` | `-h` | Quick help |
-
-**Batch Processing Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--batch` | Enable batch mode (one request per input file) |
-| `--no-batch` | Disable batch mode (default) |
 
 **Notes:**
 
@@ -379,7 +372,6 @@ Directory paths are expanded non-recursively; all supported files in the directo
 wfw task summarize -cx paper.pdf
 wfw task -i "Summarize these notes" --profile fast
 wfw task analyze -in data/*.csv --enable-thinking
-wfw task analyze --batch -- reports/*.pdf
 ```
 
 **See Also:**
@@ -650,8 +642,8 @@ wfw help task
 | **Input** | `-in/--input`, `-- <files>` | `-in/--input`, `-- <files>` |
 | **Context** | `-cx/--context` | `-cx/--context` |
 | **Dependencies** | `--depends-on` supported | Not supported |
-| **Batch Mode** | `--batch` supported | `--batch` supported |
-| **Default Streaming** | Disabled (batch) | Enabled |
+| **Batch API** | `--batch` supported | Not supported |
+| **Default Streaming** | Disabled (buffered) | Enabled |
 
 ---
 

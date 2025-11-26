@@ -87,7 +87,7 @@ wfw run extract-actions -cx notes.txt --stream
 ```
 
 !!! tip "Streaming Mode"
-    The `--stream` flag enables real-time output as the API generates the response. Omit it for batch mode (response saved to file after completion).
+    The `--stream` flag enables real-time output as the API generates the response. Omit it for buffered mode (response saved to file after completion).
 
 ### Step 6: View the Output
 

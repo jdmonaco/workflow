@@ -30,7 +30,7 @@ A terminal-based tool for building reproducible AI workflows with the Anthropic 
 
 - 📊 **Token Counting:** Instant estimates plus exact API counts. Know costs before you run.
 
-- 🌊 **Streaming:** Watch responses in real-time with `--stream`, or batch for long-form output.
+- 🌊 **Streaming:** Watch responses in real-time with `--stream`, or use buffered mode for long-form output.
 
 ## Quick Start
 

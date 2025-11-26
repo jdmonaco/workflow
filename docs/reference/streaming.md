@@ -1,18 +1,18 @@
 # Streaming Modes
 
-Reference for streaming and batch execution modes in Workflow.
+Reference for streaming and buffered execution modes in Workflow.
 
 ## Overview
 
 Workflow supports two execution modes:
 
 - **Streaming mode:** Real-time output as generated
-- **Batch mode:** Complete response at once
+- **Buffered mode:** Complete response at once
 
 ## Mode Comparison
 
-| Feature | Streaming | Batch |
-|---------|-----------|-------|
+| Feature | Streaming | Buffered |
+|---------|-----------|----------|
 | **Output timing** | Real-time | After completion |
 | **Interruption** | Ctrl+C preserves partial output | Ctrl+C loses all output |
 | **Display** | Terminal (stdout) | Pager (`less`) |
@@ -78,9 +78,9 @@ Press Ctrl+C → Partial output saved.
 - Exploratory work
 - Learning what the model generates
 
-## Batch Mode
+## Buffered Mode
 
-### Enabling Batch
+### Enabling Buffered Mode
 
 **Workflow mode (default):**
 
@@ -116,7 +116,7 @@ Response saved to: .workflow/analysis/output.md
 
 ### Use Cases
 
-- ✅ **Use batch for:**
+- ✅ **Use buffered mode for:**
 
 - Automated scripts
 - Consistent file writes
@@ -146,7 +146,7 @@ STREAM_MODE=true
 
 ```bash
 # .workflow/analysis/config
-STREAM_MODE=false  # Override to batch
+STREAM_MODE=false  # Override to buffered
 ```
 
 ### CLI Override
@@ -154,10 +154,10 @@ STREAM_MODE=false  # Override to batch
 CLI flags always override config:
 
 ```bash
-# Force streaming (even if config says batch)
+# Force streaming (even if config says buffered)
 wfw run analysis --stream
 
-# Force batch (even if config says streaming)
+# Force buffered (even if config says streaming)
 wfw task summarize -cx notes.md --no-stream
 ```
 
@@ -181,7 +181,7 @@ Uses Server-Sent Events (SSE) from Anthropic API:
 - Flushes periodically
 - Partial output preserved on interrupt
 
-**Batch:**
+**Buffered:**
 
 - Buffers entire response
 - Writes once when complete
@@ -196,7 +196,7 @@ Uses Server-Sent Events (SSE) from Anthropic API:
 - Simultaneously writes to file
 - No pager
 
-**Batch:**
+**Buffered:**
 
 - Saves to file only
 - Opens file in `less` when complete
@@ -217,7 +217,7 @@ wfw run analysis --stream > custom-output.md
 wfw run extract --format json --stream | jq '.results[]'
 ```
 
-### Batch with Custom Display
+### Buffered with Custom Display
 
 ```bash
 # Save without opening pager
@@ -230,7 +230,7 @@ wfw run analysis | bat  # or cat, most, etc.
 ### Silent Execution
 
 ```bash
-# No output display (batch)
+# No output display (buffered)
 wfw run analysis 2>/dev/null
 
 # No output display (streaming)
@@ -246,7 +246,7 @@ wfw run analysis --stream > /dev/null
 - **Interactive:** Working at terminal, adjusting on the fly
 - **Debugging:** Need to see what's being generated
 
-### Choose Batch When:
+### Choose Buffered When:
 
 - **Scripting:** Running automated workflows
 - **Reliability:** Want atomic file writes
@@ -272,7 +272,7 @@ cat .workflow/analysis/output.md
 # Shows everything generated before interrupt
 ```
 
-### Batch Mode
+### Buffered Mode
 
 Press **Ctrl+C**:
 
@@ -309,9 +309,9 @@ wfw run analysis --stream < /dev/null
 wfw run analysis --stream
 ```
 
-### Batch Hangs
+### Buffered Mode Hangs
 
-If batch mode appears to hang:
+If buffered mode appears to hang:
 
 - Long response generation (wait or interrupt)
 - Network issues (check connectivity)
@@ -325,7 +325,7 @@ wfw run analysis --stream  # See what's happening
 
 ### Output Not Displayed
 
-**Batch mode:**
+**Buffered mode:**
 
 - Check pager settings: `echo $PAGER`
 - Try different pager: `wfw run analysis | less`
@@ -364,7 +364,7 @@ If file is empty, interrupt may have occurred before first flush.
 - Terminal refresh overhead
 - Can't pipeline until complete
 
-### Batch
+### Buffered
 
 **Advantages:**
 
@@ -401,7 +401,7 @@ wfw run analysis --stream
 #!/bin/bash
 # pipeline.sh - Run analysis pipeline
 
-# Use batch mode (default) for reliability
+# Use buffered mode (default) for reliability
 wfw run 01-import
 wfw run 02-clean --depends-on 01-import
 wfw run 03-analyze --depends-on 02-clean
@@ -413,7 +413,7 @@ echo "Pipeline complete!"
 ### Conditional Streaming
 
 ```bash
-# Stream if interactive, batch if scripted
+# Stream if interactive, buffered if scripted
 if [ -t 1 ]; then
     wfw run analysis --stream
 else
@@ -421,10 +421,10 @@ else
 fi
 ```
 
-### Progress Indication with Batch
+### Progress Indication with Buffered Mode
 
 ```bash
-# Show spinner while batch runs
+# Show spinner while buffered mode runs
 wfw run expensive-analysis &
 PID=$!
 
