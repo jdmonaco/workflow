@@ -108,7 +108,7 @@ fi
 - `should_resize_image()` - Check if image exceeds 1568px on long edge
 - `calculate_target_dimensions()` - Compute resize dimensions maintaining aspect ratio
 - `resize_image()` - Resize using ImageMagick with geometry specification
-- `cache_image()` - Cache resized images with path preservation
+- `cache_image()` - Cache resized images using hash-based IDs in CACHE_DIR
 - `build_image_content_block()` - Create Vision API image block with base64 encoding
 
 **Project discovery implementation:**

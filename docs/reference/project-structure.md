@@ -16,29 +16,31 @@ my-project/
 │   ├── prompts/                         # System prompt cache
 │   │   └── system.txt                   # Cached composed system prompt
 │   ├── output/                          # Hardlinks to workflow outputs
-│   │   ├── 00-context.md                # → 00-context/output/<name>.md
-│   │   ├── 01-analysis.md               # → 01-analysis/output/<name>.md
-│   │   └── 02-report.md                 # → 02-report/output/<name>.md
-│   ├── 00-context/                      # Individual workflow
-│   │   ├── task.txt                     # Task description
-│   │   ├── config                       # Workflow configuration
-│   │   ├── context/                     # Optional context files
-│   │   └── output/                      # Workflow outputs
-│   │       ├── <name>.md              # Latest output
-│   │       ├── <name>-20241115143022.md
-│   │       └── <name>-20241115141530.md
-│   ├── 01-analysis/                     # Individual workflow
-│   │   ├── task.txt
-│   │   ├── config
-│   │   ├── context/
-│   │   └── output/
-│   │       └── <name>.md
-│   └── 02-report/                       # Individual workflow
-│       ├── task.txt
-│       ├── config
-│       ├── context/
-│       └── output/
-│           └── <name>.md
+│   │   ├── 00-context.md                # → run/00-context/output.md
+│   │   ├── 01-analysis.md               # → run/01-analysis/output.md
+│   │   └── 02-report.md                 # → run/02-report/output.md
+│   ├── cache/                           # Shared file conversion cache
+│   │   └── conversions/
+│   │       └── office/                  # Office→PDF conversions
+│   │           ├── <hash>.pdf           # Converted PDF (hash-based ID)
+│   │           └── <hash>.pdf.meta      # Sidecar metadata
+│   └── run/                             # Individual workflows
+│       ├── 00-context/                  # Workflow directory
+│       │   ├── task.txt                 # Task description
+│       │   ├── config                   # Workflow configuration
+│       │   ├── context/                 # Optional context files
+│       │   ├── cache/                   # Per-workflow cache (images)
+│       │   ├── output.md                # Latest output
+│       │   ├── output-TIMESTAMP.md      # Previous versions
+│       │   └── ...                      # Debug files (JSON)
+│       ├── 01-analysis/                 # Workflow directory
+│       │   ├── task.txt
+│       │   ├── config
+│       │   └── ...
+│       └── 02-report/                   # Workflow directory
+│           ├── task.txt
+│           ├── config
+│           └── ...
 ├── data/                                # Project content (example)
 ├── references/                          # Project content (example)
 └── README.md                            # Project content (example)
@@ -143,6 +145,41 @@ Hardlink directory for quick access to workflow outputs.
 └── 02-report.json     # → 02-report/output/<name>.json
 ```
 
+### `.workflow/cache/`
+
+Project-level cache for file conversions.
+
+**Created by:** `wfw init`
+
+**Purpose:** Store converted files (e.g., Office→PDF) for reuse across workflows
+
+**Structure:**
+
+```
+.workflow/cache/
+└── conversions/
+    ├── office/                       # Office document conversions
+    │   ├── a1b2c3d4e5f67890.pdf      # Converted PDF (hash-based ID)
+    │   └── a1b2c3d4e5f67890.pdf.meta # Sidecar metadata
+    └── images/                       # Image resize cache
+        ├── b2c3d4e5f6789012.png      # Resized image (hash-based ID)
+        └── b2c3d4e5f6789012.png.meta # Sidecar metadata
+```
+
+**Cache ID:** 16-character SHA-256 hash of the source file's absolute path
+
+**Metadata:** JSON sidecar file containing:
+
+- `source_path` - Original file path
+- `mtime` - Source modification time at conversion
+- `size` - Source file size in bytes
+- `hash` - Content SHA-256 (for files ≤10MB, else `"skipped"`)
+- `conversion_type` - Type of conversion (e.g., `"office_to_pdf"`, `"image_resize"`)
+
+**Validation:** Fast path checks mtime; slow path verifies content hash for files ≤10MB
+
+**Note:** Task mode uses this cache when run inside a project tree; standalone task mode has no caching
+
 ### `.workflow/<name>/`
 
 Individual workflow directories.
@@ -233,7 +270,7 @@ Workflow directory containing all workflow-specific files.
 - `config` - Workflow configuration
 - `task.txt` - Task description/prompt
 - `context/` - Optional context files directory
-- `cache/` - Cached processed files (images, Office→PDF conversions)
+- `cache/` - Per-workflow cache (resized images only; Office conversions use project-level cache)
 - `output.<format>` - Latest output
 - `output-TIMESTAMP.<format>` - Previous versions (automatic backups)
 - `system-blocks.json` - JSON system content blocks (for debugging)

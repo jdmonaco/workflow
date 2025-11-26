@@ -169,14 +169,19 @@ execute_task_mode() {
     # Load project and ancestor configs if in a project
     if [[ -n "$project_root" ]]; then
         echo "Using project context from: $(display_absolute_path "$project_root")"
-        
+
         # Load ancestor configs
         load_ancestor_configs
-        
+
         # Load project config
         load_project_config "$project_root/.workflow/config"
+
+        # Set project-level cache directory for file conversions
+        CACHE_DIR="$project_root/.workflow/cache"
     else
         echo "Running in standalone mode (no project context)"
+        # No project = no persistent cache for file conversions
+        CACHE_DIR=""
     fi
     
     # =============================================================================

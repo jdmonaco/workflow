@@ -839,7 +839,7 @@ build_and_track_document_block() {
 
         # Build image content block (Vision API)
         local block
-        block=$(build_image_content_block "$file" "$project_root" "$workflow_dir")
+        block=$(build_image_content_block "$file")
         if [[ -z "$block" ]]; then
             echo "    Warning: Failed to process image: $file" >&2
             return 1
@@ -900,9 +900,9 @@ build_and_track_document_block() {
         local abs_file
         abs_file=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
 
-        # Convert to PDF (with caching)
+        # Convert to PDF (uses global CACHE_DIR for shared project cache)
         local cached_pdf
-        cached_pdf=$(convert_office_to_pdf "$abs_file" "$workflow_dir")
+        cached_pdf=$(convert_office_to_pdf "$abs_file")
         if [[ $? -ne 0 || -z "$cached_pdf" ]]; then
             echo "    Warning: Failed to convert Office file to PDF: $file" >&2
             return 1

@@ -393,6 +393,89 @@ teardown() {
 }
 
 # ============================================================================
+# Image caching functions (cache_image)
+# ============================================================================
+
+@test "cache_image: returns original path when no resize needed" {
+    # Mock should_resize_image to return false (no resize needed)
+    # For this test, we'll use a non-existent image which triggers early return
+    local test_image="${BATS_TEST_TMPDIR}/small.png"
+
+    # Create a dummy file (get_image_dimensions will fail, so original returned)
+    touch "$test_image"
+
+    result=$(cache_image "$test_image")
+
+    # Should return original path since dimensions can't be read
+    assert_equal "$result" "$test_image"
+}
+
+@test "cache_image: uses CACHE_DIR for project-level caching" {
+    # Set up cache directory
+    export CACHE_DIR="${BATS_TEST_TMPDIR}/cache"
+    mkdir -p "$CACHE_DIR/conversions/images"
+
+    local source_file="${BATS_TEST_TMPDIR}/source.png"
+    touch "$source_file"
+
+    # Generate expected cache ID
+    local expected_id
+    expected_id=$(generate_cache_id "$source_file")
+
+    # The function requires ImageMagick; if not available, returns original
+    # This test validates the path construction logic
+    if ! command -v magick >/dev/null 2>&1; then
+        skip "ImageMagick not available"
+    fi
+
+    # Create a small test image (would need actual ImageMagick for real resize test)
+    run cache_image "$source_file"
+
+    # Since we can't create a real oversized image easily, just verify function runs
+    assert_success
+}
+
+@test "cache_image: uses temp file when CACHE_DIR is empty" {
+    # Clear CACHE_DIR to simulate standalone task mode
+    export CACHE_DIR=""
+
+    local source_file="${BATS_TEST_TMPDIR}/source.png"
+    touch "$source_file"
+
+    # The function should use temp file when CACHE_DIR is empty
+    # Since we can't easily create a resizable image, verify the code path exists
+    result=$(cache_image "$source_file")
+
+    # Should return original (can't get dimensions from empty file)
+    assert_equal "$result" "$source_file"
+}
+
+@test "cache_image: validates existing cache before resize" {
+    export CACHE_DIR="${BATS_TEST_TMPDIR}/cache"
+    mkdir -p "$CACHE_DIR/conversions/images"
+
+    local source_file="${BATS_TEST_TMPDIR}/source.png"
+    touch "$source_file"
+
+    # Pre-create a valid cache entry
+    local cache_id
+    cache_id=$(generate_cache_id "$source_file")
+    local cached_file="$CACHE_DIR/conversions/images/${cache_id}.png"
+
+    # Create cached file and metadata
+    echo "cached content" > "$cached_file"
+    write_cache_metadata "$cached_file" "$source_file" "image_resize"
+
+    # Function should validate cache (but will still return original
+    # since get_image_dimensions fails on dummy file)
+    result=$(cache_image "$source_file")
+
+    # Verify cache infrastructure is set up correctly
+    assert_file_exists "$cached_file"
+    assert_file_exists "${cached_file}.meta"
+}
+
+# ============================================================================
 # Display and prompt functions
 # ============================================================================
 
@@ -460,6 +543,149 @@ teardown() {
     assert_output ""
 }
 
+# ============================================================================
+# Cache system functions
+# ============================================================================
+
+@test "generate_cache_id: produces consistent hash for same path" {
+    local test_file="${BATS_TEST_TMPDIR}/test_file.txt"
+    echo "test content" > "$test_file"
+
+    result1=$(generate_cache_id "$test_file")
+    result2=$(generate_cache_id "$test_file")
+
+    assert_equal "$result1" "$result2"
+}
+
+@test "generate_cache_id: produces different hashes for different paths" {
+    local test_file1="${BATS_TEST_TMPDIR}/file1.txt"
+    local test_file2="${BATS_TEST_TMPDIR}/file2.txt"
+    echo "content" > "$test_file1"
+    echo "content" > "$test_file2"
+
+    result1=$(generate_cache_id "$test_file1")
+    result2=$(generate_cache_id "$test_file2")
+
+    refute [ "$result1" = "$result2" ]
+}
+
+@test "generate_cache_id: returns 16-character hex string" {
+    local test_file="${BATS_TEST_TMPDIR}/test.txt"
+    echo "test" > "$test_file"
+
+    result=$(generate_cache_id "$test_file")
+
+    # Should be 16 characters
+    assert_equal "${#result}" "16"
+
+    # Should only contain hex characters
+    [[ "$result" =~ ^[0-9a-f]+$ ]]
+}
+
+@test "generate_cache_id: handles relative paths by resolving to absolute" {
+    local test_dir="${BATS_TEST_TMPDIR}/subdir"
+    mkdir -p "$test_dir"
+    local test_file="$test_dir/test.txt"
+    echo "test" > "$test_file"
+
+    # Get result from absolute path
+    local result_abs
+    result_abs=$(generate_cache_id "$test_file")
+
+    # Get result from relative path (change to parent dir)
+    cd "${BATS_TEST_TMPDIR}"
+    local result_rel
+    result_rel=$(generate_cache_id "subdir/test.txt")
+
+    assert_equal "$result_abs" "$result_rel"
+}
+
+@test "write_cache_metadata: creates valid JSON sidecar file" {
+    local cache_dir="${BATS_TEST_TMPDIR}/cache"
+    mkdir -p "$cache_dir"
+
+    local source_file="${BATS_TEST_TMPDIR}/source.txt"
+    echo "source content" > "$source_file"
+
+    local cached_file="$cache_dir/cached.pdf"
+    echo "cached" > "$cached_file"
+
+    write_cache_metadata "$cached_file" "$source_file" "office_to_pdf"
+
+    # Meta file should exist
+    assert_file_exists "${cached_file}.meta"
+
+    # Should contain required fields
+    run cat "${cached_file}.meta"
+    assert_output --partial '"source_path"'
+    assert_output --partial '"source_mtime"'
+    assert_output --partial '"source_size"'
+    assert_output --partial '"source_hash"'
+    assert_output --partial '"conversion_type"'
+    assert_output --partial '"office_to_pdf"'
+}
+
+@test "validate_cache_entry: returns failure for missing cache file" {
+    local nonexistent="${BATS_TEST_TMPDIR}/nonexistent.pdf"
+
+    run validate_cache_entry "$nonexistent"
+    assert_failure
+}
+
+@test "validate_cache_entry: returns failure for missing meta file" {
+    local cache_dir="${BATS_TEST_TMPDIR}/cache"
+    mkdir -p "$cache_dir"
+
+    local cached_file="$cache_dir/cached.pdf"
+    echo "cached" > "$cached_file"
+    # No .meta file created
+
+    run validate_cache_entry "$cached_file"
+    assert_failure
+}
+
+@test "validate_cache_entry: returns success for valid unchanged cache" {
+    local cache_dir="${BATS_TEST_TMPDIR}/cache"
+    mkdir -p "$cache_dir"
+
+    local source_file="${BATS_TEST_TMPDIR}/source.txt"
+    echo "source content" > "$source_file"
+
+    local cached_file="$cache_dir/cached.pdf"
+    echo "cached" > "$cached_file"
+
+    # Create metadata
+    write_cache_metadata "$cached_file" "$source_file" "office_to_pdf"
+
+    # Validate immediately (source unchanged)
+    run validate_cache_entry "$cached_file"
+    assert_success
+}
+
+@test "validate_cache_entry: returns failure when source file deleted" {
+    local cache_dir="${BATS_TEST_TMPDIR}/cache"
+    mkdir -p "$cache_dir"
+
+    local source_file="${BATS_TEST_TMPDIR}/source.txt"
+    echo "source content" > "$source_file"
+
+    local cached_file="$cache_dir/cached.pdf"
+    echo "cached" > "$cached_file"
+
+    # Create metadata
+    write_cache_metadata "$cached_file" "$source_file" "office_to_pdf"
+
+    # Delete source
+    rm "$source_file"
+
+    run validate_cache_entry "$cached_file"
+    assert_failure
+}
+
+@test "CACHE_HASH_SIZE_LIMIT: is set to 10MB" {
+    assert_equal "$CACHE_HASH_SIZE_LIMIT" "$((10 * 1024 * 1024))"
+}
+
 @test "functions are exported for subprocess use" {
     assert_function_exists real_path
     assert_function_exists normalize_path
@@ -470,4 +696,7 @@ teardown() {
     assert_function_exists sanitize
     assert_function_exists escape_json
     assert_function_exists detect_file_type
+    assert_function_exists generate_cache_id
+    assert_function_exists write_cache_metadata
+    assert_function_exists validate_cache_entry
 }

@@ -756,16 +756,15 @@ resize_image() {
 }
 
 # Cache and potentially resize image for API use
+# Uses global CACHE_DIR for project-level caching with hash-based IDs
 # Arguments:
 #   $1 - source_file: Original image file (absolute path)
-#   $2 - project_root: Project root directory
-#   $3 - workflow_dir: Workflow directory for cache
 # Returns:
 #   Path to cached/resized image (or original if no resize needed)
+# Note:
+#   When CACHE_DIR is empty (standalone task mode), resizes to temp file
 cache_image() {
     local source_file="$1"
-    local project_root="$2"
-    local workflow_dir="$3"
 
     # Get dimensions
     local dimensions
@@ -786,61 +785,67 @@ cache_image() {
         return 0
     fi
 
-    # Calculate relative path from project root
-    local rel_path
-    if [[ -n "$project_root" && "$source_file" == "$project_root"/* ]]; then
-        # File is within project, preserve relative path
-        rel_path="${source_file#$project_root/}"
-    else
-        # File outside project (or no project), use basename in cache
-        rel_path="external/$(basename "$source_file")"
-    fi
-
-    # Create cache path
-    local cache_dir="$workflow_dir/cache"
-    local cached_file="$cache_dir/$rel_path"
-
-    # Check if already cached and up-to-date
-    if [[ -f "$cached_file" ]]; then
-        # Compare modification times
-        if [[ "$cached_file" -nt "$source_file" ]]; then
-            # Cached version is newer, reuse it
-            echo "$cached_file"
-            return 0
-        fi
-    fi
-
     # Calculate target dimensions
     local target_dims
     target_dims=$(calculate_target_dimensions "$width" "$height")
     local target_width target_height
     read -r target_width target_height <<< "$target_dims"
 
-    # Resize and cache
-    if resize_image "$source_file" "$cached_file" "$target_width" "$target_height"; then
-        echo "  Resized image: ${width}x${height} → ${target_width}x${target_height} (cached)" >&2
-        echo "$cached_file"
-        return 0
+    # Determine cache location
+    local cached_file
+    local extension="${source_file##*.}"
+
+    if [[ -n "$CACHE_DIR" ]]; then
+        # Project cache: use hash-based ID
+        local cache_id
+        cache_id=$(generate_cache_id "$source_file")
+        local cache_subdir="$CACHE_DIR/conversions/images"
+        cached_file="$cache_subdir/${cache_id}.${extension}"
+
+        # Check if already cached and valid
+        if validate_cache_entry "$cached_file"; then
+            echo "$cached_file"
+            return 0
+        fi
+
+        # Resize and cache
+        mkdir -p "$cache_subdir"
+        if resize_image "$source_file" "$cached_file" "$target_width" "$target_height"; then
+            write_cache_metadata "$cached_file" "$source_file" "image_resize"
+            echo "  Resized image: ${width}x${height} → ${target_width}x${target_height} (cached)" >&2
+            echo "$cached_file"
+            return 0
+        else
+            echo "$source_file"
+            return 1
+        fi
     else
-        # Resize failed, fall back to original
-        echo "$source_file"
-        return 1
+        # No persistent cache (standalone task mode): resize to temp
+        local temp_file
+        temp_file=$(mktemp -t "wfw_image_XXXXXX.${extension}")
+
+        if resize_image "$source_file" "$temp_file" "$target_width" "$target_height"; then
+            echo "  Resized image: ${width}x${height} → ${target_width}x${target_height}" >&2
+            echo "$temp_file"
+            return 0
+        else
+            rm -f "$temp_file"
+            echo "$source_file"
+            return 1
+        fi
     fi
 }
 
 # Build image content block for Vision API
 # Arguments:
 #   $1 - file: Image file path (absolute)
-#   $2 - project_root: Project root directory
-#   $3 - workflow_dir: Workflow directory (for cache)
 # Returns:
 #   JSON content block with type="image", base64-encoded data
 # Note:
 #   Images are NOT citable and do NOT get document indices
+#   Uses global CACHE_DIR for caching resized images
 build_image_content_block() {
     local file="$1"
-    local project_root="$2"
-    local workflow_dir="$3"
 
     # Get absolute path
     local abs_path
@@ -853,7 +858,7 @@ build_image_content_block() {
 
     # Cache and potentially resize image
     local image_file
-    image_file=$(cache_image "$abs_path" "$project_root" "$workflow_dir")
+    image_file=$(cache_image "$abs_path")
 
     # Get media type
     local media_type
@@ -922,6 +927,124 @@ validate_pdf_file() {
 }
 
 # =============================================================================
+# Shared Conversion Cache System
+# =============================================================================
+
+# Maximum file size for content hash validation (10MB)
+# Files larger than this skip hash verification when mtime changes
+CACHE_HASH_SIZE_LIMIT=$((10 * 1024 * 1024))
+
+# Generate a deterministic cache ID from absolute path
+# Uses SHA-256 hash of the absolute path (first 16 characters)
+# Arguments:
+#   $1 - Source file path (will be resolved to absolute)
+# Returns:
+#   16-character hex cache ID (stdout)
+generate_cache_id() {
+    local source_path="$1"
+    local abs_path
+
+    # Resolve to absolute path
+    if [[ "$source_path" == /* ]]; then
+        abs_path="$source_path"
+    else
+        abs_path="$(cd "$(dirname "$source_path")" && pwd)/$(basename "$source_path")"
+    fi
+
+    # Hash the absolute path for cache ID (first 16 chars of SHA-256)
+    echo "$abs_path" | shasum -a 256 | cut -c1-16
+}
+
+# Write cache metadata sidecar file
+# Arguments:
+#   $1 - Cached file path (the .meta file will be created alongside)
+#   $2 - Source file absolute path
+#   $3 - Conversion type (e.g., "office_to_pdf")
+# Side effects:
+#   Creates a .meta JSON file next to the cached file
+write_cache_metadata() {
+    local cached_file="$1"
+    local source_path="$2"
+    local conversion_type="$3"
+    local meta_file="${cached_file}.meta"
+
+    # Get source file stats
+    local source_mtime source_size source_hash
+    source_mtime=$(stat -f%m "$source_path" 2>/dev/null || stat -c%Y "$source_path" 2>/dev/null)
+    source_size=$(stat -f%z "$source_path" 2>/dev/null || stat -c%s "$source_path" 2>/dev/null)
+
+    # Only compute hash for files within size limit
+    if [[ "$source_size" -le "$CACHE_HASH_SIZE_LIMIT" ]]; then
+        source_hash="sha256:$(shasum -a 256 "$source_path" | cut -d' ' -f1)"
+    else
+        source_hash="skipped:file_too_large"
+    fi
+
+    # Get tool version if available
+    local tool_version="unknown"
+    if [[ "$conversion_type" == "office_to_pdf" ]] && command -v soffice >/dev/null 2>&1; then
+        tool_version=$(soffice --version 2>/dev/null | head -1 || echo "LibreOffice")
+    fi
+
+    # Write metadata JSON
+    cat > "$meta_file" <<EOF
+{
+  "source_path": "$source_path",
+  "source_mtime": $source_mtime,
+  "source_size": $source_size,
+  "source_hash": "$source_hash",
+  "conversion_type": "$conversion_type",
+  "converted_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "tool_version": "$tool_version"
+}
+EOF
+}
+
+# Validate cache entry against source file
+# Arguments:
+#   $1 - Cached file path
+# Returns:
+#   0 if cache is valid, 1 if invalid or missing
+validate_cache_entry() {
+    local cached_file="$1"
+    local meta_file="${cached_file}.meta"
+
+    # Check cache and metadata exist
+    [[ -f "$cached_file" && -f "$meta_file" ]] || return 1
+
+    # Read metadata (using simple parsing since jq may not be available)
+    local source_path source_mtime source_hash source_size
+    source_path=$(grep '"source_path"' "$meta_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
+    source_mtime=$(grep '"source_mtime"' "$meta_file" | sed 's/.*: *\([0-9]*\).*/\1/')
+    source_size=$(grep '"source_size"' "$meta_file" | sed 's/.*: *\([0-9]*\).*/\1/')
+    source_hash=$(grep '"source_hash"' "$meta_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
+
+    # Source must still exist
+    [[ -f "$source_path" ]] || return 1
+
+    # Fast path: mtime unchanged
+    local current_mtime
+    current_mtime=$(stat -f%m "$source_path" 2>/dev/null || stat -c%Y "$source_path" 2>/dev/null)
+    [[ "$current_mtime" == "$source_mtime" ]] && return 0
+
+    # Slow path: mtime changed, check size first
+    local current_size
+    current_size=$(stat -f%z "$source_path" 2>/dev/null || stat -c%s "$source_path" 2>/dev/null)
+
+    # Size changed = definitely invalid
+    [[ "$current_size" != "$source_size" ]] && return 1
+
+    # For files within size limit, verify content hash
+    if [[ "$current_size" -le "$CACHE_HASH_SIZE_LIMIT" && "$source_hash" != skipped:* ]]; then
+        local current_hash
+        current_hash="sha256:$(shasum -a 256 "$source_path" | cut -d' ' -f1)"
+        [[ "$current_hash" == "$source_hash" ]] && return 0
+    fi
+
+    return 1  # Cache invalid (mtime changed, large file or hash mismatch)
+}
+
+# =============================================================================
 # Microsoft Office File Conversion
 # =============================================================================
 
@@ -933,68 +1056,94 @@ check_soffice_available() {
 }
 
 # Convert Microsoft Office file to PDF using LibreOffice
+# Uses the shared project-level cache at $CACHE_DIR/conversions/office/
 # Arguments:
-#   $1 - Source Office file path (absolute)
-#   $2 - Cache directory for conversions
+#   $1 - Source Office file path (will be resolved to absolute)
 # Returns:
 #   Path to cached PDF file (stdout)
 #   Returns 1 on error
+# Requires:
+#   CACHE_DIR global must be set (empty = no caching, convert to temp)
 # Side effects:
 #   Creates cache directory if needed
-#   Writes converted PDF to cache with preserved relative path
+#   Writes converted PDF and .meta sidecar to cache
 convert_office_to_pdf() {
     local source_file="$1"
-    local cache_base_dir="$2"
 
     if [[ ! -f "$source_file" ]]; then
         echo "Error: Office file not found: $source_file" >&2
         return 1
     fi
 
-    # Get source file details
-    local source_basename
-    source_basename=$(basename "$source_file")
-    local source_dir
-    source_dir=$(dirname "$source_file")
+    # Resolve to absolute path
+    local abs_source
+    if [[ "$source_file" == /* ]]; then
+        abs_source="$source_file"
+    else
+        abs_source="$(cd "$(dirname "$source_file")" && pwd)/$(basename "$source_file")"
+    fi
 
-    # Create cache directory preserving relative path structure
-    local cache_dir="$cache_base_dir/office"
+    local source_basename
+    source_basename=$(basename "$abs_source")
+
+    # Determine cache location and cached PDF path
+    local cache_dir cached_pdf use_cache=true
+
+    if [[ -n "$CACHE_DIR" ]]; then
+        # Project cache available - use hash-based cache ID
+        local cache_id
+        cache_id=$(generate_cache_id "$abs_source")
+        cache_dir="$CACHE_DIR/conversions/office"
+        cached_pdf="$cache_dir/${cache_id}.pdf"
+    else
+        # No project cache (standalone task mode outside project)
+        # Convert to temp, no caching
+        use_cache=false
+        cache_dir="${TMPDIR:-/tmp}/wireflow-conversion"
+        cached_pdf="$cache_dir/${source_basename%.*}.pdf"
+    fi
+
+    # Create cache directory
     mkdir -p "$cache_dir"
 
-    # Generate cached PDF filename (replace extension)
-    local pdf_name="${source_basename%.*}.pdf"
-    local cached_pdf="$cache_dir/$pdf_name"
-
-    # Check if cached PDF exists and is newer than source
-    if [[ -f "$cached_pdf" ]]; then
-        local source_mtime
-        local cache_mtime
-        source_mtime=$(stat -f%m "$source_file" 2>/dev/null || stat -c%Y "$source_file" 2>/dev/null)
-        cache_mtime=$(stat -f%m "$cached_pdf" 2>/dev/null || stat -c%Y "$cached_pdf" 2>/dev/null)
-
-        if [[ $cache_mtime -ge $source_mtime ]]; then
-            # Cache is valid
-            echo "$cached_pdf"
-            return 0
-        fi
+    # Check cache validity (only if caching enabled)
+    if $use_cache && validate_cache_entry "$cached_pdf"; then
+        echo "$cached_pdf"
+        return 0
     fi
 
     # Convert to PDF using LibreOffice in headless mode
     echo "  Converting Office file to PDF: $source_basename" >&2
 
-    # Run soffice in headless mode, output to cache directory
+    # Convert to temp directory first, then move to cache
+    local temp_dir="${TMPDIR:-/tmp}/wireflow-soffice-$$"
+    mkdir -p "$temp_dir"
+
+    # Run soffice in headless mode
     # --convert-to pdf: Convert to PDF format
     # --outdir: Output directory for converted file
     # --headless: Run without GUI
-    if soffice --convert-to pdf --outdir "$cache_dir" --headless "$source_file" >/dev/null 2>&1; then
-        if [[ -f "$cached_pdf" ]]; then
+    if soffice --convert-to pdf --outdir "$temp_dir" --headless "$abs_source" >/dev/null 2>&1; then
+        local temp_pdf="$temp_dir/${source_basename%.*}.pdf"
+        if [[ -f "$temp_pdf" ]]; then
+            # Move to cache location
+            mv "$temp_pdf" "$cached_pdf"
+            rm -rf "$temp_dir"
+
+            # Write metadata sidecar (only if caching enabled)
+            if $use_cache; then
+                write_cache_metadata "$cached_pdf" "$abs_source" "office_to_pdf"
+            fi
+
             echo "$cached_pdf"
             return 0
         else
-            echo "Error: PDF conversion succeeded but output file not found: $cached_pdf" >&2
+            rm -rf "$temp_dir"
+            echo "Error: PDF conversion succeeded but output file not found" >&2
             return 1
         fi
     else
+        rm -rf "$temp_dir"
         echo "Error: Failed to convert Office file to PDF: $source_file" >&2
         return 1
     fi

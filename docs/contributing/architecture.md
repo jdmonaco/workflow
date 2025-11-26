@@ -51,12 +51,19 @@ project-root/
 │   │   ├── system.txt            # Cached system prompt
 │   │   └── project.txt           # Cached nested project descriptions
 │   ├── output/                   # Hardlinks to workflow outputs
-│   │   └── <name>.<format>       # → ../<name>/output.<format>
-│   └── <name>/                   # Individual workflows
+│   │   └── <name>.<format>       # → ../run/<name>/output.<format>
+│   ├── cache/                    # Shared file conversion cache (CACHE_DIR)
+│   │   └── conversions/
+│   │       ├── office/           # Office→PDF conversions
+│   │       │   ├── <hash>.pdf    # Converted PDF (hash-based ID)
+│   │       │   └── <hash>.pdf.meta  # Sidecar metadata (source, mtime, hash)
+│   │       └── images/           # Image resize cache
+│   │           ├── <hash>.<ext>  # Resized image (hash-based ID)
+│   │           └── <hash>.<ext>.meta  # Sidecar metadata
+│   └── run/<name>/               # Individual workflows
 │       ├── config                # Workflow configuration
 │       ├── task.txt              # Task prompt
 │       ├── context/              # Optional context files
-│       ├── cache/                # Cached processed files (images, Office→PDF)
 │       ├── output.<format>       # Primary output
 │       ├── output-TIMESTAMP.<format>  # Backup outputs
 │       ├── system-blocks.json    # JSON system content blocks (for debugging)
@@ -150,8 +157,11 @@ Applies to both INPUT and CONTEXT:
 **Office files (.docx, .pptx):**
 
 - Converted to PDF using LibreOffice (gracefully skips if unavailable)
-- Converted PDFs cached in `.workflow/<name>/cache/office/` with preserved filenames
-- Cache validated by mtime (regenerates only if source file is newer)
+- Converted PDFs cached in project-level shared cache at `.workflow/cache/conversions/office/`
+- Cache uses hash-based IDs (SHA-256 of absolute path) with `.meta` sidecar files
+- Cache validated by mtime (fast path) or content hash for files ≤10MB (slow path)
+- Shared across all workflows in the project (common files converted once)
+- Task mode uses project cache when inside project tree; no caching when standalone
 - Processed as PDF documents (follow PDF ordering)
 - Citable with ORIGINAL filename (not cached PDF path)
 - Token estimation: same as PDFs (~2000 tokens per page)
@@ -160,7 +170,10 @@ Applies to both INPUT and CONTEXT:
 
 - Validated against 5MB size limit
 - Resized if >1568px on long edge (optimal performance)
-- Cached in `.workflow/<name>/cache/` with preserved paths
+- Cached in project-level shared cache at `.workflow/cache/conversions/images/`
+- Cache uses hash-based IDs (SHA-256 of absolute path) with `.meta` sidecar files
+- Shared across all workflows in the project (common images resized once)
+- Task mode uses project cache when inside project tree; temp file when standalone
 - Base64-encoded for API
 - Added to IMAGE_BLOCKS array (separate from text documents)
 - NOT citable (images don't get document indices)

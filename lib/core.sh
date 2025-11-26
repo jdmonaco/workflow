@@ -138,6 +138,11 @@ CONFIG_EOF
     local project_file="$wireflow_dir/project.txt"
     touch "$project_file"
 
+    # Create cache directory structure for file conversions
+    local cache_dir="$wireflow_dir/cache"
+    mkdir -p "$cache_dir/conversions/office"
+    mkdir -p "$cache_dir/conversions/images"
+
     # Display summary report
     echo "Initialized project:"
     echo "  Project root:    $(display_absolute_path "$project_dir")"

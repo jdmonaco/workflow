@@ -249,6 +249,7 @@ case "$cmd" in
         PROJECT_FILE="$WIREFLOW_DIR/project.txt"
         OUTPUT_DIR="$WIREFLOW_DIR/output"
         RUN_DIR="$WIREFLOW_DIR/run"
+        CACHE_DIR="$WIREFLOW_DIR/cache"
 
         # Config cascade: Propagate through ancestors and current project
         load_ancestor_configs || true
