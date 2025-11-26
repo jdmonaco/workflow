@@ -18,9 +18,7 @@ wfw <subcommand> [options]
 | `config` | View/edit configuration |
 | `run` | Execute workflow with full context |
 | `task` | Execute one-off task (lightweight) |
-| `status` | Show batch processing status |
-| `cancel` | Cancel a pending batch |
-| `results` | Retrieve completed batch results |
+| `batch` | Submit and manage batch processing jobs |
 | `cat` | Display workflow output to stdout |
 | `open` | Open workflow output in default app (macOS) |
 | `tasks` | Manage task templates |
@@ -254,7 +252,7 @@ wfw run <name> [options] [-- <input>...]
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--output-file <path>` | `-o` | Copy output to additional path |
+| `--export <path>` | `-ex` | Copy output to external path |
 
 **Execution Options:**
 
@@ -265,14 +263,7 @@ wfw run <name> [options] [-- <input>...]
 | `--dry-run` | `-n` | Save API request files and inspect in editor |
 | `--help` | `-h` | Quick help |
 
-**Batch Processing Options:**
-
-| Option | Description |
-|--------|-------------|
-| `--batch` | Enable batch mode (one request per input file) |
-| `--no-batch` | Disable batch mode (default) |
-
-Batch mode submits each input file as a separate API request via the Message Batches API, providing 50% cost reduction. Results are retrieved asynchronously with `wfw results <name>`.
+**Note:** For batch processing (multiple input files as separate API requests), use `wfw batch <name>` instead.
 
 **Notes:**
 
@@ -285,7 +276,7 @@ wfw run 01-analysis --stream
 wfw run 01-analysis --profile deep --enable-thinking
 wfw run 01-analysis --model claude-opus-4-5 --effort medium
 wfw run report -in data.csv -cx notes.md
-wfw run analysis --batch -in data/
+wfw run analysis -ex ~/output/analysis.md
 wfw run analysis -- reports/*.pdf
 ```
 
@@ -350,9 +341,9 @@ wfw task <name>|--inline <text> [options] [-- <input>...]
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--output-file <path>` | `-o` | Save to file (default: stdout) |
+| `--export <path>` | `-ex` | Save to file (default: stdout) |
 | `--stream` | | Stream output (default: true) |
-| `--no-stream` | `-b` | Disable streaming |
+| `--no-stream` | | Buffered mode (wait for complete response) |
 
 **Other Options:**
 
@@ -501,99 +492,91 @@ wfw list
 
 ---
 
-### wfw status
+### wfw batch
 
-Show batch processing status.
-
-```
-wfw status [<name>]
-```
-
-**Arguments:**
-
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `<name>` | Workflow name | None (project status) |
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `-h`, `--help` | Quick help |
-
-**Behavior:**
-
-- Without `<name>`: Shows status of all batches in project
-- With `<name>`: Shows detailed status for specific workflow batch
-- Outside project: Lists recent batches from Anthropic API
-
-**Examples:**
-
-```bash
-wfw status
-wfw status my-analysis
-```
-
----
-
-### wfw cancel
-
-Cancel a pending batch.
+Submit and manage batch processing jobs via the Anthropic Message Batches API.
 
 ```
-wfw cancel <name>
+wfw batch <name> [options] [-- <input>...]
+wfw batch status [<name>]
+wfw batch results <name>
+wfw batch cancel <name>
 ```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `<name>` | Submit batch job (default action) |
+| `status [<name>]` | Show batch status (all or specific workflow) |
+| `results <name>` | Retrieve completed batch results |
+| `cancel <name>` | Cancel a pending batch |
 
 **Arguments:**
 
 | Argument | Description | Required |
 |----------|-------------|----------|
 | `<name>` | Workflow name | Yes |
+| `-- <input>...` | Input files/directories (after `--`) | No |
 
-**Options:**
+**Input Options (one request per file):**
 
-| Option | Description |
-|--------|-------------|
-| `-h`, `--help` | Quick help |
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--input <path>` | `-in` | Add input file or directory (repeatable) |
 
-**Note:** Cancellation is asynchronous. Already-completed requests are not affected.
+**Context Options (shared across all requests):**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--context <path>` | `-cx` | Add context file or directory (repeatable) |
+| `--depends-on <workflow>` | `-d` | Include output from another workflow |
+
+**Model Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile <tier>` | | Model tier: fast, balanced, deep |
+| `--model <model>` | `-m` | Explicit model override (bypasses profile) |
+
+**Output Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--export <dir>` | `-ex` | Copy results to external directory |
+
+**Other Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--count-tokens` | | Show token estimation only |
+| `--dry-run` | `-n` | Save request JSON, open in editor |
+| `--help` | `-h` | Quick help |
+
+**Notes:**
+
+- Each input file becomes a separate API request in the batch
+- Context files are shared across all requests (included once per request)
+- Batch mode provides 50% cost reduction via the Message Batches API
+- Results are written to `.workflow/output/<name>/` directory
 
 **Examples:**
 
 ```bash
-wfw cancel my-analysis
-```
+# Submit batch job
+wfw batch my-analysis -in data/*.pdf
 
----
+# Submit with export directory
+wfw batch my-analysis -in reports/ -ex ~/processed/
 
-### wfw results
+# Check status
+wfw batch status my-analysis
 
-Retrieve results from a completed batch.
+# Get results when complete
+wfw batch results my-analysis
 
-```
-wfw results <name>
-```
-
-**Arguments:**
-
-| Argument | Description | Required |
-|----------|-------------|----------|
-| `<name>` | Workflow name | Yes |
-
-**Options:**
-
-| Option | Description |
-|--------|-------------|
-| `-h`, `--help` | Quick help |
-
-**Output:**
-
-Results are written to `.workflow/run/<name>/output/` directory, mirroring the input file structure.
-
-**Examples:**
-
-```bash
-wfw results my-analysis
+# Cancel pending batch
+wfw batch cancel my-analysis
 ```
 
 ---
@@ -637,12 +620,12 @@ wfw help task
 | Feature | `wfw run` | `wfw task` |
 |---------|-----------|------------|
 | **Purpose** | Persistent workflows | One-off tasks |
-| **Output** | Saved to `.workflow/run/<name>/output.<ext>` | Stdout (or file with `-o`) |
+| **Output** | Saved to `.workflow/run/<name>/output.<ext>` | Stdout (or file with `-ex`) |
 | **Configuration** | Full cascade (global → project → workflow) | Global only |
 | **Input** | `-in/--input`, `-- <files>` | `-in/--input`, `-- <files>` |
 | **Context** | `-cx/--context` | `-cx/--context` |
 | **Dependencies** | `--depends-on` supported | Not supported |
-| **Batch API** | `--batch` supported | Not supported |
+| **Batch API** | Use `wfw batch` instead | Not supported |
 | **Default Streaming** | Disabled (buffered) | Enabled |
 
 ---
@@ -694,11 +677,11 @@ wfw run analysis --dry-run --count-tokens
 
 ```bash
 # Submit batch job (returns immediately)
-wfw run analysis --batch -- reports/*.pdf
+wfw batch analysis -- reports/*.pdf
 
 # Check status
-wfw status analysis
+wfw batch status analysis
 
 # Retrieve results when complete
-wfw results analysis
+wfw batch results analysis
 ```

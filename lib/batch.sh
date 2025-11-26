@@ -376,12 +376,6 @@ execute_batch_mode() {
     echo "  Batch ID: $batch_id"
     echo "  Requests: $BATCH_REQUEST_COUNT"
     echo "  Status: $status"
-    echo ""
-    echo "Check status with:"
-    echo "  $SCRIPT_NAME status ${WORKFLOW_NAME:-}"
-    echo ""
-    echo "Retrieve results when complete:"
-    echo "  $SCRIPT_NAME results ${WORKFLOW_NAME:-}"
 
     return 0
 }
@@ -579,7 +573,7 @@ cmd_batch_status() {
         if [[ "$status" == "ended" ]]; then
             echo ""
             echo "Batch completed. Retrieve results with:"
-            echo "  $SCRIPT_NAME results $workflow_name"
+            echo "  $SCRIPT_NAME batch results $workflow_name"
         fi
     else
         # Show status for all workflows with batches
@@ -708,7 +702,7 @@ cmd_batch_results() {
 
     if [[ "$status" != "ended" ]]; then
         echo "Batch is still processing (status: $status)"
-        echo "Check status with: $SCRIPT_NAME status $workflow_name"
+        echo "Check status with: $SCRIPT_NAME batch status $workflow_name"
         return 1
     fi
 
@@ -722,4 +716,314 @@ cmd_batch_results() {
     process_batch_results "$workflow_dir" "$output_dir"
 
     return $?
+}
+
+# =============================================================================
+# Main Batch Subcommand Entry Point
+# =============================================================================
+
+# Main entry point for `wfw batch` subcommand
+# Routes to submit, status, results, or cancel based on first argument
+# Arguments:
+#   $@ - Subcommand and options
+cmd_batch() {
+    # Check for subcommand keywords first
+    case "${1:-}" in
+        status)
+            shift
+            cmd_batch_status "$@"
+            return $?
+            ;;
+        results)
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "Error: Workflow name required" >&2
+                echo "Usage: $SCRIPT_NAME batch results <name>" >&2
+                return 1
+            fi
+            cmd_batch_results "$@"
+            return $?
+            ;;
+        cancel)
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "Error: Workflow name required" >&2
+                echo "Usage: $SCRIPT_NAME batch cancel <name>" >&2
+                return 1
+            fi
+            cmd_batch_cancel "$@"
+            return $?
+            ;;
+        -h|--help)
+            show_help_batch
+            return 0
+            ;;
+        "")
+            echo "Error: Workflow name or subcommand required" >&2
+            show_quick_help_batch
+            return 1
+            ;;
+    esac
+
+    # Default: submit batch job
+    # First argument is workflow name
+    local workflow_name="$1"
+    shift
+
+    # Find project root
+    local project_root
+    project_root=$(find_project_root) || {
+        echo "Error: No project found" >&2
+        echo "" >&2
+        echo "Run '$SCRIPT_NAME init' to initialize a project." >&2
+        return 1
+    }
+
+    # Set up project-level paths (same as wireflow.sh)
+    PROJECT_ROOT="$project_root"
+    WIREFLOW_DIR="$PROJECT_ROOT/.workflow"
+    PROJECT_CONFIG="$WIREFLOW_DIR/config"
+    PROJECT_FILE="$WIREFLOW_DIR/project.txt"
+    OUTPUT_DIR="$WIREFLOW_DIR/output"
+    RUN_DIR="$WIREFLOW_DIR/run"
+
+    # Load configs
+    load_ancestor_configs || true
+    load_project_config || true
+
+    # Set workflow paths
+    WORKFLOW_NAME="$workflow_name"
+    WORKFLOW_DIR="$RUN_DIR/$WORKFLOW_NAME"
+    WORKFLOW_CONFIG="$WORKFLOW_DIR/config"
+
+    # Check workflow exists
+    if [[ ! -d "$WORKFLOW_DIR" ]]; then
+        echo "Error: Workflow not found: $workflow_name" >&2
+        echo "Run '$SCRIPT_NAME new $workflow_name' to create it." >&2
+        return 1
+    fi
+
+    # Load workflow config
+    load_workflow_config || true
+
+    # Initialize CLI override arrays
+    local -a cli_input_paths=()
+    local -a cli_context_paths=()
+    local export_dir=""
+    local count_tokens_only=false
+    local dry_run="${WIREFLOW_DRY_RUN:-false}"
+
+    # Parse batch options
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --input|-in)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --input requires argument" >&2; return 1; }
+                cli_input_paths+=("$1")
+                shift
+                ;;
+            --context|-cx)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --context requires argument" >&2; return 1; }
+                cli_context_paths+=("$1")
+                shift
+                ;;
+            --)
+                shift
+                while [[ $# -gt 0 ]]; do
+                    cli_input_paths+=("$1")
+                    shift
+                done
+                ;;
+            --depends-on|-d)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --depends-on requires argument" >&2; return 1; }
+                DEPENDS_ON+=("$1")
+                WORKFLOW_SOURCE_MAP[DEPENDS_ON]="cli"
+                shift
+                ;;
+            --export|-ex)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --export requires argument" >&2; return 1; }
+                export_dir="$1"
+                shift
+                ;;
+            --profile)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --profile requires argument" >&2; return 1; }
+                PROFILE="$1"
+                CONFIG_SOURCE_MAP[PROFILE]="cli"
+                shift
+                ;;
+            --model|-m)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --model requires argument" >&2; return 1; }
+                MODEL="$1"
+                CONFIG_SOURCE_MAP[MODEL]="cli"
+                shift
+                ;;
+            --enable-thinking)
+                ENABLE_THINKING=true
+                CONFIG_SOURCE_MAP[ENABLE_THINKING]="cli"
+                shift
+                ;;
+            --disable-thinking)
+                ENABLE_THINKING=false
+                CONFIG_SOURCE_MAP[ENABLE_THINKING]="cli"
+                shift
+                ;;
+            --thinking-budget)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --thinking-budget requires argument" >&2; return 1; }
+                THINKING_BUDGET="$1"
+                CONFIG_SOURCE_MAP[THINKING_BUDGET]="cli"
+                shift
+                ;;
+            --effort)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --effort requires argument" >&2; return 1; }
+                EFFORT="$1"
+                CONFIG_SOURCE_MAP[EFFORT]="cli"
+                shift
+                ;;
+            --temperature|-t)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --temperature requires argument" >&2; return 1; }
+                TEMPERATURE="$1"
+                CONFIG_SOURCE_MAP[TEMPERATURE]="cli"
+                shift
+                ;;
+            --max-tokens)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --max-tokens requires argument" >&2; return 1; }
+                MAX_TOKENS="$1"
+                CONFIG_SOURCE_MAP[MAX_TOKENS]="cli"
+                shift
+                ;;
+            --system|-p)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --system requires argument" >&2; return 1; }
+                IFS=',' read -ra SYSTEM_PROMPTS <<< "$1"
+                CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="cli"
+                shift
+                ;;
+            --format|-f)
+                shift
+                [[ $# -eq 0 ]] && { echo "Error: --format requires argument" >&2; return 1; }
+                OUTPUT_FORMAT="$1"
+                CONFIG_SOURCE_MAP[OUTPUT_FORMAT]="cli"
+                shift
+                ;;
+            --enable-citations)
+                ENABLE_CITATIONS=true
+                CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
+                shift
+                ;;
+            --disable-citations)
+                ENABLE_CITATIONS=false
+                CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
+                shift
+                ;;
+            --count-tokens)
+                count_tokens_only=true
+                shift
+                ;;
+            --dry-run|-n)
+                dry_run=true
+                shift
+                ;;
+            *)
+                echo "Error: Unknown option: $1" >&2
+                show_quick_help_batch
+                return 1
+                ;;
+        esac
+    done
+
+    # =============================================================================
+    # Setup Paths (same as run mode)
+    # =============================================================================
+
+    local task_prompt_file="$WORKFLOW_DIR/task.txt"
+
+    if [[ ! -f "$task_prompt_file" ]]; then
+        echo "Error: Task file not found: $task_prompt_file" >&2
+        echo "Workflow may be incomplete. Re-create with: $SCRIPT_NAME new $WORKFLOW_NAME" >&2
+        return 1
+    fi
+
+    # Set CLI-provided paths for aggregation
+    CLI_INPUT_PATHS=("${cli_input_paths[@]}")
+    CLI_CONTEXT_PATHS=("${cli_context_paths[@]}")
+
+    # Store export directory for results processing
+    BATCH_EXPORT_DIR="$export_dir"
+
+    # Reset global content block arrays
+    SYSTEM_BLOCKS=()
+    CONTEXT_BLOCKS=()
+    DEPENDENCY_BLOCKS=()
+    INPUT_BLOCKS=()
+    IMAGE_BLOCKS=()
+    DOCUMENT_INDEX_MAP=()
+
+    # =============================================================================
+    # Build System Prompt
+    # =============================================================================
+
+    if ! build_system_prompt; then
+        echo "Error: Failed to build system prompt" >&2
+        return 1
+    fi
+
+    # =============================================================================
+    # Context Aggregation
+    # =============================================================================
+
+    aggregate_context "run" "$PROJECT_ROOT" "$WORKFLOW_DIR"
+
+    # =============================================================================
+    # Build Final Prompts
+    # =============================================================================
+
+    build_prompts "$PROJECT_ROOT" "$task_prompt_file"
+
+    # =============================================================================
+    # Token Estimation (if requested)
+    # =============================================================================
+
+    if $count_tokens_only; then
+        estimate_tokens
+        return 0
+    fi
+
+    # =============================================================================
+    # Dry-Run Mode
+    # =============================================================================
+
+    if $dry_run; then
+        handle_dry_run_mode "run" "$WORKFLOW_DIR"
+        return 0
+    fi
+
+    # =============================================================================
+    # Execute Batch Mode
+    # =============================================================================
+
+    execute_batch_mode "run" "$PROJECT_ROOT" "$WORKFLOW_DIR"
+    local batch_result=$?
+
+    if [[ $batch_result -ne 0 ]]; then
+        echo "Error: Batch submission failed" >&2
+        return $batch_result
+    fi
+
+    # Note about management commands
+    echo ""
+    echo "Use the following commands to manage this batch:"
+    echo "  $SCRIPT_NAME batch status $WORKFLOW_NAME"
+    echo "  $SCRIPT_NAME batch results $WORKFLOW_NAME"
+    echo "  $SCRIPT_NAME batch cancel $WORKFLOW_NAME"
+
+    return 0
 }

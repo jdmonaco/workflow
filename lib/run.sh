@@ -59,11 +59,11 @@ execute_run_mode() {
                 WORKFLOW_SOURCE_MAP[DEPENDS_ON]="cli"
                 shift
                 ;;
-            --export-file|-e)
+            --export|-ex)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --export-file requires argument" >&2; return 1; }
-                EXPORT_FILE="$1"
-                WORKFLOW_SOURCE_MAP[EXPORT_FILE]="cli"
+                [[ $# -eq 0 ]] && { echo "Error: --export requires argument" >&2; return 1; }
+                EXPORT_PATH="$1"
+                WORKFLOW_SOURCE_MAP[EXPORT_PATH]="cli"
                 shift
                 ;;
             --profile)
@@ -140,16 +140,6 @@ execute_run_mode() {
             --disable-citations)
                 ENABLE_CITATIONS=false
                 CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
-                shift
-                ;;
-            --batch)
-                BATCH_MODE="true"
-                WORKFLOW_SOURCE_MAP[BATCH_MODE]="cli"
-                shift
-                ;;
-            --no-batch)
-                BATCH_MODE="false"
-                WORKFLOW_SOURCE_MAP[BATCH_MODE]="cli"
                 shift
                 ;;
             *)
@@ -237,12 +227,16 @@ execute_run_mode() {
     fi
     
     # =============================================================================
-    # Execute API Request (or Batch Submission)
+    # Execute API Request
     # =============================================================================
 
-    # Check for batch mode
+    # Check if workflow has BATCH_MODE=true in config - route to batch subcommand
     if [[ "$BATCH_MODE" == "true" ]]; then
-        # Execute batch mode - submit and return immediately
+        echo "Note: This workflow has BATCH_MODE=true configured."
+        echo "Routing to batch processing mode..."
+        echo ""
+
+        # Execute batch mode
         execute_batch_mode "run" "$PROJECT_ROOT" "$WORKFLOW_DIR"
         local batch_result=$?
 
@@ -251,7 +245,10 @@ execute_run_mode() {
             return $batch_result
         fi
 
-        # Batch mode returns immediately after submission
+        # Note: cmd_batch displays management commands after execute_batch_mode
+        # so we only show them here for BATCH_MODE=true workflows run via `wfw run`
+        echo ""
+        echo "Use '$SCRIPT_NAME batch status|results|cancel $WORKFLOW_NAME' to manage this batch."
         return 0
     fi
 
@@ -303,10 +300,10 @@ execute_run_mode() {
     ln "$output_file" "$output_link"
     echo "Hardlink created: $(display_absolute_path "$output_link")"
     
-    # Copy output file to EXPORT_FILE if specified
-    if [[ -n "$EXPORT_FILE" ]]; then
+    # Copy output file to EXPORT_PATH if specified
+    if [[ -n "$EXPORT_PATH" ]]; then
         # Resolve path: expand ~/, resolve relative paths to project root
-        local resolved_path="${EXPORT_FILE/#\~/$HOME}"
+        local resolved_path="${EXPORT_PATH/#\~/$HOME}"
         if [[ "$resolved_path" != /* ]]; then
             resolved_path="$PROJECT_ROOT/$resolved_path"
         fi

@@ -170,7 +170,7 @@ declare -a INPUT_FILES=()
 declare -a INPUT_FILES_CLI=()
 declare INPUT_PATTERN=""
 declare INPUT_PATTERN_CLI=""
-declare EXPORT_FILE=""
+declare EXPORT_PATH=""
 declare BATCH_MODE="false"
 
 # Initialize workflow-specific source tracking:
@@ -183,7 +183,7 @@ WORKFLOW_KEYS=(
     "INPUT_PATTERN_CLI"
     "INPUT_FILES"
     "INPUT_FILES_CLI"
-    "EXPORT_FILE"
+    "EXPORT_PATH"
     "BATCH_MODE"
 )
 for key in "${WORKFLOW_KEYS[@]}"; do
@@ -354,29 +354,9 @@ case "$cmd" in
         cmd_task "$@"
         exit $?
         ;;
-    status)
-        # Show batch processing status
-        cmd_batch_status "$@"
-        exit $?
-        ;;
-    cancel)
-        # Cancel a pending batch
-        if [[ $# -eq 0 ]]; then
-            echo "Error: Workflow name required" >&2
-            echo "Usage: $SCRIPT_NAME cancel <name>" >&2
-            exit 1
-        fi
-        cmd_batch_cancel "$@"
-        exit $?
-        ;;
-    results)
-        # Retrieve batch results
-        if [[ $# -eq 0 ]]; then
-            echo "Error: Workflow name required" >&2
-            echo "Usage: $SCRIPT_NAME results <name>" >&2
-            exit 1
-        fi
-        cmd_batch_results "$@"
+    batch)
+        # Batch processing subcommand
+        cmd_batch "$@"
         exit $?
         ;;
     tasks)
@@ -434,9 +414,7 @@ case "$cmd" in
             config) show_help_config ;;
             run) show_help_run ;;
             task) show_help_task ;;
-            status) show_help_status ;;
-            cancel) show_help_cancel ;;
-            results) show_help_results ;;
+            batch) show_help_batch ;;
             tasks) show_help_tasks ;;
             cat) show_help_cat ;;
             open) show_help_open ;;

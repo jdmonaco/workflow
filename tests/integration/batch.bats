@@ -45,12 +45,14 @@ teardown() {
 # CLI Option Tests
 # ============================================================================
 
-@test "integration: help run shows batch options" {
+@test "integration: help run shows batch info but not batch options" {
     run "${SCRIPT_DIR}/wireflow.sh" help run
     assert_success
-    assert_output --partial "--batch"
-    assert_output --partial "--no-batch"
-    assert_output --partial "Batch Processing Options"
+    # --batch option has been moved to wfw batch subcommand
+    refute_output --partial "--batch"
+    refute_output --partial "--no-batch"
+    # Should reference batch subcommand instead
+    assert_output --partial "batch"
 }
 
 @test "integration: help task does NOT show batch options" {
@@ -60,30 +62,23 @@ teardown() {
     refute_output --partial "Batch Processing"
 }
 
-@test "integration: help status shows batch status command" {
-    run "${SCRIPT_DIR}/wireflow.sh" help status
+@test "integration: help batch shows batch subcommand usage" {
+    run "${SCRIPT_DIR}/wireflow.sh" help batch
     assert_success
-    assert_output --partial "batch processing status"
+    assert_output --partial "Submit and manage batch processing"
+    assert_output --partial "status"
+    assert_output --partial "results"
+    assert_output --partial "cancel"
 }
 
-@test "integration: help cancel shows batch cancel command" {
-    run "${SCRIPT_DIR}/wireflow.sh" help cancel
-    assert_success
-    assert_output --partial "Cancel a pending batch"
-}
-
-@test "integration: help results shows batch results command" {
-    run "${SCRIPT_DIR}/wireflow.sh" help results
-    assert_success
-    assert_output --partial "Retrieve results"
-}
-
-@test "integration: main help lists batch commands" {
+@test "integration: main help lists batch subcommand" {
     run "${SCRIPT_DIR}/wireflow.sh" --help
     assert_success
-    assert_output --partial "status"
-    assert_output --partial "cancel"
-    assert_output --partial "results"
+    assert_output --partial "batch"
+    # Old top-level commands should not appear
+    refute_output --regexp "^[[:space:]]*status[[:space:]]"
+    refute_output --regexp "^[[:space:]]*cancel[[:space:]]"
+    refute_output --regexp "^[[:space:]]*results[[:space:]]"
 }
 
 # ============================================================================
@@ -108,7 +103,7 @@ teardown() {
     assert_output --partial "BATCH_MODE"
 }
 
-@test "integration: --batch option is recognized by run command" {
+@test "integration: batch subcommand is recognized" {
     # Initialize project
     run "${SCRIPT_DIR}/wireflow.sh" init
     assert_success
@@ -117,15 +112,19 @@ teardown() {
     run "${SCRIPT_DIR}/wireflow.sh" new batch-test
     assert_success
 
-    # Dry-run with batch option should work (batch check happens after dry-run)
+    # Create test input files
+    mkdir -p inputs
+    echo "Document 1 content" > inputs/doc1.txt
+
+    # Dry-run with batch subcommand should work
     export WIREFLOW_DRY_RUN="true"
-    run "${SCRIPT_DIR}/wireflow.sh" run batch-test --batch
+    run "${SCRIPT_DIR}/wireflow.sh" batch batch-test -in inputs/doc1.txt
     assert_success
-    # Should show dry-run output, indicating option was parsed without error
+    # Should show dry-run output, indicating subcommand was parsed without error
     assert_output --partial "DRY RUN MODE"
 }
 
-@test "integration: batch mode dry run shows batch requests" {
+@test "integration: batch subcommand dry run shows batch requests" {
     # Initialize project
     run "${SCRIPT_DIR}/wireflow.sh" init
     assert_success
@@ -142,25 +141,24 @@ teardown() {
 
     export WIREFLOW_DRY_RUN="true"
 
-    run "${SCRIPT_DIR}/wireflow.sh" run batch-test --batch -- inputs/*.txt
-    # Should fail because dry-run happens before batch mode check
-    # but should parse the batch option correctly
-    assert_output --partial "batch"
+    run "${SCRIPT_DIR}/wireflow.sh" batch batch-test -- inputs/*.txt
+    assert_success
+    assert_output --partial "DRY RUN MODE"
 }
 
 # ============================================================================
-# Status Command Tests
+# Status Command Tests (via batch subcommand)
 # ============================================================================
 
-@test "integration: status command outside project lists API batches" {
+@test "integration: batch status outside project lists API batches" {
     # Run status outside project - should attempt API call
     # Will fail without valid API key but should parse correctly
-    run "${SCRIPT_DIR}/wireflow.sh" status
+    run "${SCRIPT_DIR}/wireflow.sh" batch status
     # May fail due to missing API key, but should attempt the right path
     assert_output --partial "batch"
 }
 
-@test "integration: status command with no batches shows message" {
+@test "integration: batch status with no batches shows message" {
     # Initialize project
     run "${SCRIPT_DIR}/wireflow.sh" init
     assert_success
@@ -170,12 +168,12 @@ teardown() {
     assert_success
 
     # Check status - should show no batches
-    run "${SCRIPT_DIR}/wireflow.sh" status
+    run "${SCRIPT_DIR}/wireflow.sh" batch status
     assert_success
     assert_output --partial "No active batches"
 }
 
-@test "integration: status with workflow name checks specific batch" {
+@test "integration: batch status with workflow name checks specific batch" {
     # Initialize project
     run "${SCRIPT_DIR}/wireflow.sh" init
     assert_success
@@ -185,22 +183,22 @@ teardown() {
     assert_success
 
     # Check status for specific workflow - no batch yet
-    run "${SCRIPT_DIR}/wireflow.sh" status my-workflow
+    run "${SCRIPT_DIR}/wireflow.sh" batch status my-workflow
     assert_success
     assert_output --partial "No batch found"
 }
 
 # ============================================================================
-# Cancel Command Tests
+# Cancel Command Tests (via batch subcommand)
 # ============================================================================
 
-@test "integration: cancel requires workflow name" {
-    run "${SCRIPT_DIR}/wireflow.sh" cancel
+@test "integration: batch cancel requires workflow name" {
+    run "${SCRIPT_DIR}/wireflow.sh" batch cancel
     assert_failure
     assert_output --partial "Workflow name required"
 }
 
-@test "integration: cancel with no batch shows error" {
+@test "integration: batch cancel with no batch shows error" {
     # Initialize project
     run "${SCRIPT_DIR}/wireflow.sh" init
     assert_success
@@ -210,22 +208,22 @@ teardown() {
     assert_success
 
     # Try to cancel - no batch exists
-    run "${SCRIPT_DIR}/wireflow.sh" cancel test-workflow
+    run "${SCRIPT_DIR}/wireflow.sh" batch cancel test-workflow
     assert_failure
     assert_output --partial "No batch found"
 }
 
 # ============================================================================
-# Results Command Tests
+# Results Command Tests (via batch subcommand)
 # ============================================================================
 
-@test "integration: results requires workflow name" {
-    run "${SCRIPT_DIR}/wireflow.sh" results
+@test "integration: batch results requires workflow name" {
+    run "${SCRIPT_DIR}/wireflow.sh" batch results
     assert_failure
     assert_output --partial "Workflow name required"
 }
 
-@test "integration: results with no batch shows error" {
+@test "integration: batch results with no batch shows error" {
     # Initialize project
     run "${SCRIPT_DIR}/wireflow.sh" init
     assert_success
@@ -235,7 +233,7 @@ teardown() {
     assert_success
 
     # Try to get results - no batch exists
-    run "${SCRIPT_DIR}/wireflow.sh" results test-workflow
+    run "${SCRIPT_DIR}/wireflow.sh" batch results test-workflow
     assert_failure
     assert_output --partial "No batch found"
 }

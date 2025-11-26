@@ -21,10 +21,12 @@ Workflow is a modular bash application for AI-assisted project development using
 ```
 wireflow.sh              # Main entry point, argument parsing, subcommand dispatch
 lib/
-├── core.sh             # Subcommand implementations (init, new, edit, list, config, run)
+├── core.sh             # Subcommand implementations (init, new, edit, list, config)
 ├── config.sh           # Configuration loading and cascade logic
 ├── help.sh             # Help text for all subcommands
+├── run.sh              # Run mode (workflow execution with full context)
 ├── task.sh             # Task mode (lightweight execution without workflow dirs)
+├── batch.sh            # Batch mode (Message Batches API, wfw batch subcommand)
 ├── edit.sh             # Cross-platform editor selection
 ├── execute.sh          # Shared execution logic (prompts, context, API requests)
 ├── utils.sh            # Utilities (file processing, project discovery, sanitization)

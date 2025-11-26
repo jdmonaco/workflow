@@ -52,9 +52,9 @@ execute_task_mode() {
                     shift
                 done
                 ;;
-            --output-file|-o)
+            --export|-ex)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --output-file requires argument" >&2; return 1; }
+                [[ $# -eq 0 ]] && { echo "Error: --export requires argument" >&2; return 1; }
                 output_file_path="$1"
                 shift
                 ;;

@@ -129,7 +129,7 @@ extract_config() {
         printf '%q ' "${INPUT_FILES[@]}"
         printf ')\n'
 
-        echo "EXPORT_FILE=${EXPORT_FILE:-}"
+        echo "EXPORT_PATH=${EXPORT_PATH:-}"
 
         # Batch mode
         echo "BATCH_MODE=${BATCH_MODE:-}"

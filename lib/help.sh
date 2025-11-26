@@ -23,9 +23,7 @@ Subcommands:
     config [NAME]    Show effective config
     run NAME         Execute workflow
     task NAME|TEXT   Quick one-off query
-    status [NAME]    Show batch processing status
-    cancel NAME      Cancel a pending batch
-    results NAME     Retrieve batch results
+    batch NAME       Submit batch processing job
     cat NAME         Print output to stdout
     open NAME        Open output in app (macOS)
     tasks            Manage task templates
@@ -44,6 +42,7 @@ Examples:
     $SCRIPT_NAME new 01-analysis
     $SCRIPT_NAME run 01-analysis --stream
     $SCRIPT_NAME task -i "Summarize findings" -cx data.md
+    $SCRIPT_NAME batch my-workflow -in data/
 
 Environment variables:
     ANTHROPIC_API_KEY         Your Anthropic API key (required)
@@ -113,19 +112,14 @@ show_quick_help_list() {
     echo "See '$SCRIPT_NAME help list' for complete usage details."
 }
 
-show_quick_help_status() {
-    echo "Usage: $SCRIPT_NAME status [<name>]"
-    echo "See '$SCRIPT_NAME help status' for complete usage details."
-}
-
-show_quick_help_cancel() {
-    echo "Usage: $SCRIPT_NAME cancel <name>"
-    echo "See '$SCRIPT_NAME help cancel' for complete usage details."
-}
-
-show_quick_help_results() {
-    echo "Usage: $SCRIPT_NAME results <name>"
-    echo "See '$SCRIPT_NAME help results' for complete usage details."
+show_quick_help_batch() {
+    cat <<EOF
+Usage: $SCRIPT_NAME batch <name> [options]
+       $SCRIPT_NAME batch status [<name>]
+       $SCRIPT_NAME batch results <name>
+       $SCRIPT_NAME batch cancel <name>
+See '$SCRIPT_NAME help batch' for complete usage details.
+EOF
 }
 
 # =============================================================================
@@ -249,7 +243,7 @@ API Options:
     --disable-citations           Disable citations (default)
 
 Output Options:
-    --output-file, -o <path>      Copy output to additional path
+    --export, -ex <path>          Copy output to external path
 
 Execution Options:
     --stream, -s                  Stream output in real-time (default)
@@ -257,25 +251,20 @@ Execution Options:
     --dry-run, -n                 Save request JSON, open in editor
     --help, -h                    Quick help
 
-Batch Processing Options:
-    --batch                       Enable batch mode (one request per input file)
-    --no-batch                    Disable batch mode (default)
-
-    Batch mode submits each input file as a separate API request via
-    the Message Batches API, providing 50% cost reduction. Results are
-    retrieved asynchronously with '$SCRIPT_NAME results <name>'.
-
 Notes:
     Directory paths are expanded non-recursively; all supported files in the
     directory are included. Duplicate paths are ignored; inputs take precedence
     over context if the same path appears in both.
+
+    For batch processing (multiple input files as separate API requests),
+    use '$SCRIPT_NAME batch <name>' instead.
 
 Examples:
     $SCRIPT_NAME run 01-analysis --stream
     $SCRIPT_NAME run 01-analysis --profile deep --enable-thinking
     $SCRIPT_NAME run 01-analysis --model claude-opus-4-5 --effort medium
     $SCRIPT_NAME run 01-analysis --count-tokens
-    $SCRIPT_NAME run 01-analysis --batch -in data/
+    $SCRIPT_NAME run 01-analysis -ex ~/output/analysis.md
     $SCRIPT_NAME run 01-analysis -- reports/*.pdf
 EOF
 }
@@ -316,7 +305,7 @@ API Options:
     --disable-citations           Disable citations (default)
 
 Output Options:
-    --output-file, -o <path>      Save to file (default: stdout)
+    --export, -ex <path>          Save to file (default: stdout)
     --stream                      Stream output (default)
     --no-stream                   Buffered mode (wait for complete response)
 
@@ -334,6 +323,7 @@ Examples:
     $SCRIPT_NAME task summarize -cx paper.pdf
     $SCRIPT_NAME task -i "Summarize these notes" --profile fast
     $SCRIPT_NAME task analyze -in data/*.csv --enable-thinking
+    $SCRIPT_NAME task summarize -ex summary.md -cx report.pdf
 
 See Also:
     $SCRIPT_NAME tasks              # List available task templates
@@ -415,65 +405,81 @@ Example:
 EOF
 }
 
-show_help_status() {
+show_help_batch() {
     cat <<EOF
-Usage: $SCRIPT_NAME status [<name>]
+Usage: $SCRIPT_NAME batch <name> [options] [-- <input>...]
+       $SCRIPT_NAME batch status [<name>]
+       $SCRIPT_NAME batch results <name>
+       $SCRIPT_NAME batch cancel <name>
 
-Show batch processing status.
+Submit and manage batch processing jobs via the Anthropic Message Batches API.
+Batch mode provides 50% cost reduction by processing multiple requests asynchronously.
+
+Subcommands:
+    <name>                        Submit batch job (default action)
+    status [<name>]               Show batch status (all or specific workflow)
+    results <name>                Retrieve completed batch results
+    cancel <name>                 Cancel a pending batch
 
 Arguments:
-    <name>         Workflow name (optional)
+    <name>                        Workflow name
+    -- <input>...                 Input files/directories (after --)
 
-Options:
-    -h, --help     Quick help
+Input Options (one request per file):
+    --input, -in <path>           Add input file or directory (repeatable)
 
-Behavior:
-    Without <name>: Shows status of all batches in project
-    With <name>:    Shows detailed status for specific workflow batch
-    Outside project: Lists recent batches from Anthropic API
+Context Options (shared across all requests):
+    --context, -cx <path>         Add context file or directory (repeatable)
+    --depends-on, -d <workflow>   Include output from another workflow
 
-Examples:
-    $SCRIPT_NAME status
-    $SCRIPT_NAME status my-analysis
-EOF
-}
+Model Options:
+    --profile <tier>              Model tier: fast, balanced, deep
+    --model, -m <model>           Explicit model override (bypasses profile)
 
-show_help_cancel() {
-    cat <<EOF
-Usage: $SCRIPT_NAME cancel <name>
+Thinking & Effort Options:
+    --enable-thinking             Enable extended thinking mode
+    --disable-thinking            Disable extended thinking (default)
+    --thinking-budget <num>       Token budget for thinking (min 1024)
+    --effort <level>              Effort level: low, medium, high (Opus 4.5 only)
 
-Cancel a pending batch.
+API Options:
+    --temperature, -t <temp>      Override temperature (0.0-1.0)
+    --max-tokens <num>            Override max tokens
+    --system, -p <list>           Comma-separated prompt names
+    --format, -f <ext>            Output format (md, txt, json, etc.)
+    --enable-citations            Enable Anthropic citations support
+    --disable-citations           Disable citations (default)
 
-Arguments:
-    <name>         Workflow name (required)
+Output Options:
+    --export, -ex <dir>           Copy results to external directory
 
-Options:
-    -h, --help     Quick help
+Other Options:
+    --count-tokens                Show token estimation only
+    --dry-run, -n                 Save request JSON, open in editor
+    --help, -h                    Quick help
 
-Note: Cancellation is asynchronous. Already-completed requests are not affected.
-
-Examples:
-    $SCRIPT_NAME cancel my-analysis
-EOF
-}
-
-show_help_results() {
-    cat <<EOF
-Usage: $SCRIPT_NAME results <name>
-
-Retrieve results from a completed batch.
-
-Arguments:
-    <name>         Workflow name (required)
-
-Options:
-    -h, --help     Quick help
-
-Output:
-    Results are written to .workflow/output/<name>/ directory,
-    mirroring the input file structure.
+Notes:
+    Each input file becomes a separate API request in the batch.
+    Context files are shared across all requests (included once per request).
+    Results are written to .workflow/output/<name>/ directory.
 
 Examples:
-    $SCRIPT_NAME results my-analysis
+    # Submit batch job
+    $SCRIPT_NAME batch my-analysis -in data/*.pdf
+
+    # Submit with export directory
+    $SCRIPT_NAME batch my-analysis -in reports/ -ex ~/processed/
+
+    # Check status
+    $SCRIPT_NAME batch status my-analysis
+
+    # Get results when complete
+    $SCRIPT_NAME batch results my-analysis
+
+    # Cancel pending batch
+    $SCRIPT_NAME batch cancel my-analysis
+
+See Also:
+    $SCRIPT_NAME run <name>     # Single-request execution (non-batch)
 EOF
 }
