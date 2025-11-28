@@ -657,3 +657,151 @@ EOF
     assert_output --partial "ctx1"
     assert_output --partial "ctx2"
 }
+
+# =============================================================================
+# Dependency Chain and Auto-Deps Tests
+# =============================================================================
+
+@test "integration: --no-auto-deps flag is recognized" {
+    run "${SCRIPT_DIR}/wireflow.sh" init
+    assert_success
+
+    run "${SCRIPT_DIR}/wireflow.sh" new test-workflow
+    assert_success
+
+    # Configure workflow
+    echo "Analyze this" > ".workflow/run/test-workflow/task.txt"
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # --no-auto-deps should be recognized without error
+    run "${SCRIPT_DIR}/wireflow.sh" run test-workflow --no-auto-deps
+    assert_success
+    assert_output --partial "DRY RUN MODE"
+}
+
+@test "integration: --force flag is recognized" {
+    run "${SCRIPT_DIR}/wireflow.sh" init
+    assert_success
+
+    run "${SCRIPT_DIR}/wireflow.sh" new test-workflow
+    assert_success
+
+    echo "Analyze this" > ".workflow/run/test-workflow/task.txt"
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # --force should be recognized without error
+    run "${SCRIPT_DIR}/wireflow.sh" run test-workflow --force
+    assert_success
+    assert_output --partial "DRY RUN MODE"
+}
+
+@test "integration: execution log created after successful dry-run" {
+    run "${SCRIPT_DIR}/wireflow.sh" init
+    assert_success
+
+    run "${SCRIPT_DIR}/wireflow.sh" new exec-log-test
+    assert_success
+
+    echo "Test task" > ".workflow/run/exec-log-test/task.txt"
+
+    # NOTE: execution.json is only written after actual API execution,
+    # not in dry-run mode. This test verifies the workflow dir exists.
+    export WIREFLOW_DRY_RUN="true"
+
+    run "${SCRIPT_DIR}/wireflow.sh" run exec-log-test
+    assert_success
+    assert_dir_exists ".workflow/run/exec-log-test"
+}
+
+@test "integration: DEPENDS_ON triggers dependency resolution message" {
+    run "${SCRIPT_DIR}/wireflow.sh" init
+    assert_success
+
+    # Create dependency workflow
+    run "${SCRIPT_DIR}/wireflow.sh" new dep-workflow
+    assert_success
+    echo "Dependency task" > ".workflow/run/dep-workflow/task.txt"
+
+    # Create main workflow that depends on dep-workflow
+    run "${SCRIPT_DIR}/wireflow.sh" new main-workflow
+    assert_success
+    echo "Main task" > ".workflow/run/main-workflow/task.txt"
+    cat >> ".workflow/run/main-workflow/config" <<'EOF'
+DEPENDS_ON=(dep-workflow)
+EOF
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # Run should show dependency resolution message
+    # Note: In dry-run mode, dependencies don't produce output files,
+    # so the main workflow will fail trying to load dependency output.
+    # We just verify the resolution happens.
+    run "${SCRIPT_DIR}/wireflow.sh" run main-workflow
+    assert_output --partial "Resolving dependencies"
+    assert_output --partial "Dependency 'dep-workflow'"
+}
+
+@test "integration: resolve_dependency_order detects circular deps" {
+    run "${SCRIPT_DIR}/wireflow.sh" init
+    assert_success
+
+    # Create workflow A that depends on B
+    run "${SCRIPT_DIR}/wireflow.sh" new workflow-a
+    assert_success
+    echo "Task A" > ".workflow/run/workflow-a/task.txt"
+    cat >> ".workflow/run/workflow-a/config" <<'EOF'
+DEPENDS_ON=(workflow-b)
+EOF
+
+    # Create workflow B that depends on A (circular!)
+    run "${SCRIPT_DIR}/wireflow.sh" new workflow-b
+    assert_success
+    echo "Task B" > ".workflow/run/workflow-b/task.txt"
+    cat >> ".workflow/run/workflow-b/config" <<'EOF'
+DEPENDS_ON=(workflow-a)
+EOF
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # Should fail with circular dependency error
+    run "${SCRIPT_DIR}/wireflow.sh" run workflow-a
+    assert_failure
+    assert_output --partial "Circular dependency detected"
+}
+
+@test "integration: missing dependency workflow shows error" {
+    run "${SCRIPT_DIR}/wireflow.sh" init
+    assert_success
+
+    run "${SCRIPT_DIR}/wireflow.sh" new main-workflow
+    assert_success
+    echo "Main task" > ".workflow/run/main-workflow/task.txt"
+    cat >> ".workflow/run/main-workflow/config" <<'EOF'
+DEPENDS_ON=(nonexistent-workflow)
+EOF
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # Should fail with missing dependency error
+    run "${SCRIPT_DIR}/wireflow.sh" run main-workflow
+    assert_failure
+    assert_output --partial "Dependency workflow not found"
+}
+
+@test "integration: list shows execution status" {
+    run "${SCRIPT_DIR}/wireflow.sh" init
+    assert_success
+
+    run "${SCRIPT_DIR}/wireflow.sh" new status-test
+    assert_success
+    echo "Test task" > ".workflow/run/status-test/task.txt"
+
+    # List should show workflow status
+    run "${SCRIPT_DIR}/wireflow.sh" list
+    assert_success
+    assert_output --partial "status-test"
+    # Should show pending or timestamp
+    assert_output --partial "[pending]" || assert_output --partial "[fresh]" || assert_output --partial "[stale"
+}

@@ -52,6 +52,59 @@ Or configure in workflow:
 DEPENDS_ON=(01-context 02-data 03-models)
 ```
 
+### Automatic Dependency Execution
+
+When a workflow has dependencies, WireFlow automatically:
+1. Resolves the dependency chain (topological sort)
+2. Checks each dependency for staleness
+3. Re-executes stale dependencies before running the target
+
+```bash
+$ wfw run 03-synthesis
+Resolving dependencies...
+  Dependency '01-analysis' is stale, executing...
+    Building input documents and context...
+    Executing API request...
+    Output saved: .workflow/run/01-analysis/output.md
+  Dependency '01-analysis' completed
+  Dependency '02-draft' is fresh, skipping
+Building input documents and context...
+```
+
+**Staleness Detection:**
+A workflow is considered stale when:
+- No previous execution log exists
+- Output file is missing
+- Any context or input file was modified since last execution
+- Task prompt was modified
+- A dependency's output changed
+
+**Skip Auto-Dependencies:**
+```bash
+wfw run 03-synthesis --no-auto-deps    # Use existing outputs only
+```
+
+**Force Re-Execution:**
+```bash
+wfw run 01-analysis --force            # Ignore staleness check
+```
+
+### Execution Log
+
+Each successful run creates `.workflow/run/<name>/execution.json` containing:
+- Execution timestamp
+- Config values at execution time
+- Input/context file hashes
+- Dependency hashes for cache validation
+
+Use `wfw list` to see workflow status:
+```
+Workflows:
+  01-analysis    2024-11-28 14:30  [fresh]
+  02-draft       2024-11-28 14:35  [stale: input changed]
+  03-synthesis   (not run)         [pending]
+```
+
 ### Override Configuration
 
 ```bash

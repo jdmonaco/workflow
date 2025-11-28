@@ -488,32 +488,31 @@ cmd_list() {
             # Check if workflow has required files
             local workflow_dir="$run_root/$workflow"
             local status=""
+            local timestamp=""
+
             if [[ ! -f "$workflow_dir/task.txt" ]]; then
-                status=" [incomplete - missing task.txt]"
+                status="[incomplete - missing task.txt]"
             elif [[ ! -f "$workflow_dir/config" ]]; then
-                status=" [incomplete - missing config]"
+                status="[incomplete - missing config]"
             else
                 # Check for batch status first
                 local batch_status
                 batch_status=$(get_batch_display_status "$workflow_dir")
                 if [[ -n "$batch_status" ]]; then
-                    status=" $batch_status"
+                    status="$batch_status"
                 else
-                    # Check for output file
-                    local output_file=$(ls "$output_dir/$workflow".* 2>/dev/null | head -1)
-                    if [[ -n "$output_file" ]]; then
-                        # Get modification time (cross-platform)
-                        local output_time
-                        if [[ "$(uname)" == "Darwin" ]]; then
-                            output_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$output_file" 2>/dev/null)
-                        else
-                            output_time=$(stat -c "%y" "$output_file" 2>/dev/null | cut -d'.' -f1)
-                        fi
-                        [[ -n "$output_time" ]] && status=" [last run: $output_time]"
-                    fi
+                    # Get execution timestamp and status
+                    timestamp=$(get_execution_timestamp "$workflow")
+                    status=$(get_execution_status "$workflow")
                 fi
             fi
-            printf "$indent%-11s%s\n" "$workflow" "$status"
+
+            # Format output with timestamp and status
+            if [[ -n "$timestamp" && "$timestamp" != "(not run)" && "$timestamp" != "(unknown)" ]]; then
+                printf "$indent%-14s %-16s %s\n" "$workflow" "$timestamp" "$status"
+            else
+                printf "$indent%-14s %-16s %s\n" "$workflow" "$timestamp" "$status"
+            fi
         done
     else
         echo "$indent(no workflows found)"

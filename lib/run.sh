@@ -9,10 +9,12 @@
 #   $@ - Execution options (model, temperature, input files, etc.)
 execute_run_mode() {
     # Set execution parameter defaults (respect WIREFLOW_DRY_RUN env var)
-    local stream_mode=false  # Default to batch in run mode
+    local stream_mode=false  # Default to buffered in run mode
     local count_tokens_only=false
     local dry_run="${WIREFLOW_DRY_RUN:-false}"
-    
+    local auto_deps=true     # Auto-execute stale dependencies by default
+    local force_execution=false  # Force re-execution ignoring cache
+
     # Initialize CLI override arrays (paths can be files or directories)
     local -a cli_input_paths=()
     local -a cli_context_paths=()
@@ -148,6 +150,14 @@ execute_run_mode() {
                 CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
                 shift
                 ;;
+            --no-auto-deps)
+                auto_deps=false
+                shift
+                ;;
+            --force)
+                force_execution=true
+                shift
+                ;;
             *)
                 echo "Error: Unknown option: $1" >&2
                 show_quick_help_run
@@ -155,7 +165,42 @@ execute_run_mode() {
                 ;;
         esac
     done
-    
+
+    # =============================================================================
+    # Automatic Dependency Execution
+    # =============================================================================
+
+    # Check if we should auto-execute stale dependencies
+    if [[ "$auto_deps" == "true" && ${#DEPENDS_ON[@]} -gt 0 ]]; then
+        echo "Resolving dependencies..."
+
+        # Get execution order (topological sort)
+        local -a exec_order
+        if ! mapfile -t exec_order < <(resolve_dependency_order "$WORKFLOW_NAME"); then
+            return 1
+        fi
+
+        # Execute stale dependencies (all except target, which is last)
+        local i dep
+        for ((i=0; i<${#exec_order[@]}-1; i++)); do
+            dep="${exec_order[i]}"
+
+            if is_execution_stale "$dep"; then
+                echo "  Dependency '$dep' is stale, executing..."
+
+                # Execute in subprocess for config isolation
+                if ! execute_dependency "$dep"; then
+                    echo "Error: Failed to execute dependency '$dep'" >&2
+                    return 1
+                fi
+                echo "  Dependency '$dep' completed"
+            else
+                echo "  Dependency '$dep' is fresh, skipping"
+            fi
+        done
+        echo ""
+    fi
+
     # =============================================================================
     # Setup Paths
     # =============================================================================

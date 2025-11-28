@@ -72,6 +72,8 @@ Background materials and references.
 | `--stream` | `-s` | Stream output in real-time |
 | `--count-tokens` | | Show token estimation only |
 | `--dry-run` | `-n` | Save API request files and inspect in editor |
+| `--no-auto-deps` | | Skip automatic execution of stale dependencies |
+| `--force` | | Force re-execution, ignoring cache |
 | `--help` | `-h` | Quick help |
 
 ## Output Location
@@ -113,6 +115,12 @@ wfw run analysis -ex ~/output/analysis.md
 
 # Positional inputs after --
 wfw run analysis -- reports/*.pdf
+
+# Skip automatic dependency execution
+wfw run 03-synthesis --no-auto-deps
+
+# Force re-execution (ignore cache)
+wfw run 01-analysis --force
 ```
 
 ## See Also

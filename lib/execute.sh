@@ -1460,6 +1460,13 @@ execute_api_request() {
         fi
 
         echo "$request_json" > "$REQUEST_JSON_FILE" 2>/dev/null || true
+
+        # Write execution log for cache validation and dependency tracking
+        write_execution_log \
+            "$WORKFLOW_NAME" \
+            "$workflow_dir" \
+            "$output_file" \
+            "$project_root"
     fi
 
     # Cleanup temp files

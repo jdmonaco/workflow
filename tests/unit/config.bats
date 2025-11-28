@@ -387,3 +387,131 @@ EOF
     assert_success
     assert_output ""
 }
+
+# =============================================================================
+# Project Config Caching tests
+# =============================================================================
+
+@test "cache_project_config: caches scalar config values" {
+    # Initialize required arrays if not already
+    CONFIG_KEYS=(MODEL TEMPERATURE MAX_TOKENS OUTPUT_FORMAT)
+    USER_ENV_KEYS=(WIREFLOW_PROMPT_PREFIX)
+    PROJECT_KEYS=()
+    declare -gA PROJECT_CONFIG_CACHE=()
+    declare -gA PROJECT_CONFIG_ARRAYS=()
+
+    MODEL="claude-opus-4-5"
+    TEMPERATURE="0.5"
+    MAX_TOKENS="8000"
+    OUTPUT_FORMAT="json"
+    WIREFLOW_PROMPT_PREFIX="/custom/prompts"
+
+    cache_project_config
+
+    assert_equal "${PROJECT_CONFIG_CACHE[MODEL]}" "claude-opus-4-5"
+    assert_equal "${PROJECT_CONFIG_CACHE[TEMPERATURE]}" "0.5"
+    assert_equal "${PROJECT_CONFIG_CACHE[MAX_TOKENS]}" "8000"
+    assert_equal "${PROJECT_CONFIG_CACHE[OUTPUT_FORMAT]}" "json"
+    assert_equal "${PROJECT_CONFIG_CACHE[WIREFLOW_PROMPT_PREFIX]}" "/custom/prompts"
+    assert_equal "$PROJECT_CONFIG_CACHED" "true"
+}
+
+@test "cache_project_config: caches array config values" {
+    CONFIG_KEYS=(SYSTEM_PROMPTS)
+    USER_ENV_KEYS=()
+    PROJECT_KEYS=(CONTEXT)
+    declare -gA PROJECT_CONFIG_CACHE=()
+    declare -gA PROJECT_CONFIG_ARRAYS=()
+    declare -a SYSTEM_PROMPTS=(base research custom)
+    declare -a CONTEXT=(file1.txt file2.md)
+
+    cache_project_config
+
+    # Arrays should be in PROJECT_CONFIG_ARRAYS, not CACHE
+    assert [ -n "${PROJECT_CONFIG_ARRAYS[SYSTEM_PROMPTS]}" ]
+    assert [ -n "${PROJECT_CONFIG_ARRAYS[CONTEXT]}" ]
+
+    # Verify array contents (newline-delimited)
+    [[ "${PROJECT_CONFIG_ARRAYS[SYSTEM_PROMPTS]}" == *"base"* ]]
+    [[ "${PROJECT_CONFIG_ARRAYS[SYSTEM_PROMPTS]}" == *"research"* ]]
+    [[ "${PROJECT_CONFIG_ARRAYS[CONTEXT]}" == *"file1.txt"* ]]
+}
+
+@test "cache_project_config: handles empty arrays" {
+    CONFIG_KEYS=(SYSTEM_PROMPTS)
+    USER_ENV_KEYS=()
+    PROJECT_KEYS=(CONTEXT)
+    declare -gA PROJECT_CONFIG_CACHE=()
+    declare -gA PROJECT_CONFIG_ARRAYS=()
+    declare -a SYSTEM_PROMPTS=()
+    declare -a CONTEXT=()
+
+    cache_project_config
+
+    # Empty arrays should still be cached
+    assert [ -v PROJECT_CONFIG_ARRAYS[SYSTEM_PROMPTS] ]
+    assert [ -v PROJECT_CONFIG_ARRAYS[CONTEXT] ]
+}
+
+@test "reset_workflow_config: restores cached scalars" {
+    # Setup cache
+    declare -gA PROJECT_CONFIG_CACHE=([MODEL]="cached-model" [TEMPERATURE]="0.7")
+    declare -gA PROJECT_CONFIG_ARRAYS=()
+    declare -a WORKFLOW_KEYS=(DEPENDS_ON INPUT)
+    declare -gA WORKFLOW_SOURCE_MAP=([DEPENDS_ON]="workflow" [INPUT]="cli")
+
+    # Set different current values
+    MODEL="current-model"
+    TEMPERATURE="0.9"
+    DEPENDS_ON=(dep1 dep2)
+    INPUT=(input1.txt)
+
+    # Source pipeline.sh for reset_workflow_config
+    source "$WORKFLOW_LIB_DIR/pipeline.sh"
+
+    reset_workflow_config
+
+    assert_equal "$MODEL" "cached-model"
+    assert_equal "$TEMPERATURE" "0.7"
+    # Workflow-specific should be cleared
+    assert_equal "${#DEPENDS_ON[@]}" "0"
+    assert_equal "${#INPUT[@]}" "0"
+}
+
+@test "reset_workflow_config: restores cached arrays" {
+    # Setup cache with arrays
+    declare -gA PROJECT_CONFIG_CACHE=()
+    declare -gA PROJECT_CONFIG_ARRAYS=([SYSTEM_PROMPTS]=$'base\nresearch' [CONTEXT]=$'ctx1.txt\nctx2.txt')
+    declare -a WORKFLOW_KEYS=(DEPENDS_ON INPUT)
+    declare -gA WORKFLOW_SOURCE_MAP=([DEPENDS_ON]="unset" [INPUT]="unset")
+    declare -a SYSTEM_PROMPTS=(different)
+    declare -a CONTEXT=(other.txt)
+
+    source "$WORKFLOW_LIB_DIR/pipeline.sh"
+
+    reset_workflow_config
+
+    # Arrays should be restored
+    assert_equal "${#SYSTEM_PROMPTS[@]}" "2"
+    assert_equal "${SYSTEM_PROMPTS[0]}" "base"
+    assert_equal "${SYSTEM_PROMPTS[1]}" "research"
+    assert_equal "${#CONTEXT[@]}" "2"
+    assert_equal "${CONTEXT[0]}" "ctx1.txt"
+}
+
+@test "reset_workflow_config: handles empty cached arrays" {
+    declare -gA PROJECT_CONFIG_CACHE=()
+    declare -gA PROJECT_CONFIG_ARRAYS=([SYSTEM_PROMPTS]="" [CONTEXT]="")
+    declare -a WORKFLOW_KEYS=(DEPENDS_ON INPUT)
+    declare -gA WORKFLOW_SOURCE_MAP=([DEPENDS_ON]="unset" [INPUT]="unset")
+    declare -a SYSTEM_PROMPTS=(will-be-cleared)
+    declare -a CONTEXT=(will-be-cleared)
+
+    source "$WORKFLOW_LIB_DIR/pipeline.sh"
+
+    reset_workflow_config
+
+    # Should result in empty arrays
+    assert_equal "${#SYSTEM_PROMPTS[@]}" "0"
+    assert_equal "${#CONTEXT[@]}" "0"
+}

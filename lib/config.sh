@@ -861,10 +861,60 @@ load_ancestor_configs() {
     done <<< "$ancestors"
 }
 
+# =============================================================================
+# Project Config Caching (for dependency execution isolation)
+# =============================================================================
+
+# Global cache arrays for project-level config state
+# Used by reset_workflow_config() to restore project baseline in subshells
+declare -A PROJECT_CONFIG_CACHE=()      # Scalar values
+declare -A PROJECT_CONFIG_ARRAYS=()     # Serialized arrays (newline-delimited)
+PROJECT_CONFIG_CACHED=false
+
+# Cache all project-level config values after load_project_config completes
+# Uses CONFIG_KEYS, USER_ENV_KEYS, PROJECT_KEYS to iterate dynamically
+# Reuses load_config_level pattern for array detection
+cache_project_config() {
+    local key
+
+    # Cache CONFIG_KEYS (API parameters)
+    for key in "${CONFIG_KEYS[@]}"; do
+        if declare -p "$key" 2>/dev/null | grep -q '^declare -a'; then
+            # Serialize array as newline-delimited string
+            declare -n arr="$key"
+            PROJECT_CONFIG_ARRAYS[$key]="$(printf '%s\n' "${arr[@]}")"
+            unset -n arr
+        else
+            PROJECT_CONFIG_CACHE[$key]="${!key}"
+        fi
+    done
+
+    # Cache USER_ENV_KEYS (all scalars)
+    for key in "${USER_ENV_KEYS[@]}"; do
+        PROJECT_CONFIG_CACHE[$key]="${!key}"
+    done
+
+    # Cache PROJECT_KEYS (may include arrays like CONTEXT)
+    for key in "${PROJECT_KEYS[@]}"; do
+        if declare -p "$key" 2>/dev/null | grep -q '^declare -a'; then
+            declare -n arr="$key"
+            PROJECT_CONFIG_ARRAYS[$key]="$(printf '%s\n' "${arr[@]}")"
+            unset -n arr
+        else
+            PROJECT_CONFIG_CACHE[$key]="${!key}"
+        fi
+    done
+
+    PROJECT_CONFIG_CACHED=true
+}
+
 # Load config from current project
 load_project_config() {
     # Pass PROJECT_ROOT for glob expansion in CONTEXT/INPUT arrays
     load_config_level "${1:-$PROJECT_CONFIG}" "project" "$PROJECT_ROOT"
+
+    # Cache effective project-level config for dependency execution isolation
+    cache_project_config
 }
 
 # Load config for a given workflow in the current project
