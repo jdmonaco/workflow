@@ -192,6 +192,7 @@ wfw run analysis --count-tokens
 ```
 
 Shows breakdown by component:
+
 - System prompts
 - Task description
 - Project description

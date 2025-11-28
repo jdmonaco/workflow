@@ -27,8 +27,8 @@ wfw run 01-analysis --stream     # Real-time output
 ### With Files
 
 ```bash
-# Context files
-wfw run 01-analysis -cx data.csv -cx notes.md
+# Context files (multiple args or repeated option both work)
+wfw run 01-analysis -cx data.csv notes.md
 
 # Input files
 wfw run 01-analysis -in report.pdf
@@ -36,6 +36,8 @@ wfw run 01-analysis -in report.pdf
 # Glob patterns
 wfw run 01-analysis -cx "data/*.csv" -in "docs/*.pdf"
 ```
+
+> **Note:** Options like `-cx`, `-in`, and `-dp` accept multiple arguments. You can also repeat the option: `-cx file1.md -cx file2.md` is equivalent to `-cx file1.md file2.md`.
 
 ### With Dependencies
 
@@ -72,7 +74,9 @@ Building input documents and context...
 ```
 
 **Staleness Detection:**
+
 A workflow is considered stale when:
+
 - No previous execution log exists
 - Output file is missing
 - Any context or input file was modified since last execution
@@ -92,6 +96,7 @@ wfw run 01-analysis --force            # Ignore staleness check
 ### Execution Log
 
 Each successful run creates `.workflow/run/<name>/execution.json` containing:
+
 - Execution timestamp
 - Config values at execution time
 - Input/context file hashes
@@ -124,6 +129,7 @@ wfw run analysis --dry-run        # Save prompts for inspection
 ### Output Management
 
 **Locations:**
+
 - Primary: `.workflow/run/<name>/output.<format>`
 - Hardlink: `.workflow/output/<name>.<format>`
 
@@ -150,7 +156,7 @@ Lightweight, one-off task execution without workflow persistence.
 ```bash
 wfw task -i "Summarize these notes" -cx notes.md
 wfw task -i "Extract key action items" -cx meeting.md
-wfw task -i "Compare these approaches" -cx a.md -cx b.md
+wfw task -i "Compare these approaches" -cx a.md b.md
 ```
 
 ### Named Tasks
@@ -173,6 +179,7 @@ wfw task -i "Analyze" -cx data.csv --no-stream
 ### Project Context
 
 When run inside a wireflow project, task mode uses:
+
 - Project configuration (`.workflow/config`)
 - Project description (`.workflow/project.txt`)
 
@@ -280,17 +287,20 @@ wfw task -i "What are the main findings?" -cx results.json
 ## When to Use Each Mode
 
 **Run mode when:**
+
 - Building iterative, evolving content
 - Creating workflow dependencies
 - Need to compare versions
 - Want per-workflow configuration
 
 **Task mode when:**
+
 - Quick, one-off queries
 - Exploring ideas
 - Don't need persistence
 
 **Batch mode when:**
+
 - Processing many documents
 - Cost is a concern (50% savings)
 - Can wait for async processing

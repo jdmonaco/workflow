@@ -128,7 +128,7 @@ CONTEXT=(README.md notes.txt data/*.csv)
 
 **At runtime:**
 ```bash
-wfw run analysis-01 -cx "data/*.csv" -cx README.md
+wfw run analysis-01 -cx "data/*.csv" README.md
 ```
 
 Runtime flags override config settings.

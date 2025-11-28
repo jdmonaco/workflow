@@ -242,6 +242,7 @@ wfw run analysis --dry-run
 ```
 
 Saves the complete API request including composed system prompt to:
+
 - `.workflow/run/<name>/dry-run-request.json`
 
 ---

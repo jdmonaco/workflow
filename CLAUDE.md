@@ -66,6 +66,8 @@ docs/developer-guide/   → Architecture, implementation, layer docs
 
 **Nested bullets:** Use 4 spaces (not 2)
 
+**Lists after text:** Add blank line before lists (required for mkdocs rendering)
+
 **Subcommand ordering:** init → new → edit → config → run → task → cat → open → tasks → list → help
 
 ## Development Workflows

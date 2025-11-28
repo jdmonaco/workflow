@@ -19,7 +19,7 @@ WireFlow distinguishes between **input** (primary documents to process) and **co
 wfw run summarize -in report.pdf -cx style-guide.md
 
 # Analyze data (input) with reference materials (context)
-wfw run analyze -in results.csv -cx methodology.md -cx prior-analysis.md
+wfw run analyze -in results.csv -cx methodology.md prior-analysis.md
 ```
 
 ## Supported Document Types
@@ -29,7 +29,7 @@ wfw run analyze -in results.csv -cx methodology.md -cx prior-analysis.md
 All text-based files (`.md`, `.txt`, `.py`, `.js`, `.csv`, etc.) are processed directly with syntax highlighting based on extension.
 
 ```bash
-wfw run analysis -cx data.csv -cx script.py -cx notes.md
+wfw run analysis -cx data.csv script.py notes.md
 ```
 
 ### PDF Documents

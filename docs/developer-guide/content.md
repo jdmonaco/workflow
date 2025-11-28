@@ -193,6 +193,7 @@ aggregate_context(mode, project_root, workflow_dir)
 ```
 
 This function:
+
 - Processes all context sources (patterns, files, CLI)
 - Resolves dependencies from `.workflow/output/`
 - Processes all input sources (patterns, files, CLI)
