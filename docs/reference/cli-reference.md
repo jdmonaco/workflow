@@ -12,9 +12,9 @@ wfw <subcommand> [options]
 
 | Subcommand | Description |
 |------------|-------------|
-| `init` | Initialize workflow project |
+| `init` | Initialize wireflow project |
 | `new` | Create new workflow |
-| `edit` | Edit workflow or project files |
+| `edit` | Edit project or workflow files |
 | `config` | View/edit configuration |
 | `run` | Execute workflow with full context |
 | `task` | Execute one-off task (lightweight) |
