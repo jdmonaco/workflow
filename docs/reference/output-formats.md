@@ -478,9 +478,8 @@ Ensure proper JSON syntax with quoted strings and no trailing commas.
 
 ## See Also
 
-- [Execution Guide](../user-guide/execution.md) - Running workflows
+- [Execution Modes](../user-guide/execution.md) - Running workflows
 - [Configuration Guide](../user-guide/configuration.md) - Setting formats
-- [Examples](../user-guide/examples.md#example-7-multiple-output-formats) - Format examples
 
 ---
 

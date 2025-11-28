@@ -145,7 +145,7 @@ process_file() {
 
 ## See Also
 
-- [User Guide](../user-guide/initialization.md): Complete usage documentation
+- [User Guide](../user-guide/projects.md): Complete usage documentation
 - [Reference](../reference/cli-reference.md): Technical reference
 - [Architecture](architecture.md): System design and architecture patterns
 - [Implementation](implementation.md): Technical implementation details

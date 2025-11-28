@@ -99,7 +99,7 @@ wfw run 02-analysis --depends-on 01-context --stream
 ## Documentation Structure
 
 - **[Getting Started](getting-started/installation.md):** Installation, quick start, and your first workflow
-- **[User Guide](user-guide/initialization.md):** Complete guide to using workflow effectively
+- **[User Guide](user-guide/projects.md):** Complete guide to using WireFlow effectively
 - **[Reference](reference/cli-reference.md):** Comprehensive CLI and feature reference
 - **[Troubleshooting](troubleshooting.md):** Common issues and solutions
 - **[Contributing](contributing/index.md):** Contribution guidelines

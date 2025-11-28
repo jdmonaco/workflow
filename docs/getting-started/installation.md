@@ -186,8 +186,8 @@ On first use, WireFlow automatically creates `~/.config/wireflow/config` where y
 # Run any wireflow command to trigger auto-creation
 wfw help
 
-# Edit the global config
-nano ~/.config/wireflow/config
+# Edit the global config (opens in $EDITOR)
+"${EDITOR:-nano}" ~/.config/wireflow/config
 ```
 
 Add your API key to the config file:
@@ -261,7 +261,7 @@ Now that WireFlow is installed, you're ready to:
 
 1. Follow the [Quick Start Guide](quickstart.md) for a 5-minute introduction
 2. Create your [First Workflow](first-workflow.md) with detailed walkthrough
-3. Explore the [User Guide](../user-guide/initialization.md) for comprehensive usage
+3. Explore the [User Guide](../user-guide/projects.md) for comprehensive usage
 
 ## Troubleshooting
 

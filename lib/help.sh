@@ -52,7 +52,7 @@ Environment variables:
 Configuration:
     Global config:   $(display_absolute_path "$GLOBAL_CONFIG_FILE")
     Project config:  <PROJECT_ROOT>/.workflow/config
-    Workflow config: <PROJECT_ROOT>/.workflow/<NAME>/config
+    Workflow config: <PROJECT_ROOT>/.workflow/run/<NAME>/config
 
 For more information, see README.md or visit the documentation.
 EOF

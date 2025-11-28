@@ -106,7 +106,7 @@ Conventions:
 - PEP 8 for code
 ```
 
-**See:** [System Prompts Guide](../user-guide/system-prompts.md)
+**See:** [Prompts & Templates Guide](../user-guide/prompts.md)
 
 ### `.workflow/output/`
 
@@ -300,7 +300,7 @@ System prompt directory.
 
 **Custom prompts:** Users can add their own `.txt` files here
 
-**See:** [System Prompts Guide](../user-guide/system-prompts.md)
+**See:** [Prompts & Templates Guide](../user-guide/prompts.md)
 
 ### `~/.config/wireflow/tasks/`
 
@@ -435,7 +435,7 @@ research-project/                 # Parent project
 - Can **inherit configuration** from parent on creation
 - Workflows **cannot depend** across project boundaries
 
-**See:** [Initialization Guide](../user-guide/initialization.md#nested-projects)
+**See:** [Projects Guide](../user-guide/projects.md#nested-projects)
 
 ## Disk Space Considerations
 
@@ -516,7 +516,7 @@ wfw init .
 
 ## See Also
 
-- [Initialization Guide](../user-guide/initialization.md) - Creating projects
+- [Projects Guide](../user-guide/projects.md) - Creating projects
 - [Configuration Guide](../user-guide/configuration.md) - Configuration files
 - [Execution Guide](../user-guide/execution.md) - Running workflows
 

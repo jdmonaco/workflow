@@ -94,10 +94,10 @@ Format the output as structured markdown with clear sections.
 Edit the workflow config to optimize for code analysis:
 
 ```bash
-nano .workflow/01-analyze-code/config
+wfw edit 01-analyze-code
 ```
 
-Add these settings:
+In the config section, add these settings:
 
 ```bash
 MODEL=claude-opus-4-5-20251101
@@ -121,7 +121,7 @@ Watch as Claude analyzes the code in real-time!
 ### Review the Output
 
 ```bash
-cat .workflow/01-analyze-code/output.md
+cat .workflow/run/01-analyze-code/output.md
 ```
 
 You should see a structured analysis of your module.
@@ -178,7 +178,7 @@ wfw run 02-generate-docs \
 ### Review the Generated Documentation
 
 ```bash
-cat .workflow/02-generate-docs/output.md
+cat .workflow/run/02-generate-docs/output.md
 ```
 
 You now have a complete README draft!
@@ -245,22 +245,24 @@ tree -a -I '.git'
 
 ```
 code-docs-demo/
-├── string_utils.py                   # Original code
-├── examples.py                        # Generated examples
+├── string_utils.py                        # Original code
+├── examples.py                            # Generated examples
 └── .workflow/
-    ├── config                         # Project config
-    ├── 01-analyze-code/
-    │   ├── task.txt                   # Analysis task
-    │   ├── config                     # Workflow config
-    │   └── output.md                  # Analysis output
-    ├── 02-generate-docs/
-    │   ├── task.txt                   # Documentation task
-    │   ├── config                     # Workflow config
-    │   └── output.md                  # README content
-    └── 03-usage-examples/
-        ├── task.txt                   # Examples task
-        ├── config                     # Workflow config
-        └── output.md                  # Example code
+    ├── config                             # Project config
+    ├── output/                            # Hardlinks to outputs
+    └── run/                               # Workflow directories
+        ├── 01-analyze-code/
+        │   ├── task.txt                   # Analysis task
+        │   ├── config                     # Workflow config
+        │   └── output.md                  # Analysis output
+        ├── 02-generate-docs/
+        │   ├── task.txt                   # Documentation task
+        │   ├── config                     # Workflow config
+        │   └── output.md                  # README content
+        └── 03-usage-examples/
+            ├── task.txt                   # Examples task
+            ├── config                     # Workflow config
+            └── output.md                  # Example code
 ```
 
 ### The Workflow Chain
@@ -286,10 +288,10 @@ wfw run 03-usage-examples \
   -cx string_utils.py \
   --depends-on 01-analyze-code \
   --depends-on 02-generate-docs \
-  --estimate-tokens
+  --count-tokens
 ```
 
-This shows estimated input tokens and cost without making an API call.
+This shows estimated input tokens without making an API call.
 
 ## Iterating on Outputs
 
@@ -308,19 +310,19 @@ wfw run 02-generate-docs \
   --stream
 ```
 
-The previous output is automatically saved as `<name>-TIMESTAMP.md`.
+The previous output is automatically saved as `output-TIMESTAMP.md`.
 
 ### View Output History
 
 ```bash
-ls -lt .workflow/02-generate-docs/
+ls -lt .workflow/run/02-generate-docs/
 ```
 
 ### Compare Outputs
 
 ```bash
-diff .workflow/02-generate-docs/output.md \
-     .workflow/02-generate-docs/output-20241115143022.md
+diff .workflow/run/02-generate-docs/output.md \
+     .workflow/run/02-generate-docs/output-20241115143022.md
 ```
 
 ## Advanced Techniques
@@ -340,11 +342,11 @@ Request JSON output:
 ```bash
 wfw run 01-analyze-code \
   -cx string_utils.py \
-  --output-format json \
+  --format json \
   --stream
 ```
 
-The response will be saved as `<name>.json` instead of `<name>.md`.
+The response will be saved as `output.json` instead of `output.md`.
 
 ## What You Learned
 
@@ -373,11 +375,10 @@ Now practice by:
 
 Now that you understand workflows, explore:
 
-- **[Configuration Guide](../user-guide/configuration.md):** Master the four-tier configuration cascade
-- **[Execution Guide](../user-guide/execution.md):** Learn all execution options and modes
-- **[Examples](../user-guide/examples.md):** More real-world patterns
+- **[Configuration Guide](../user-guide/configuration.md):** Master the configuration cascade
+- **[Execution Modes](../user-guide/execution.md):** Learn all execution options and modes
 - **[CLI Reference](../reference/cli-reference.md):** Complete command reference
 
 ---
 
-Ready to dive deeper? Continue to the [User Guide](../user-guide/initialization.md) →
+Ready to dive deeper? Continue to the [User Guide](../user-guide/projects.md) →

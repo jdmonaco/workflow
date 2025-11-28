@@ -70,9 +70,8 @@ Your project files and folders are treated as read-only. All WireFlow files are 
 
 - **[Installation Guide](https://docs.joemona.co/wireflow/getting-started/installation/):** Detailed setup instructions
 - **[Quick Start Guide](https://docs.joemona.co/wireflow/getting-started/quickstart/):** Get running in 5 minutes
-- **[User Guide](https://docs.joemona.co/wireflow/user-guide/initialization/):** Complete usage documentation
+- **[User Guide](https://docs.joemona.co/wireflow/user-guide/projects/):** Complete usage documentation
 - **[CLI Reference](https://docs.joemona.co/wireflow/reference/cli-reference/):** All commands and options
-- **[Examples](https://docs.joemona.co/wireflow/user-guide/examples/):** Real-world usage patterns
 - **[Troubleshooting](https://docs.joemona.co/wireflow/troubleshooting/):** Common issues and solutions
 
 ## Core Concepts

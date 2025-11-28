@@ -38,12 +38,12 @@ nav:
     - First Workflow: getting-started/first-workflow.md
 
   - User Guide:
-    - Initialization: user-guide/initialization.md
+    - Projects: user-guide/projects.md
+    - Workflows: user-guide/workflows.md
+    - Prompts & Templates: user-guide/prompts.md
+    - Context & Input: user-guide/context.md
+    - Execution Modes: user-guide/execution.md
     - Configuration: user-guide/configuration.md
-    - Creating Workflows: user-guide/workflows.md
-    - System Prompts: user-guide/system-prompts.md
-    - Execution: user-guide/execution.md
-    - Examples: user-guide/examples.md
 
   - Reference:
     - CLI Reference: reference/cli-reference.md

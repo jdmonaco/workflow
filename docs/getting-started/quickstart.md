@@ -1,6 +1,6 @@
 # Quick Start
 
-Get up and running with Workflow in 5 minutes. This guide assumes you've already [installed](installation.md) Workflow and configured your API key.
+Get up and running with WireFlow in 5 minutes. This guide assumes you've already [installed](installation.md) WireFlow and configured your API key.
 
 ## Your First Project (5 Minutes)
 
@@ -50,11 +50,10 @@ Create a workflow to extract action items:
 wfw new extract-actions
 ```
 
-This creates `.workflow/extract-actions/` with:
+This creates `.workflow/run/extract-actions/` with:
 
 - `task.txt` - Your prompt/task description
 - `config` - Workflow-specific configuration
-- `context/` - Directory for context files
 
 ### Step 4: Define the Task
 
@@ -91,7 +90,7 @@ wfw run extract-actions -cx notes.txt --stream
 
 ### Step 6: View the Output
 
-The response is saved to `.workflow/extract-actions/output.md`. Use the `cat` subcommand for easy viewing:
+The response is saved to `.workflow/run/extract-actions/output.md`. Use the `cat` subcommand for easy viewing:
 
 ```bash
 wfw cat extract-actions
@@ -100,7 +99,7 @@ wfw cat extract-actions
 Or access the file directly:
 
 ```bash
-cat .workflow/extract-actions/output.md
+cat .workflow/run/extract-actions/output.md
 ```
 
 ## What Just Happened?
@@ -117,7 +116,7 @@ The workflow:
 - Read your task from `task.txt`
 - Gathered context from `notes.txt`
 - Sent everything to Claude
-- Saved the response to `output/extract-actions.md`
+- Saved the response to `.workflow/run/extract-actions/output.md`
 - Kept a backup of any previous output
 
 ## Key Concepts
@@ -127,13 +126,14 @@ The workflow:
 ```
 my-analysis/
 ├── notes.txt                  # Your content
-└── .workflow/                 # Workflow project root
+└── .workflow/                 # Wireflow project root
     ├── config                 # Project-level config
-    └── extract-actions/       # Individual workflow
-        ├── task.txt           # Task/prompt
-        ├── config             # Workflow config
-        ├── context/           # Context files
-        └── output/            # Generated outputs
+    ├── output/                # Hardlinks to outputs
+    └── run/                   # Workflow directories
+        └── extract-actions/   # Individual workflow
+            ├── task.txt       # Task/prompt
+            ├── config         # Workflow config
+            └── output.md      # Generated output
 ```
 
 ### Modes of Operation
@@ -173,7 +173,7 @@ Change the AI model or parameters:
 wfw config extract-actions
 
 # Edit workflow config
-nano .workflow/extract-actions/config
+wfw edit extract-actions
 ```
 
 Add configuration like:
@@ -236,9 +236,8 @@ wfw run -h
 You now know the basics! Here's what to explore next:
 
 1. **[First Workflow Tutorial](first-workflow.md)** - Detailed walkthrough of a real-world workflow
-2. **[Configuration Guide](../user-guide/configuration.md)** - Master the four-tier configuration system
-3. **[Execution Guide](../user-guide/execution.md)** - Learn all the options for running workflows and tasks
-4. **[Examples](../user-guide/examples.md)** - See real-world usage patterns
+2. **[Configuration Guide](../user-guide/configuration.md)** - Master the configuration cascade
+3. **[Execution Modes](../user-guide/execution.md)** - Learn all the options for running workflows and tasks
 
 ## Quick Reference
 

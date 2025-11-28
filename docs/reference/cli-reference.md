@@ -373,6 +373,95 @@ wfw task analyze -in data/*.csv --enable-thinking
 
 ---
 
+### wfw batch
+
+Submit and manage batch processing jobs via the Anthropic Message Batches API.
+
+```
+wfw batch <name> [options] [-- <input>...]
+wfw batch status [<name>]
+wfw batch results <name>
+wfw batch cancel <name>
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `<name>` | Submit batch job (default action) |
+| `status [<name>]` | Show batch status (all or specific workflow) |
+| `results <name>` | Retrieve completed batch results |
+| `cancel <name>` | Cancel a pending batch |
+
+**Arguments:**
+
+| Argument | Description | Required |
+|----------|-------------|----------|
+| `<name>` | Workflow name | Yes |
+| `-- <input>...` | Input files/directories (after `--`) | No |
+
+**Input Options (one request per file):**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--input <path>` | `-in` | Add input file or directory (repeatable) |
+
+**Context Options (shared across all requests):**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--context <path>` | `-cx` | Add context file or directory (repeatable) |
+| `--depends-on <workflow>` | `-d` | Include output from another workflow |
+
+**Model Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile <tier>` | | Model tier: fast, balanced, deep |
+| `--model <model>` | `-m` | Explicit model override (bypasses profile) |
+
+**Output Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--export <dir>` | `-ex` | Copy results to external directory |
+
+**Other Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--count-tokens` | | Show token estimation only |
+| `--dry-run` | `-n` | Save request JSON, open in editor |
+| `--help` | `-h` | Quick help |
+
+**Notes:**
+
+- Each input file becomes a separate API request in the batch
+- Context files are shared across all requests (included once per request)
+- Batch mode provides 50% cost reduction via the Message Batches API
+- Results are written to `.workflow/output/<name>/` directory
+
+**Examples:**
+
+```bash
+# Submit batch job
+wfw batch my-analysis -in data/*.pdf
+
+# Submit with export directory
+wfw batch my-analysis -in reports/ -ex ~/processed/
+
+# Check status
+wfw batch status my-analysis
+
+# Get results when complete
+wfw batch results my-analysis
+
+# Cancel pending batch
+wfw batch cancel my-analysis
+```
+
+---
+
 ### wfw cat
 
 Display workflow output to stdout.
@@ -488,95 +577,6 @@ wfw list
 
 ```bash
 wfw list
-```
-
----
-
-### wfw batch
-
-Submit and manage batch processing jobs via the Anthropic Message Batches API.
-
-```
-wfw batch <name> [options] [-- <input>...]
-wfw batch status [<name>]
-wfw batch results <name>
-wfw batch cancel <name>
-```
-
-**Subcommands:**
-
-| Subcommand | Description |
-|------------|-------------|
-| `<name>` | Submit batch job (default action) |
-| `status [<name>]` | Show batch status (all or specific workflow) |
-| `results <name>` | Retrieve completed batch results |
-| `cancel <name>` | Cancel a pending batch |
-
-**Arguments:**
-
-| Argument | Description | Required |
-|----------|-------------|----------|
-| `<name>` | Workflow name | Yes |
-| `-- <input>...` | Input files/directories (after `--`) | No |
-
-**Input Options (one request per file):**
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--input <path>` | `-in` | Add input file or directory (repeatable) |
-
-**Context Options (shared across all requests):**
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--context <path>` | `-cx` | Add context file or directory (repeatable) |
-| `--depends-on <workflow>` | `-d` | Include output from another workflow |
-
-**Model Options:**
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--profile <tier>` | | Model tier: fast, balanced, deep |
-| `--model <model>` | `-m` | Explicit model override (bypasses profile) |
-
-**Output Options:**
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--export <dir>` | `-ex` | Copy results to external directory |
-
-**Other Options:**
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--count-tokens` | | Show token estimation only |
-| `--dry-run` | `-n` | Save request JSON, open in editor |
-| `--help` | `-h` | Quick help |
-
-**Notes:**
-
-- Each input file becomes a separate API request in the batch
-- Context files are shared across all requests (included once per request)
-- Batch mode provides 50% cost reduction via the Message Batches API
-- Results are written to `.workflow/output/<name>/` directory
-
-**Examples:**
-
-```bash
-# Submit batch job
-wfw batch my-analysis -in data/*.pdf
-
-# Submit with export directory
-wfw batch my-analysis -in reports/ -ex ~/processed/
-
-# Check status
-wfw batch status my-analysis
-
-# Get results when complete
-wfw batch results my-analysis
-
-# Cancel pending batch
-wfw batch cancel my-analysis
 ```
 
 ---
