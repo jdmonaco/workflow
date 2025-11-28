@@ -107,9 +107,24 @@ fi
 - `validate_image_file()` - Check against API limits (5MB, 8000x8000 px)
 - `should_resize_image()` - Check if image exceeds 1568px on long edge
 - `calculate_target_dimensions()` - Compute resize dimensions maintaining aspect ratio
+- `needs_format_conversion()` - Check if format needs conversion (HEIC, TIFF, SVG)
+- `get_svg_target_dimensions()` - Get rasterization dimensions for SVG (1568px target)
+- `convert_image_format()` - Convert and optionally resize in single ImageMagick operation
 - `resize_image()` - Resize using ImageMagick with geometry specification
-- `cache_image()` - Cache resized images using hash-based IDs in CACHE_DIR
+- `cache_image()` - Cache converted/resized images using hash-based IDs in CACHE_DIR
 - `build_image_content_block()` - Create Vision API image block with base64 encoding
+
+**Image format conversion:**
+
+Source-adaptive output format strategy optimizes for quality:
+
+| Source | Target | Rationale |
+|--------|--------|-----------|
+| HEIC/HEIF | JPEG | Lossy photo format, JPEG preserves visual quality |
+| TIFF/TIF | PNG | Lossless format, PNG preserves quality |
+| SVG | PNG | Vector rasterization at 1568px for Vision API |
+
+Conversion and resizing are combined into a single ImageMagick operation when both are needed. HEIC conversion includes a macOS `sips` fallback when ImageMagick's libheif delegate is unavailable. Cache metadata tracks the conversion type (e.g., `image_convert_heic_to_jpg`, `image_convert_and_resize_svg_to_png`).
 
 **Project discovery implementation:**
 

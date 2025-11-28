@@ -270,17 +270,22 @@ Example:
 wfw run summary -in presentation.pptx -cx notes.docx
 ```
 
-#### Image Files (.jpg, .png, .gif, .webp)
+#### Image Files (.jpg, .png, .gif, .webp, .heic, .tiff, .svg)
 Images are processed using the **Claude Vision API**.
 
-- No additional dependencies required (ImageMagick recommended for resizing)
+- No additional dependencies required (ImageMagick recommended for conversion/resizing)
+- **Format conversion:** HEIC, TIFF, and SVG files are automatically converted:
+    - HEIC/HEIF → JPEG (optimized for photos)
+    - TIFF/TIF → PNG (preserves lossless quality)
+    - SVG → PNG (rasterized at 1568px for optimal Vision API processing)
 - Images larger than 1568px on long edge are automatically resized
+- Conversion and resizing happen in a single optimized operation when both are needed
 - Maximum size: 5MB per image
 - NOT citable (images don't receive document indices)
 
 Example:
 ```bash
-wfw run analyze-diagram -in flowchart.png -cx screenshot.jpg
+wfw run analyze-diagram -in flowchart.svg -cx photo.heic
 ```
 
 #### Mixing Document Types

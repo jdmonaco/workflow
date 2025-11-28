@@ -1,6 +1,6 @@
 # Output Formats
 
-Reference for supported output formats and format handling in Workflow.
+Reference for supported output formats and format handling in WireFlow.
 
 ## Overview
 
@@ -63,7 +63,7 @@ CLI flags override config files.
 
 ## Format Hints
 
-For non-markdown formats, Workflow automatically appends a format hint to the task:
+For non-markdown formats, WireFlow automatically appends a format hint to the task:
 
 ```xml
 <output-format>json</output-format>

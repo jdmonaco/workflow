@@ -1,10 +1,10 @@
 # Input and Context Aggregation
 
-Reference for how Workflow aggregates input documents and context materials from multiple sources.
+Reference for how WireFlow aggregates input documents and context materials from multiple sources.
 
 ## Overview
 
-Workflow distinguishes between two types of materials:
+WireFlow distinguishes between two types of materials:
 
 - **Input Documents** (`INPUT_*`): Primary data to be analyzed or transformed
 - **Context Materials** (`CONTEXT_*`): Supporting information and references

@@ -1,16 +1,16 @@
 # Project Structure
 
-Complete reference for Workflow project directory structure and file organization.
+Complete reference for WireFlow project directory structure and file organization.
 
 ## Overview
 
-A Workflow project is identified by the `.workflow/` directory, which contains all configuration, workflows, and outputs.
+A WireFlow project is identified by the `.workflow/` directory, which contains all configuration, workflows, and outputs.
 
 ## Complete Project Structure
 
 ```
 my-project/
-├── .workflow/                           # Workflow project root
+├── .workflow/                           # WireFlow project root
 │   ├── config                           # Project-level configuration
 │   ├── project.txt                      # Project description (optional)
 │   ├── prompts/                         # System prompt cache
@@ -48,9 +48,9 @@ my-project/
 
 ## Directory Descriptions
 
-### `.workflow/` (Project Root)
+### WireFlow Project Directory: `.workflow/`
 
-The presence of this directory marks a workflow project. All workflow-related files are stored here.
+The presence of this directory marks its parent folder as the root of a WireFlow project. All WireFlow-related files are stored here.
 
 **Created by:** `wfw init`
 
@@ -59,7 +59,6 @@ The presence of this directory marks a workflow project. All workflow-related fi
 - Project configuration files
 - Workflow directories
 - Output hardlinks
-- Prompt cache
 
 ### `.workflow/config`
 
@@ -89,7 +88,7 @@ Optional project description file.
 
 **Purpose:** Provide context about the project to Claude
 
-**Behavior:** If non-empty, contents are wrapped in `<project>` tags and appended to system prompt for all workflows
+**Behavior:** If non-empty, contents are wrapped in `<project>` tags and included in the system prompt for all workflows
 
 **Example:**
 
@@ -108,20 +107,6 @@ Conventions:
 ```
 
 **See:** [System Prompts Guide](../user-guide/system-prompts.md)
-
-### `.workflow/prompts/`
-
-System prompt cache directory.
-
-**Created by:** First workflow run
-
-**Contents:**
-
-- `system.txt` - Cached composed system prompt from last run
-
-**Purpose:** Debug system prompts and provide fallback if rebuild fails
-
-**Note:** This is generated content - safe to delete, will be regenerated
 
 ### `.workflow/output/`
 
@@ -180,7 +165,7 @@ Project-level cache for file conversions.
 
 **Note:** Task mode uses this cache when run inside a project tree; standalone task mode has no caching
 
-### `.workflow/<name>/`
+### `.workflow/run/<name>/`
 
 Individual workflow directories.
 
@@ -192,7 +177,7 @@ Individual workflow directories.
 
 ## Workflow Directory Structure
 
-Each workflow has its own subdirectory under `.workflow/<name>/`.
+Each workflow is contained in a subdirectory of the project's run directory, `.workflow/run/<name>`.
 
 ### `<name>/task.txt`
 
@@ -246,18 +231,6 @@ OUTPUT_FORMAT=json
 ```
 
 **See:** [Configuration Guide](../user-guide/configuration.md)
-
-### `<name>/context/`
-
-Optional directory for workflow-specific context files.
-
-**Created by:** User (as needed)
-
-**Purpose:** Store context files specific to this workflow
-
-**Usage:** Reference in config with `CONTEXT_FILES=("context/myfile.txt")`
-
-**Note:** Not commonly used - most projects reference files from project root
 
 ### `<name>/`
 
@@ -445,13 +418,13 @@ Run `workflow` commands from **anywhere** in your project tree.
 Projects can be nested inside other projects:
 
 ```
-research-project/
-├── .workflow/                    # Parent project
+research-project/                 # Parent project
+├── .workflow/
 │   ├── config
 │   └── 01-literature-review/
-└── experiment-1/
-    ├── .workflow/                # Nested project (independent)
-    │   ├── config                # Can inherit from parent
+└── experiment-1/                 # Nested (child) project
+    ├── .workflow/                # Can inherit from parent
+    │   ├── config
     │   └── 01-preprocess/
     └── data/
 ```

@@ -1,10 +1,10 @@
 # Token Estimation
 
-Reference for token estimation and cost calculation in Workflow.
+Reference for token estimation and cost calculation in WireFlow.
 
 ## Overview
 
-Before making API calls, Workflow estimates token usage and cost. This helps you:
+Before making API calls, WireFlow estimates token usage and cost. This helps you:
 
 - Avoid unexpectedly large API bills
 - Optimize context size
@@ -70,7 +70,7 @@ Use --stream to execute
 
 ## Estimation Formula
 
-Workflow uses a simple character-based estimation:
+WireFlow uses a simple character-based estimation:
 
 ```
 estimated_tokens = characters / 4
@@ -251,7 +251,7 @@ wfw run analysis --max-tokens 4096   # Or via CLI
 
 ## Monitoring Actual Usage
 
-Workflow displays actual token counts after API calls:
+WireFlow displays actual token counts after API calls:
 
 ```
 API Response received (6,245 input tokens, 1,832 output tokens)

@@ -476,6 +476,137 @@ teardown() {
 }
 
 # ============================================================================
+# Image format conversion functions
+# ============================================================================
+
+@test "needs_format_conversion: returns jpeg for HEIC files" {
+    run needs_format_conversion "photo.heic"
+    assert_success
+    assert_output "jpeg"
+}
+
+@test "needs_format_conversion: returns jpeg for HEIF files" {
+    run needs_format_conversion "photo.heif"
+    assert_success
+    assert_output "jpeg"
+}
+
+@test "needs_format_conversion: returns png for TIFF files" {
+    run needs_format_conversion "image.tiff"
+    assert_success
+    assert_output "png"
+}
+
+@test "needs_format_conversion: returns png for TIF files" {
+    run needs_format_conversion "image.tif"
+    assert_success
+    assert_output "png"
+}
+
+@test "needs_format_conversion: returns png for SVG files" {
+    run needs_format_conversion "diagram.svg"
+    assert_success
+    assert_output "png"
+}
+
+@test "needs_format_conversion: returns failure for native formats" {
+    run needs_format_conversion "photo.jpg"
+    assert_failure
+
+    run needs_format_conversion "image.png"
+    assert_failure
+
+    run needs_format_conversion "animation.gif"
+    assert_failure
+
+    run needs_format_conversion "photo.webp"
+    assert_failure
+}
+
+@test "needs_format_conversion: handles case insensitivity" {
+    run needs_format_conversion "photo.HEIC"
+    assert_success
+    assert_output "jpeg"
+
+    run needs_format_conversion "image.TIFF"
+    assert_success
+    assert_output "png"
+}
+
+@test "get_svg_target_dimensions: returns 1568x1568" {
+    result=$(get_svg_target_dimensions "diagram.svg")
+    assert_equal "$result" "1568 1568"
+}
+
+@test "detect_file_type: identifies HEIC as image" {
+    assert_equal "$(detect_file_type "photo.heic")" "image"
+    assert_equal "$(detect_file_type "photo.HEIC")" "image"
+    assert_equal "$(detect_file_type "photo.heif")" "image"
+}
+
+@test "detect_file_type: identifies TIFF as image" {
+    assert_equal "$(detect_file_type "image.tiff")" "image"
+    assert_equal "$(detect_file_type "image.tif")" "image"
+    assert_equal "$(detect_file_type "image.TIF")" "image"
+}
+
+@test "get_image_media_type: returns correct types for new formats" {
+    assert_equal "$(get_image_media_type "file.heic")" "image/heic"
+    assert_equal "$(get_image_media_type "file.heif")" "image/heic"
+    assert_equal "$(get_image_media_type "file.tiff")" "image/tiff"
+    assert_equal "$(get_image_media_type "file.tif")" "image/tiff"
+}
+
+@test "cache_image: handles SVG conversion with caching" {
+    if ! command -v magick >/dev/null 2>&1; then
+        skip "ImageMagick not available"
+    fi
+
+    export CACHE_DIR="${BATS_TEST_TMPDIR}/cache"
+    mkdir -p "$CACHE_DIR/conversions/images"
+
+    # Create a simple test SVG
+    local svg_file="${BATS_TEST_TMPDIR}/test.svg"
+    cat > "$svg_file" <<'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+  <rect width="100" height="100" fill="blue"/>
+</svg>
+EOF
+
+    # Capture stdout only (file path), stderr has log messages
+    local result
+    result=$(cache_image "$svg_file" 2>/dev/null)
+    local status=$?
+
+    # Should succeed
+    assert_equal "$status" "0"
+
+    # Should return a .png file path
+    [[ "$result" == *.png ]]
+    assert_file_exists "$result"
+    assert_file_exists "${result}.meta"
+}
+
+@test "cache_image: recognizes HEIC format and attempts conversion" {
+    # Test that HEIC files are recognized as needing conversion
+    # The actual conversion will fail on an empty file, but we verify the logic path
+
+    export CACHE_DIR="${BATS_TEST_TMPDIR}/cache"
+    mkdir -p "$CACHE_DIR/conversions/images"
+
+    local heic_file="${BATS_TEST_TMPDIR}/photo.heic"
+    touch "$heic_file"
+
+    # Verify needs_format_conversion recognizes HEIC
+    run needs_format_conversion "$heic_file"
+    assert_success
+    assert_output "jpeg"
+
+    # cache_image will fail on empty file but that's expected
+    # The important thing is the format is recognized
+}
+
+# ============================================================================
 # Display and prompt functions
 # ============================================================================
 

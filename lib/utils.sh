@@ -535,7 +535,9 @@ detect_file_type() {
     # Check file type by extension
     case "$extension" in
         # Image types (Vision API support)
-        png|jpg|jpeg|gif|webp|svg)
+        # Native formats: png, jpg, jpeg, gif, webp
+        # Conversion formats: svg (rasterize), heic/heif (to jpeg), tiff/tif (to png)
+        png|jpg|jpeg|gif|webp|svg|heic|heif|tiff|tif)
             echo "image"
             ;;
         # PDF document types
@@ -607,10 +609,59 @@ get_image_media_type() {
         svg)
             echo "image/svg+xml"
             ;;
+        heic|heif)
+            echo "image/heic"
+            ;;
+        tiff|tif)
+            echo "image/tiff"
+            ;;
         *)
             echo "image/jpeg"  # Default fallback
             ;;
     esac
+}
+
+# Check if image format requires conversion for Vision API
+# Arguments:
+#   $1 - File path
+# Returns:
+#   0 if conversion needed, 1 if format is natively supported
+# Stdout:
+#   Target format (jpeg, png) if conversion needed
+needs_format_conversion() {
+    local file="$1"
+    local extension="${file##*.}"
+    extension="${extension,,}"
+
+    case "$extension" in
+        heic|heif)
+            echo "jpeg"
+            return 0
+            ;;
+        tiff|tif)
+            echo "png"
+            return 0
+            ;;
+        svg)
+            echo "png"
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Get target dimensions for SVG rasterization
+# SVG has no inherent pixel dimensions, so we target 1568px on long edge
+# Arguments:
+#   $1 - SVG file path (unused, for API consistency)
+# Returns:
+#   "width height" - target dimensions (stdout)
+get_svg_target_dimensions() {
+    # For SVG, target 1568px on the long edge (Vision API optimal)
+    # ImageMagick will preserve aspect ratio with this max dimension
+    echo "1568 1568"
 }
 
 # Get image dimensions using ImageMagick
@@ -755,52 +806,165 @@ resize_image() {
     return 0
 }
 
-# Cache and potentially resize image for API use
+# Convert image format and optionally resize in a single operation
+# Supports HEIC/TIFF/SVG conversion with macOS sips fallback for HEIC
+# Arguments:
+#   $1 - source_file: Original image file
+#   $2 - target_file: Output file path (extension determines format)
+#   $3 - target_width: Target width in pixels (optional, 0 = no resize)
+#   $4 - target_height: Target height in pixels (optional, 0 = no resize)
+#   $5 - quality: JPEG quality (optional, default 85, ignored for PNG)
+# Returns:
+#   0 on success, 1 on failure
+convert_image_format() {
+    local source_file="$1"
+    local target_file="$2"
+    local target_width="${3:-0}"
+    local target_height="${4:-0}"
+    local quality="${5:-85}"
+
+    # Create target directory if needed
+    mkdir -p "$(dirname "$target_file")"
+
+    # Determine source format for special handling
+    local extension="${source_file##*.}"
+    extension="${extension,,}"
+
+    # Try ImageMagick first (cross-platform)
+    if command -v magick >/dev/null 2>&1; then
+        local magick_args=()
+
+        # SVG special handling: set density for quality rasterization
+        if [[ "$extension" == "svg" ]]; then
+            magick_args+=(-density 300 -background none)
+        fi
+
+        # Add source file
+        magick_args+=("$source_file")
+
+        # Add resize if dimensions specified
+        if [[ $target_width -gt 0 && $target_height -gt 0 ]]; then
+            magick_args+=(-resize "${target_width}x${target_height}")
+        fi
+
+        # Add quality setting for JPEG output
+        if [[ "$target_file" == *.jpg ]] || [[ "$target_file" == *.jpeg ]]; then
+            magick_args+=(-quality "$quality")
+        fi
+
+        # Add output file
+        magick_args+=("$target_file")
+
+        # Execute conversion
+        if magick "${magick_args[@]}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    # macOS fallback for HEIC using sips (built-in, no extra dependencies)
+    if [[ "$extension" == "heic" || "$extension" == "heif" ]]; then
+        if [[ "$OSTYPE" == darwin* ]] && command -v sips >/dev/null 2>&1; then
+            # sips can convert HEIC to JPEG natively
+            if sips -s format jpeg "$source_file" --out "$target_file" 2>/dev/null; then
+                # Apply resize separately if needed
+                if [[ $target_width -gt 0 && $target_height -gt 0 ]]; then
+                    # sips -Z uses the larger dimension for max size
+                    local max_dim=$target_width
+                    [[ $target_height -gt $target_width ]] && max_dim=$target_height
+                    sips -Z "$max_dim" "$target_file" 2>/dev/null
+                fi
+                return 0
+            fi
+        fi
+    fi
+
+    echo "Error: Failed to convert image: $source_file (ImageMagick required)" >&2
+    return 1
+}
+
+# Cache and potentially convert/resize image for API use
 # Uses global CACHE_DIR for project-level caching with hash-based IDs
 # Arguments:
 #   $1 - source_file: Original image file (absolute path)
 # Returns:
-#   Path to cached/resized image (or original if no resize needed)
+#   Path to cached/converted/resized image (or original if no processing needed)
 # Note:
-#   When CACHE_DIR is empty (standalone task mode), resizes to temp file
+#   When CACHE_DIR is empty (standalone task mode), processes to temp file
 cache_image() {
     local source_file="$1"
 
-    # Get dimensions
-    local dimensions
-    dimensions=$(get_image_dimensions "$source_file")
-    if [[ -z "$dimensions" ]]; then
-        # Can't get dimensions (ImageMagick not available), use original
+    # Check if format conversion is needed
+    local needs_conversion=false
+    local target_format=""
+    if target_format=$(needs_format_conversion "$source_file"); then
+        needs_conversion=true
+    fi
+
+    # Get source extension
+    local source_extension="${source_file##*.}"
+    source_extension="${source_extension,,}"
+
+    # Determine output extension based on conversion
+    local output_extension
+    if [[ "$needs_conversion" == true ]]; then
+        case "$target_format" in
+            jpeg) output_extension="jpg" ;;
+            png)  output_extension="png" ;;
+            *)    output_extension="$source_extension" ;;
+        esac
+    else
+        output_extension="$source_extension"
+    fi
+
+    # Get dimensions and determine resize needs
+    local dimensions width height needs_resize target_width target_height
+
+    if [[ "$source_extension" == "svg" ]]; then
+        # SVG: use target dimensions directly (no source pixel dimensions)
+        dimensions=$(get_svg_target_dimensions "$source_file")
+        read -r width height <<< "$dimensions"
+        needs_resize=true
+        target_width=$width
+        target_height=$height
+    else
+        dimensions=$(get_image_dimensions "$source_file")
+        if [[ -z "$dimensions" ]]; then
+            if [[ "$needs_conversion" == true ]]; then
+                echo "Error: Cannot determine dimensions for conversion: $source_file" >&2
+                return 1
+            fi
+            # Can't get dimensions (ImageMagick not available), use original
+            echo "$source_file"
+            return 0
+        fi
+        read -r width height <<< "$dimensions"
+
+        # Check if resize needed
+        if should_resize_image "$width" "$height"; then
+            local target_dims
+            target_dims=$(calculate_target_dimensions "$width" "$height")
+            read -r target_width target_height <<< "$target_dims"
+            needs_resize=true
+        else
+            needs_resize=false
+            target_width=0
+            target_height=0
+        fi
+    fi
+
+    # If no conversion and no resize needed, return original
+    if [[ "$needs_conversion" == false && "$needs_resize" == false ]]; then
         echo "$source_file"
         return 0
     fi
-
-    local width height
-    read -r width height <<< "$dimensions"
-
-    # Check if resize needed
-    if ! should_resize_image "$width" "$height"; then
-        # No resize needed, use original
-        echo "$source_file"
-        return 0
-    fi
-
-    # Calculate target dimensions
-    local target_dims
-    target_dims=$(calculate_target_dimensions "$width" "$height")
-    local target_width target_height
-    read -r target_width target_height <<< "$target_dims"
 
     # Determine cache location
     local cached_file
-    local extension="${source_file##*.}"
-
     if [[ -n "$CACHE_DIR" ]]; then
-        # Project cache: use hash-based ID
         local cache_id
         cache_id=$(generate_cache_id "$source_file")
         local cache_subdir="$CACHE_DIR/conversions/images"
-        cached_file="$cache_subdir/${cache_id}.${extension}"
+        cached_file="$cache_subdir/${cache_id}.${output_extension}"
 
         # Check if already cached and valid
         if validate_cache_entry "$cached_file"; then
@@ -808,31 +972,50 @@ cache_image() {
             return 0
         fi
 
-        # Resize and cache
         mkdir -p "$cache_subdir"
-        if resize_image "$source_file" "$cached_file" "$target_width" "$target_height"; then
-            write_cache_metadata "$cached_file" "$source_file" "image_resize"
-            echo "  Resized image: ${width}x${height} → ${target_width}x${target_height} (cached)" >&2
-            echo "$cached_file"
-            return 0
-        else
-            echo "$source_file"
-            return 1
-        fi
     else
-        # No persistent cache (standalone task mode): resize to temp
-        local temp_file
-        temp_file=$(mktemp -t "wfw_image_XXXXXX.${extension}")
+        # No persistent cache (standalone task mode): use temp file
+        cached_file=$(mktemp -t "wfw_image_XXXXXX.${output_extension}")
+    fi
 
-        if resize_image "$source_file" "$temp_file" "$target_width" "$target_height"; then
-            echo "  Resized image: ${width}x${height} → ${target_width}x${target_height}" >&2
-            echo "$temp_file"
-            return 0
-        else
-            rm -f "$temp_file"
-            echo "$source_file"
-            return 1
+    # Determine conversion type for metadata
+    local conversion_type
+    if [[ "$needs_conversion" == true && "$needs_resize" == true ]]; then
+        conversion_type="image_convert_and_resize_${source_extension}_to_${output_extension}"
+    elif [[ "$needs_conversion" == true ]]; then
+        conversion_type="image_convert_${source_extension}_to_${output_extension}"
+    else
+        conversion_type="image_resize"
+    fi
+
+    # Perform conversion/resize
+    local resize_w=0 resize_h=0
+    if [[ "$needs_resize" == true ]]; then
+        resize_w=$target_width
+        resize_h=$target_height
+    fi
+
+    if convert_image_format "$source_file" "$cached_file" "$resize_w" "$resize_h"; then
+        # Write cache metadata (if using project cache)
+        if [[ -n "$CACHE_DIR" ]]; then
+            write_cache_metadata "$cached_file" "$source_file" "$conversion_type"
         fi
+
+        # Log what happened
+        if [[ "$needs_conversion" == true && "$needs_resize" == true ]]; then
+            echo "  Converted and resized: ${source_extension^^} → ${output_extension^^}, ${width}x${height} → ${target_width}x${target_height}" >&2
+        elif [[ "$needs_conversion" == true ]]; then
+            echo "  Converted image: ${source_extension^^} → ${output_extension^^}" >&2
+        else
+            echo "  Resized image: ${width}x${height} → ${target_width}x${target_height} (cached)" >&2
+        fi
+
+        echo "$cached_file"
+        return 0
+    else
+        [[ -z "$CACHE_DIR" ]] && rm -f "$cached_file"
+        echo "$source_file"
+        return 1
     fi
 }
 

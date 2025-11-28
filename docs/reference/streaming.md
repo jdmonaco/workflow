@@ -1,6 +1,6 @@
 # Streaming Modes
 
-Reference for streaming and buffered execution modes in Workflow.
+Reference for streaming and buffered execution modes in WireFlow.
 
 ## Overview
 
