@@ -43,7 +43,7 @@ Include outputs from previous workflows:
 
 ```bash
 wfw run 02-synthesis --depends-on 01-analysis
-wfw run 03-report --depends-on 01-analysis,02-synthesis
+wfw run 03-report --depends-on 01-analysis 02-synthesis
 ```
 
 Or configure in workflow:
@@ -113,7 +113,7 @@ wfw task review -cx script.py
 ### Saving Output
 
 ```bash
-wfw task -i "Summarize" -cx notes.md --output-file summary.md
+wfw task -i "Summarize" -cx notes.md -ex summary.md
 wfw task -i "Analyze" -cx data.csv --no-stream
 ```
 
@@ -213,7 +213,7 @@ wfw cat draft                           # View output
 ```bash
 wfw run 01-analyze -cx "data/*.csv" --stream
 wfw run 02-draft --depends-on 01-analyze --stream
-wfw run 03-review --depends-on 01-analyze,02-draft --stream
+wfw run 03-review --depends-on 01-analyze 02-draft --stream
 wfw run 04-final --depends-on 03-review --stream
 ```
 

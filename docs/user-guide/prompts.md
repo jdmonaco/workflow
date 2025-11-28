@@ -1,10 +1,10 @@
 # Prompts & Templates
 
-System prompts and task templates provide reusable instructions for Claude.
+System prompts and task templates provide reusable instructions for AI workflows.
 
 ## System Prompts
 
-System prompts are text files that define Claude's behavior, role, and capabilities. They're included at the start of every API request before your task and context.
+System prompts are text files that define the model's behavior, role, and capabilities. They're included at the start of every API request before your task and context.
 
 ### Prompt Location
 

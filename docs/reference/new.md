@@ -33,7 +33,7 @@ wfw new <name> [options]
 
 - Creates workflow directory in `.workflow/run/`
 - Copies task template if `--from-task` specified
-- Opens editor with `task.txt` for editing
+- Use `wfw edit <name>` afterward to open workflow files in your editor
 
 ## Examples
 

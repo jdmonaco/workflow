@@ -26,11 +26,11 @@ your-project/
         └── <name>/         # Individual workflows (via `wfw new`)
 ```
 
-After initialization, WireFlow opens your editor with `project.txt` and `config` for initial setup. You can leave both empty and edit later with `wfw edit`.
+After initialization, use `wfw edit` to open `project.txt` and `config` in your editor. You can leave both empty initially.
 
 ## Project Description (`project.txt`)
 
-Optional but powerful. Contents are **automatically appended to the system prompt** for every workflow, giving Claude persistent context about your project.
+Optional but powerful. Contents are **automatically appended to the system prompt** for every workflow, providing persistent context about your project.
 
 **Good for:**
 
@@ -65,8 +65,8 @@ The project `config` file sets defaults for all workflows:
 MODEL=claude-sonnet-4-20250514
 TEMPERATURE=1.0
 MAX_TOKENS=8192
-SYSTEM_PROMPTS=base
-OUTPUT_FORMAT=markdown
+SYSTEM_PROMPTS=(base)
+OUTPUT_FORMAT=md
 ```
 
 ### Configuration Cascade

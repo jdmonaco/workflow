@@ -6,7 +6,7 @@ Create, edit, and manage workflows within your wireflow project.
 
 A workflow is a **named, persistent task configuration** stored in `.workflow/run/`. Each workflow contains:
 
-- **Task description** (`task.txt`) - The prompt/instructions for Claude
+- **Task description** (`task.txt`) - The prompt/instructions for the task
 - **Configuration** (`config`) - Workflow-specific settings
 - **Output directory** (`output/`) - Where responses are saved
 
@@ -25,7 +25,7 @@ Creates `.workflow/run/analysis-01/` with:
 └── output/           # Response outputs (created on first run)
 ```
 
-After creation, WireFlow opens your editor with `task.txt` and `config`.
+After creation, use `wfw edit analysis-01` to open the workflow files in your editor.
 
 ### Task.txt Structure
 
@@ -73,7 +73,7 @@ MODEL=claude-opus-4-5-20251101
 TEMPERATURE=0.5
 MAX_TOKENS=8192
 CONTEXT_PATTERN=data/*.csv
-OUTPUT_FORMAT=markdown
+OUTPUT_FORMAT=md
 ```
 
 Leave empty to inherit from project config.
@@ -94,6 +94,7 @@ wfw config analysis-01        # Shows configuration cascade
 ```
 
 Configuration sources (lower overrides higher):
+
 - `(default)` - Global defaults
 - `(global)` - `~/.config/wireflow/config`
 - `(project)` - `.workflow/config`
@@ -109,23 +110,23 @@ wfw list      # or: wfw ls
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `MODEL` | Claude model | `claude-sonnet-4-20250514` |
+| `MODEL` | Model identifier | `claude-sonnet-4-20250514` |
 | `TEMPERATURE` | Randomness (0-1) | `0.7` |
 | `MAX_TOKENS` | Max response tokens | `8192` |
-| `SYSTEM_PROMPTS` | System prompts | `base,research` |
-| `OUTPUT_FORMAT` | Output extension | `markdown`, `json` |
-| `INPUT_FILES` | Primary inputs | `report.pdf,data.csv` |
+| `SYSTEM_PROMPTS` | System prompts (array) | `(base research)` |
+| `OUTPUT_FORMAT` | Output extension | `md`, `json` |
+| `INPUT_FILES` | Primary inputs (array) | `(report.pdf data.csv)` |
 | `INPUT_PATTERN` | Input glob pattern | `docs/*.md` |
-| `CONTEXT_FILES` | Context files | `intro.md,methods.md` |
+| `CONTEXT_FILES` | Context files (array) | `(intro.md methods.md)` |
 | `CONTEXT_PATTERN` | Context glob pattern | `data/*.csv` |
-| `DEPENDS_ON` | Dependencies | `00-context,01-analysis` |
+| `DEPENDS_ON` | Dependencies (array) | `(00-context 01-analysis)` |
 
 ## Adding Context
 
 **In config:**
 ```bash
 CONTEXT_PATTERN=data/*.csv
-CONTEXT_FILES=README.md,notes.txt
+CONTEXT_FILES=(README.md notes.txt)
 ```
 
 **At runtime:**
@@ -147,7 +148,7 @@ This includes output from `01-context` as context for `02-analysis`.
 
 **Multiple dependencies:**
 ```bash
-wfw run 03-synthesis --depends-on 01-context,02-analysis
+wfw run 03-synthesis --depends-on 01-context 02-analysis
 ```
 
 **Dependency graph example:**

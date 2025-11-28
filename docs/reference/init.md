@@ -35,7 +35,7 @@ wfw init [<directory>]
 ## Behavior
 
 - Creates `.workflow/` directory structure
-- Opens editor with `project.txt` and `config` for initial setup
+- Use `wfw edit` afterward to open `project.txt` and `config` in your editor
 - If already initialized, shows error message
 
 ## Examples
