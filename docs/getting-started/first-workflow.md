@@ -230,7 +230,7 @@ wfw run 03-usage-examples \
 ### Save the Examples
 
 ```bash
-cat .workflow/03-usage-examples/output.md > examples.py
+cat .workflow/run/03-usage-examples/output.md > examples.py
 ```
 
 ## Understanding What You Built
@@ -377,7 +377,7 @@ Now that you understand workflows, explore:
 
 - **[Configuration Guide](../user-guide/configuration.md):** Master the configuration cascade
 - **[Execution Modes](../user-guide/execution.md):** Learn all execution options and modes
-- **[CLI Reference](../reference/cli-reference.md):** Complete command reference
+- **[CLI Reference](../reference/index.md):** Complete command reference
 
 ---
 

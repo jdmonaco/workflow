@@ -4,8 +4,6 @@
 
 Version 0.5.0 (pre-release)
 
-A terminal-based tool for building reproducible AI workflows with the Anthropic API. Process documents, chain workflows, and manage context—all from the command line.
-
 ## Key Features
 
 - 🎯 **Git-like Discovery:** Run from anywhere in your project tree. WireFlow walks up to find `.workflow/` automatically.
@@ -100,9 +98,9 @@ wfw run 02-analysis --depends-on 01-context --stream
 
 - **[Getting Started](getting-started/installation.md):** Installation, quick start, and your first workflow
 - **[User Guide](user-guide/projects.md):** Complete guide to using WireFlow effectively
-- **[Reference](reference/cli-reference.md):** Comprehensive CLI and feature reference
+- **[Reference](reference/index.md):** CLI command reference
 - **[Troubleshooting](troubleshooting.md):** Common issues and solutions
-- **[Contributing](contributing/index.md):** Contribution guidelines
+- **[Developer Guide](developer-guide/index.md):** Architecture, implementation, contributing
 
 ## Requirements
 

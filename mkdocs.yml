@@ -46,19 +46,30 @@ nav:
     - Configuration: user-guide/configuration.md
 
   - Reference:
-    - CLI Reference: reference/cli-reference.md
-    - Project Structure: reference/project-structure.md
-    - Output Formats: reference/output-formats.md
-    - Context Aggregation: reference/context-aggregation.md
-    - Token Estimation: reference/token-estimation.md
-    - Streaming Modes: reference/streaming.md
+    - CLI Overview: reference/index.md
+    - wfw init: reference/init.md
+    - wfw new: reference/new.md
+    - wfw edit: reference/edit.md
+    - wfw config: reference/config.md
+    - wfw run: reference/run.md
+    - wfw task: reference/task.md
+    - wfw batch: reference/batch.md
+    - wfw cat: reference/cat.md
+    - wfw open: reference/open.md
+    - wfw tasks: reference/tasks.md
+    - wfw list: reference/list.md
+    - wfw help: reference/help.md
+
+  - Developer Guide:
+    - Overview: developer-guide/index.md
+    - Architecture: developer-guide/architecture.md
+    - Implementation: developer-guide/implementation.md
+    - Configuration: developer-guide/configuration.md
+    - Content & I/O: developer-guide/content.md
+    - Execution: developer-guide/execution.md
+    - API Layer: developer-guide/api.md
 
   - Troubleshooting: troubleshooting.md
-
-  - Contributing:
-    - Overview: contributing/index.md
-    - Architecture: contributing/architecture.md
-    - Implementation: contributing/implementation.md
 
 markdown_extensions:
   - pymdownx.highlight:

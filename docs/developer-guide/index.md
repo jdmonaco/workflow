@@ -1,6 +1,6 @@
-# Contributing
+# Developer Guide
 
-Thank you for your interest in contributing to Workflow!
+Thank you for your interest in contributing to WireFlow!
 
 ## Ways to Contribute
 
@@ -15,10 +15,14 @@ Thank you for your interest in contributing to Workflow!
 
 Before contributing code, review the technical documentation:
 
-- [Architecture](architecture.md): System design, architecture patterns, and design decisions
-- [Implementation](implementation.md): Module reference, implementation details, and technical gotchas
+- [Architecture](architecture.md): High-level system design and layer overview
+- [Implementation](implementation.md): Module reference and technical gotchas
+- [Configuration](configuration.md): Config cascade and settings
+- [Content & I/O](content.md): Input processing, aggregation, output handling
+- [Execution](execution.md): Run/task/batch modes, streaming, tokens
+- [API Layer](api.md): Anthropic API interaction
 
-These provide comprehensive context for understanding how Workflow is built and how components interact.
+These provide comprehensive context for understanding how WireFlow is built and how components interact.
 
 ### Development Setup
 
@@ -146,11 +150,15 @@ process_file() {
 ## See Also
 
 - [User Guide](../user-guide/projects.md): Complete usage documentation
-- [Reference](../reference/cli-reference.md): Technical reference
-- [Architecture](architecture.md): System design and architecture patterns
-- [Implementation](implementation.md): Technical implementation details
+- [Reference](../reference/index.md): CLI command reference
+- [Architecture](architecture.md): System design overview
+- [Implementation](implementation.md): Module reference
+- [Configuration](configuration.md): Config cascade details
+- [Content & I/O](content.md): File processing and aggregation
+- [Execution](execution.md): Execution modes and streaming
+- [API Layer](api.md): API interaction details
 - [GitHub Issues](https://github.com/jdmonaco/wireflow/issues): Bug tracker
 
 ---
 
-Thank you for contributing to Workflow!
+Thank you for contributing to WireFlow!

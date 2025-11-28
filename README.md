@@ -4,8 +4,6 @@
 
 Version 0.5.0 (pre-release) · [Documentation](https://docs.joemona.co/wireflow/) · [GitHub](https://github.com/jdmonaco/wireflow)
 
-A terminal-based tool for building reproducible AI workflows with the Anthropic API. Process documents, chain workflows, and manage context—all from the command line.
-
 ## Key Features
 
 - 🎯 **Git-like Discovery:** Run from anywhere in your project tree. WireFlow walks up to find `.workflow/` automatically.
@@ -57,7 +55,7 @@ wfw new analyze-data
 wfw edit analyze-data
 
 # Run with context
-wfw run analyze-data --context-file data.csv --stream
+wfw run analyze-data -cx data.csv --stream
 ```
 
 Your project files and folders are treated as read-only. All WireFlow files are maintained in a `.workflow/` subfolder.
@@ -71,7 +69,7 @@ Your project files and folders are treated as read-only. All WireFlow files are 
 - **[Installation Guide](https://docs.joemona.co/wireflow/getting-started/installation/):** Detailed setup instructions
 - **[Quick Start Guide](https://docs.joemona.co/wireflow/getting-started/quickstart/):** Get running in 5 minutes
 - **[User Guide](https://docs.joemona.co/wireflow/user-guide/projects/):** Complete usage documentation
-- **[CLI Reference](https://docs.joemona.co/wireflow/reference/cli-reference/):** All commands and options
+- **[CLI Reference](https://docs.joemona.co/wireflow/reference/):** All commands and options
 - **[Troubleshooting](https://docs.joemona.co/wireflow/troubleshooting/):** Common issues and solutions
 
 ## Core Concepts
@@ -90,7 +88,7 @@ wfw run 01-analysis --stream
 Lightweight, one-off execution without persistence:
 
 ```bash
-wfw task -i "Summarize these notes" --context-file notes.md
+wfw task -i "Summarize these notes" -cx notes.md
 ```
 
 ### Dependencies
@@ -124,7 +122,7 @@ CLI Flags (--model, --temperature, etc.)
 ```bash
 wfw init my-analysis
 wfw new analyze-data
-wfw run analyze-data --context-file data.csv --stream
+wfw run analyze-data -cx data.csv --stream
 ```
 
 ### Workflow Chain
@@ -138,7 +136,7 @@ wfw run 02-draft --depends-on 00-context,01-outline --stream
 ### Quick Query
 
 ```bash
-wfw task -i "Extract action items" --context-file meeting-notes.md
+wfw task -i "Extract action items" -cx meeting-notes.md
 ```
 
 ## Requirements
@@ -175,7 +173,7 @@ wfw <subcommand> -h   # Quick help
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](https://docs.joemona.co/wireflow/contributing/) for guidelines.
+Contributions welcome! See the [Developer Guide](https://docs.joemona.co/wireflow/developer-guide/) for guidelines.
 
 ## License
 

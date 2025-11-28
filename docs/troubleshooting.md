@@ -178,7 +178,7 @@ ls -la  # What's here?
 wfw list
 
 # Check has output
-ls .workflow/xyz/output/
+ls .workflow/run/xyz/output/
 
 # Run dependency first
 wfw run xyz --stream
@@ -200,7 +200,7 @@ wfw config workflow-name
 # CLI flags > workflow config > project config > global config
 
 # Check for typos
-cat .workflow/workflow-name/config
+cat .workflow/run/workflow-name/config
 ```
 
 ### System Prompts Not Found
@@ -275,7 +275,7 @@ wfw run analysis --stream 2>&1 | less
 
 ```bash
 # Check output directory
-ls -la .workflow/workflow-name/output/
+ls -la .workflow/run/workflow-name/output/
 
 # Check disk space
 df -h .
@@ -339,10 +339,10 @@ export EDITOR=nano
 
 ```bash
 # Check file size
-ls -lh .workflow/analysis/output.md
+ls -lh .workflow/run/analysis/output.md
 
 # View file
-cat .workflow/analysis/output.md
+cat .workflow/run/analysis/output.md
 
 # Check for API errors
 # Look at workflow command output for error messages
@@ -366,7 +366,7 @@ wfw config analysis
 wfw run analysis --format json
 
 # Or update config
-nano .workflow/analysis/config
+wfw edit analysis  # opens config in editor
 # Add: OUTPUT_FORMAT=json
 ```
 
@@ -384,7 +384,7 @@ wfw run analysis
 
 # Second run: Creates backup
 wfw run analysis
-ls .workflow/analysis/output/
+ls .workflow/run/analysis/output/
 # Now you'll see <name>-TIMESTAMP.md
 ```
 
@@ -605,4 +605,4 @@ command -v curl > /dev/null && echo "✓ curl installed" || echo "✗ curl missi
 
 - [Installation Guide](getting-started/installation.md)
 - [Configuration Guide](user-guide/configuration.md)
-- [CLI Reference](reference/cli-reference.md)
+- [CLI Reference](reference/index.md)

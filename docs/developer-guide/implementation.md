@@ -14,15 +14,21 @@ Technical implementation details, module reference, and code-level specifics for
 - `init_project()` - Create `.workflow/` structure, handle nested projects
 - `new_workflow()` - Create workflow directory with task.txt XML skeleton and config template
 - `edit_workflow()` - Open files in editor (includes output if available)
-- `list_workflows()` - List workflow directories (excludes config, prompts, output)
-- `show_config()` - Display configuration with source tracking
-- `run_workflow()` - Execute workflow with full context aggregation
+- `edit_project()` - Open project config in editor
+- `config_project()` - Show/set project configuration
+- `config_workflow()` - Show/set workflow configuration
+- `cmd_run()` - Entry point for run subcommand
+- `cmd_list()` - Entry point for list subcommand
+- `cat_workflow()` - Display workflow files
+- `open_workflow()` - Open workflow directory in file manager
 
 **Key patterns:**
 
-- Project root discovery via `find_project_root()`
+- Project root discovery via `find_project_root()` (in lib/utils.sh)
 - Subshell isolation for config extraction
 - Interactive prompts with validation
+
+**Note:** `list_workflows()` is in `lib/utils.sh`, not lib/core.sh.
 
 ### lib/config.sh
 
@@ -31,7 +37,9 @@ Technical implementation details, module reference, and code-level specifics for
 - `ensure_global_config()` - Create `~/.config/wireflow/` on first use
 - `create_default_global_config()` - Write default config and base.txt
 - `load_global_config()` - Load with pass-through logic
-- `extract_config()` - Parse config files (bash variable assignments)
+- `load_config_level()` - Safe config sourcing with tracking
+- `show_config_paths()` - Display config file locations
+- `show_effective_config()` - Display merged configuration with sources
 
 **Pass-through implementation:**
 
@@ -85,7 +93,7 @@ fi
 - `find_project_root()` - Walk up directory tree for `.workflow/`
 - `list_workflows()` - List workflow directories
 - `escape_json()` - JSON string escaping for API payloads
-- `build_text_content_block()` - Creates JSON content block from file with embedded XML metadata
+- `build_content_block()` - Creates JSON content block from file with embedded XML metadata
 - `build_document_content_block()` - Creates PDF content block with base64 encoding
 - `detect_file_type()` - Detects text vs document/PDF vs office vs image files
 - `convert_json_to_xml()` - Optional post-processing to create pseudo-XML files (custom converter)
@@ -152,6 +160,14 @@ Stops at `$HOME` or `/` to avoid escaping user space.
 - `anthropic_execute_single()` - Single-shot request with pager display
 - `anthropic_execute_stream()` - Streaming request with real-time output
 - `anthropic_count_tokens()` - Exact token counting via count_tokens endpoint
+- `anthropic_create_batch()` - Create batch request
+- `anthropic_get_batch()` - Get batch status
+- `anthropic_get_batch_results()` - Retrieve batch results
+- `anthropic_list_batches()` - List all batches
+- `anthropic_cancel_batch()` - Cancel pending batch
+- `parse_citations_response()` - Extract citations from response
+- `format_citations_output()` - Format citations for display
+- `write_citations_sidecar()` - Write citations to sidecar file
 
 **Request construction:**
 
@@ -179,7 +195,7 @@ Eliminates duplication between run mode (wireflow.sh) and task mode (lib/task.sh
     - Creates JSON block with cache_control for system prompts
     - Populates SYSTEM_BLOCKS array
     - Writes concatenated text to `.workflow/prompts/system.txt` for caching
-- `build_project_description_block()` - Creates cached JSON block for project descriptions
+- `build_project_description_blocks()` - Creates cached JSON block for project descriptions
 - `build_current_date_block()` - Creates uncached JSON block for current date
 - `estimate_tokens()` - Dual token estimation (heuristic + API)
     - No parameters (reads from JSON arrays in memory)
@@ -427,6 +443,7 @@ Calls Anthropic's `/v1/messages/count_tokens` endpoint with full content blocks 
 tests/
 ├── unit/                   # Function-level unit tests
 │   ├── api.bats           # API validation, citations
+│   ├── batch.bats         # Batch mode functions
 │   ├── config.bats        # Config loading, cascade
 │   ├── core.bats          # Task file resolution
 │   ├── edit.bats          # Editor detection
@@ -434,6 +451,7 @@ tests/
 │   ├── help.bats          # Help output
 │   └── utils.bats         # Path/file utilities
 ├── integration/            # End-to-end command tests
+│   ├── batch.bats         # batch command
 │   ├── cat.bats           # cat command
 │   ├── config.bats        # config command
 │   ├── help.bats          # help/version commands
@@ -450,7 +468,7 @@ tests/
 └── run-tests.sh            # Test runner script
 ```
 
-**Test counts:** ~137 tests (95 unit + 42 integration)
+**Test counts:** ~140+ tests (unit + integration)
 
 ### Common Test Patterns
 
@@ -544,3 +562,11 @@ Ctrl+C during streaming:
 - Hardlinks updated atomically for safe concurrent access
 - Token estimation is approximate (actual may vary ±5%)
 - Don't run the full test suite any more than needed. Don't run it multiple times to process the output differently.
+
+## See Also
+
+- [Architecture](architecture.md) - System design overview
+- [Configuration](configuration.md) - Config cascade details
+- [Content & I/O](content.md) - File processing and aggregation
+- [Execution](execution.md) - Execution modes and streaming
+- [API Layer](api.md) - API interaction details

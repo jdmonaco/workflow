@@ -66,7 +66,7 @@ wfw edit extract-actions
 Or edit it manually:
 
 ```bash
-cat > .workflow/extract-actions/task.txt << 'EOF'
+cat > .workflow/run/extract-actions/task.txt << 'EOF'
 Extract all action items from the meeting notes and format them as a checklist.
 For each item, identify:
 1. What needs to be done

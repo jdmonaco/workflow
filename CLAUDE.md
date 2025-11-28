@@ -6,9 +6,9 @@ Quick reference for development workflows and processes.
 
 ## Developer Documentation Index
 
-- **[docs/contributing/index.md](docs/contributing/index.md)**: Getting started, development setup, commit guidelines
-- **[docs/contributing/architecture.md](docs/contributing/architecture.md)**: System design, architecture patterns, design decisions
-- **[docs/contributing/implementation.md](docs/contributing/implementation.md)**: Module reference, implementation details, technical gotchas
+- **[docs/developer-guide/index.md](docs/developer-guide/index.md)**: Getting started, development setup, commit guidelines
+- **[docs/developer-guide/architecture.md](docs/developer-guide/architecture.md)**: System design, architecture patterns, design decisions
+- **[docs/developer-guide/implementation.md](docs/developer-guide/implementation.md)**: Module reference, implementation details, technical gotchas
 
 ## Testing
 
@@ -28,7 +28,7 @@ bats tests/integration/run.bats        # Specific integration test
 
 **Structure:** `tests/unit/` (one file per lib/*.sh) + `tests/integration/` (one file per CLI command)
 
-**Details:** See [docs/contributing/implementation.md#testing-implementation](docs/contributing/implementation.md#testing-implementation)
+**Details:** See [docs/developer-guide/implementation.md#testing-implementation](docs/developer-guide/implementation.md#testing-implementation)
 
 ## Documentation Updates
 
@@ -47,9 +47,9 @@ README.md               → Brief overview, links to docs
 docs/index.md           → Landing page (must sync with README.md)
 docs/getting-started/   → Installation, tutorials
 docs/user-guide/        → Complete usage guide
-docs/reference/         → CLI and technical reference
+docs/reference/         → CLI command reference (per-command pages)
 lib/help.sh             → CLI help text
-docs/contributing/      → Architecture, implementation details
+docs/developer-guide/   → Architecture, implementation, layer docs
 ```
 
 ### Style Guidelines
@@ -78,7 +78,7 @@ docs/contributing/      → Architecture, implementation details
 4. Add `-h` check to subcommand case
 5. Add integration test: `tests/integration/<subcommand>.bats`
 6. Add unit tests: `tests/unit/<lib>.bats`
-7. Document in `docs/reference/cli-reference.md`
+7. Document in `docs/reference/<subcommand>.md` (per-command page)
 
 ### Modifying Configuration
 
@@ -95,7 +95,7 @@ docs/contributing/      → Architecture, implementation details
 
 ## Version Management
 
-**Current version:** 0.4.0 (pre-release)
+**Current version:** 0.5.0 (pre-release)
 
 **Location:** `WIREFLOW_VERSION` in `wireflow.sh` (line 14)
 
