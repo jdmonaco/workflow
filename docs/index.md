@@ -2,7 +2,7 @@
 
 **Reproducible AI Workflows for Research & Development**
 
-Version 0.4.0 (pre-release)
+Version 0.5.0 (pre-release)
 
 A terminal-based tool for building reproducible AI workflows with the Anthropic API. Process documents, chain workflows, and manage context—all from the command line.
 
@@ -10,7 +10,11 @@ A terminal-based tool for building reproducible AI workflows with the Anthropic 
 
 - 🎯 **Git-like Discovery:** Run from anywhere in your project tree. WireFlow walks up to find `.workflow/` automatically.
 
-- 📄 **Native Documents:** PDFs, Office files, and images handled natively. No preprocessing required.
+- 📄 **Native Documents:** PDFs, Office files, images (including HEIC, TIFF, SVG) handled natively with automatic conversion.
+
+- 🧠 **Model Profiles:** Switch between `fast`, `balanced`, and `deep` reasoning. Enable extended thinking for complex tasks.
+
+- 📦 **Batch Processing:** Process hundreds of documents at 50% cost savings with the Message Batches API.
 
 - 🔧 **Config Cascade:** Global → project → workflow → CLI. Set once, override where needed.
 
@@ -18,19 +22,15 @@ A terminal-based tool for building reproducible AI workflows with the Anthropic 
 
 - 🔗 **Workflow Chains:** Build pipelines with `--depends-on`. Outputs feed into dependent workflows.
 
-- 📦 **Input vs Context:** Separate primary documents from supporting materials for cleaner prompts.
+- 📥 **Input vs Context:** Separate primary documents from supporting materials for cleaner prompts.
 
-- 💰 **90% Cost Savings:** Smart prompt caching puts stable content first. Pay less for repeated runs.
+- 💰 **90% Cache Savings:** Smart prompt caching puts stable content first. Pay less for repeated runs.
 
 - 📚 **Citations:** Enable source attribution with `--enable-citations`. Get references you can verify.
 
-- ⚡ **Two Modes:** Persistent workflows for iteration, or quick `task` mode for one-off queries.
+- ⚡ **Three Modes:** Persistent workflows for iteration, quick `task` mode for one-offs, or `batch` for bulk processing.
 
 - 💾 **Safe Outputs:** Timestamped backups, hardlinked copies, atomic writes. Never lose work.
-
-- 📊 **Token Counting:** Instant estimates plus exact API counts. Know costs before you run.
-
-- 🌊 **Streaming:** Watch responses in real-time with `--stream`, or use buffered mode for long-form output.
 
 ## Quick Start
 

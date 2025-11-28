@@ -1,5 +1,63 @@
 # Release Notes
 
+## Version 0.5.0 (2025-11-28)
+
+**Batch Processing, Model Profiles & Image Format Conversion**
+
+This release adds three major capabilities: bulk document processing with the Message Batches API, intelligent model selection with profiles, and expanded image format support with automatic conversion.
+
+### 📦 Message Batches API
+
+Process hundreds of documents at 50% cost savings using the new `wfw batch` subcommand:
+
+```bash
+wfw batch submit my-workflow      # Submit batch job
+wfw batch status my-workflow      # Check progress
+wfw batch results my-workflow     # Retrieve outputs
+```
+
+Batches run asynchronously with up to 24-hour processing windows. Ideal for large-scale document analysis, bulk transformations, and overnight processing jobs.
+
+### 🧠 Model Profiles & Extended Thinking
+
+Switch between reasoning modes with the new `--profile` flag:
+
+- **fast**: Quick responses with Haiku
+- **balanced**: Default quality with Sonnet (default)
+- **deep**: Maximum reasoning with Opus
+
+Enable extended thinking for complex analytical tasks:
+
+```bash
+wfw run analysis --profile deep --thinking-budget 10000
+```
+
+Also supports the `EFFORT=high` parameter for Claude Opus 4.5's enhanced reasoning.
+
+### 📄 Image Format Conversion
+
+Expanded Vision API support with automatic format conversion:
+
+- **HEIC/HEIF → JPEG**: iPhone photos converted seamlessly (macOS `sips` fallback)
+- **TIFF/TIF → PNG**: Lossless preservation for archival images
+- **SVG → PNG**: Vector graphics rasterized at optimal resolution
+
+All conversions are cached at the project level for efficiency.
+
+### 🔧 CLI Improvements
+
+Simplified input/context file specification:
+
+```bash
+# New shorthand flags
+wfw run analysis -in data.csv -cx reference.pdf
+
+# Glob patterns work too
+wfw run summary -in "docs/*.md" -cx "examples/*.json"
+```
+
+---
+
 ## Version 0.4.0 (2025-11-25)
 
 **Test Suite Overhaul & Documentation Refresh**

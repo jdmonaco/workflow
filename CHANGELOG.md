@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-11-28
+
+### Added
+- Message Batches API support with `wfw batch` subcommand for 50% cost savings (f681121)
+- Model profiles: `fast`, `balanced`, `deep` with `--profile` flag (365a7dc)
+- Extended thinking support with `THINKING_BUDGET` parameter (365a7dc)
+- Effort parameter support for Claude Opus 4.5 (`EFFORT=high`) (365a7dc)
+- Simplified CLI input/context flags: `-in` and `-cx` shorthand (357286a)
+- Project-level shared cache for file conversions with hash-based IDs (20f29e0)
+- Image format conversion: HEIC/HEIF → JPEG, TIFF/TIF → PNG, SVG → PNG (6618f58)
+- macOS `sips` fallback for HEIC conversion when ImageMagick lacks libheif (6618f58)
+
+### Changed
+- Batch commands consolidated under `wfw batch` subcommand (c34081d)
+- Batch API removed from task mode (workflow-only feature) (3b9c827)
+- Reference docs updated to use "WireFlow" consistently (6618f58)
+- Key Features updated in README.md and docs/index.md
+
 ## [0.4.0] - 2025-11-25
 
 ### Added
