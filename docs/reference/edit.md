@@ -23,9 +23,11 @@ wfw edit [<name>]
 ## Behavior
 
 **Without `<name>` (project mode):**
+
 - Opens `project.txt` and `config` from `.workflow/`
 
 **With `<name>` (workflow mode):**
+
 - Opens `output`, `task.txt`, and `config` from `.workflow/run/<name>/`
 
 Files are opened in `$EDITOR` (defaults to `vi`).

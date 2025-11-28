@@ -58,6 +58,7 @@ WireFlow is organized into four technical layers:
 Multi-tier cascade: builtin → global → ancestor → project → workflow → CLI → env
 
 **Key concepts:**
+
 - Pass-through inheritance (empty value inherits)
 - Nested project support
 - Profile system (fast/balanced/deep)
@@ -69,6 +70,7 @@ Multi-tier cascade: builtin → global → ancestor → project → workflow →
 Handles all data flow: input processing, context aggregation, output management.
 
 **Key concepts:**
+
 - Input vs context semantic separation
 - Three aggregation methods (patterns, files, dependencies)
 - Automatic file type detection and conversion
@@ -81,6 +83,7 @@ Handles all data flow: input processing, context aggregation, output management.
 Three execution modes with different persistence models.
 
 **Key concepts:**
+
 - Run mode: full cascade, persistent output
 - Task mode: global config only, stdout
 - Batch mode: Message Batches API, 50% cost savings
@@ -93,6 +96,7 @@ Three execution modes with different persistence models.
 Anthropic Messages API interaction.
 
 **Key concepts:**
+
 - JSON-first request building
 - Prompt caching with strategic breakpoints
 - Citations support

@@ -19,6 +19,7 @@ Full workflow execution with persistent context and outputs.
 **Implementation:** `lib/run.sh` + `lib/execute.sh`
 
 **Characteristics:**
+
 - Configuration cascade: global → project → workflow → CLI
 - Output saved to `.workflow/run/<name>/output.<format>`
 - Hardlink created at `.workflow/output/<name>.<format>`
@@ -27,6 +28,7 @@ Full workflow execution with persistent context and outputs.
 - Default: buffered output
 
 **Flow:**
+
 ```
 1. Load config cascade
 2. Aggregate context (patterns, files, dependencies)
@@ -43,6 +45,7 @@ Lightweight execution without workflow directories.
 **Implementation:** `lib/task.sh`
 
 **Characteristics:**
+
 - Configuration: global + project/ancestor (if in project directory), no workflow config
 - Output to stdout (or file with `-ex`)
 - No persistence, no backups
@@ -50,6 +53,7 @@ Lightweight execution without workflow directories.
 - Default: streaming output
 
 **Flow:**
+
 ```
 1. Load global config
 2. Find project root (non-fatal if not found)
@@ -68,6 +72,7 @@ Bulk processing via Message Batches API.
 **Implementation:** `lib/batch.sh`
 
 **Characteristics:**
+
 - Each input file = separate API request
 - Context shared across all requests
 - 50% cost reduction via Batches API
@@ -75,6 +80,7 @@ Bulk processing via Message Batches API.
 - Results written to `.workflow/output/<name>/`
 
 **Flow:**
+
 ```
 1. Load config cascade
 2. Build requests (one per input file)
@@ -109,6 +115,7 @@ curl -Ns ... \
 ```
 
 **Processing:**
+
 ```bash
 while IFS= read -r line; do
     # Parse SSE event
@@ -230,17 +237,20 @@ show_token_breakdown() {
 Enables Claude to reason before responding.
 
 **Configuration:**
+
 ```bash
 ENABLE_THINKING=true
 THINKING_BUDGET=10240  # Token budget for thinking
 ```
 
 **CLI:**
+
 ```bash
 wfw run analysis --enable-thinking --thinking-budget 20000
 ```
 
 **Implementation:**
+
 ```bash
 # lib/execute.sh
 if [[ "$ENABLE_THINKING" == "true" ]]; then
@@ -261,11 +271,13 @@ Opus 4.5 only. Controls reasoning depth:
 | `high` | Deep, thorough reasoning |
 
 **Configuration:**
+
 ```bash
 EFFORT=medium
 ```
 
 **CLI:**
+
 ```bash
 wfw run analysis --effort high
 ```

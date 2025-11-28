@@ -9,6 +9,7 @@ WireFlow uses the Anthropic Messages API for all Claude interactions.
 **Implementation:** `lib/api.sh`
 
 **Endpoints:**
+
 - `/v1/messages` - Standard requests (streaming/buffered)
 - `/v1/messages/count_tokens` - Token counting
 - `/v1/messages/batches` - Batch processing
@@ -37,6 +38,7 @@ jq -n --slurpfile system "$system_file" \
 ### Content Block Structure
 
 **System blocks:**
+
 ```json
 [
   {"type": "text", "text": "[meta prompt]"},
@@ -47,6 +49,7 @@ jq -n --slurpfile system "$system_file" \
 ```
 
 **User content blocks:**
+
 ```json
 [
   {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "..."}},
@@ -79,6 +82,7 @@ curl -d @- < "$request_json"
 ### Standard Request
 
 **Streaming:**
+
 ```bash
 # lib/api.sh:anthropic_execute_stream()
 anthropic_execute_stream() {
@@ -95,6 +99,7 @@ anthropic_execute_stream() {
 ```
 
 **Buffered:**
+
 ```bash
 # lib/api.sh:anthropic_execute_single()
 anthropic_execute_single() {
@@ -138,6 +143,7 @@ anthropic_create_batch() {
 ```
 
 **Additional batch functions in `lib/api.sh`:**
+
 - `anthropic_get_batch()` - Get batch status
 - `anthropic_get_batch_results()` - Retrieve completed results
 - `anthropic_list_batches()` - List all batches
@@ -227,10 +233,12 @@ Breakpoints marked with `cache_control`:
 Maximum 4 breakpoints per request:
 
 **System array:**
+
 1. After system prompts (most stable)
 2. After project description
 
 **User array:**
+
 1. After last PDF (if present)
 2. After last text/image block (before task)
 

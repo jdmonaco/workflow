@@ -83,6 +83,7 @@ Native formats pass through directly. Conversion formats require ImageMagick:
 | `.tiff`, `.tif` | PNG | Print/scan |
 
 **Implementation:**
+
 - `lib/utils.sh:get_image_media_type()` - MIME type lookup
 - `lib/utils.sh:needs_format_conversion()` - Check if conversion needed
 - `lib/utils.sh:convert_image_format()` - ImageMagick conversion
@@ -114,6 +115,7 @@ Conversions are cached at project level with hash-based IDs:
 ```
 
 **Cache validation:**
+
 1. Check mtime (fast path)
 2. Check content hash for files ≤10MB (slow path)
 
@@ -142,13 +144,16 @@ Two methods can be combined:
 Content is aggregated stable → volatile:
 
 **Context Materials:**
+
 1. Config `CONTEXT` (project-relative, already glob-expanded)
 2. CLI `-cx/--context` (PWD-relative)
 
 **Dependencies:**
+
 1. `DEPENDS_ON` outputs from `.workflow/output/`
 
 **Input Documents:**
+
 1. Config `INPUT` (project-relative, already glob-expanded)
 2. CLI `-in/--input` or `-- <files>` (PWD-relative)
 
@@ -243,6 +248,7 @@ ln "$output_file" ".workflow/output/$name.$format"
 ```
 
 **Benefits:**
+
 - Visible in file browsers (unlike symlinks)
 - Single data storage (no duplication)
 - Atomic updates
@@ -278,14 +284,17 @@ postprocess_output()     # Format-specific processing
 WireFlow places cache breakpoints (`cache_control: {type: "ephemeral"}`) strategically:
 
 **System blocks:**
+
 1. After aggregated system prompts (most stable)
 2. After project descriptions
 
 **User content blocks:**
+
 1. After last PDF block (if PDFs exist)
 2. After last text/image block (before task)
 
 **Benefits:**
+
 - 90% cost reduction on cache reads
 - 5-minute default TTL
 - Minimum 1024 tokens per cached block

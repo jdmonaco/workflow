@@ -29,6 +29,7 @@ MODEL="claude-sonnet-4"
 ```
 
 **Benefits:**
+
 - Change global default → affects all empty configs
 - Explicit values stay independent
 - Easy to reset: set to empty to restore pass-through
