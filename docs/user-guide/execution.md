@@ -49,6 +49,7 @@ wfw run 03-report --depends-on 01-analysis 02-synthesis
 ```
 
 Or configure in workflow:
+
 ```bash
 # .workflow/run/04-synthesis/config
 DEPENDS_ON=(01-context 02-data 03-models)
@@ -57,6 +58,7 @@ DEPENDS_ON=(01-context 02-data 03-models)
 ### Automatic Dependency Execution
 
 When a workflow has dependencies, WireFlow automatically:
+
 1. Resolves the dependency chain (topological sort)
 2. Checks each dependency for staleness
 3. Re-executes stale dependencies before running the target
@@ -84,11 +86,13 @@ A workflow is considered stale when:
 - A dependency's output changed
 
 **Skip Auto-Dependencies:**
+
 ```bash
 wfw run 03-synthesis --no-auto-deps    # Use existing outputs only
 ```
 
 **Force Re-Execution:**
+
 ```bash
 wfw run 01-analysis --force            # Ignore staleness check
 ```
@@ -103,6 +107,7 @@ Each successful run creates `.workflow/run/<name>/execution.json` containing:
 - Dependency hashes for cache validation
 
 Use `wfw list` to see workflow status:
+
 ```
 Workflows:
   01-analysis    2024-11-28 14:30  [fresh]
@@ -134,6 +139,7 @@ wfw run analysis --dry-run        # Save prompts for inspection
 - Hardlink: `.workflow/output/<name>.<format>`
 
 **Automatic backups:**
+
 ```
 .workflow/run/analysis/output/
 ├── output.md                   # Latest
@@ -142,6 +148,7 @@ wfw run analysis --dry-run        # Save prompts for inspection
 ```
 
 **View output:**
+
 ```bash
 wfw cat analysis          # Display output
 wfw open analysis         # Open in editor
@@ -246,12 +253,14 @@ wfw run analysis --enable-thinking --thinking-budget 15000
 ## Streaming vs Buffered
 
 **Streaming (real-time):**
+
 ```bash
 wfw run analysis --stream
 wfw task -i "Summarize" -cx notes.md   # Default for task
 ```
 
 **Buffered (single response):**
+
 ```bash
 wfw run analysis                        # Default for run
 wfw task -i "Summarize" --no-stream

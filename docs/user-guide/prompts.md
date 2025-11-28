@@ -22,6 +22,7 @@ System prompts live in `$WIREFLOW_PROMPT_PREFIX/`:
 Default location is `~/.config/wireflow/prompts/`, created automatically on first use.
 
 **Custom location:**
+
 ```bash
 # In global config
 WIREFLOW_PROMPT_PREFIX="$HOME/my-prompts"
@@ -44,6 +45,7 @@ and ask for clarification if needed. Format output as requested.
 ```
 
 **Customize for your preferences:**
+
 ```bash
 wfw edit  # Then edit base.txt
 ```
@@ -51,6 +53,7 @@ wfw edit  # Then edit base.txt
 ### Creating Custom Prompts
 
 **Research Prompt (`research.txt`):**
+
 ```xml
 <research-prompt>
 You are assisting with academic research.
@@ -67,6 +70,7 @@ Writing Style: Formal academic, past tense for methods
 ```
 
 **Code Analysis Prompt (`code.txt`):**
+
 ```xml
 <code-analysis-prompt>
 You are assisting with code analysis.
@@ -84,21 +88,25 @@ Provide specific improvements with code examples.
 ### Using System Prompts
 
 **Global** (`~/.config/wireflow/config`):
+
 ```bash
 SYSTEM_PROMPTS=(base)
 ```
 
 **Project** (`.workflow/config`):
+
 ```bash
 SYSTEM_PROMPTS=(base research stats)
 ```
 
 **Workflow** (`.workflow/run/<name>/config`):
+
 ```bash
 SYSTEM_PROMPTS=(base code)
 ```
 
 **CLI override:**
+
 ```bash
 wfw run analysis --system "base,stats,research"
 ```
@@ -112,6 +120,7 @@ SYSTEM_PROMPTS=(base research stats)
 ```
 
 Results in:
+
 ```
 <base-prompt>...</base-prompt>
 <research-prompt>...</research-prompt>
@@ -135,6 +144,7 @@ Task templates are reusable task prompts for `wfw task` mode.
 ```
 
 Set custom location:
+
 ```bash
 WIREFLOW_TASK_PREFIX="$HOME/my-tasks"
 ```
@@ -142,12 +152,14 @@ WIREFLOW_TASK_PREFIX="$HOME/my-tasks"
 ### Creating Templates
 
 **summarize.txt:**
+
 ```
 Summarize the provided content in 3-5 bullet points.
 Focus on key findings, conclusions, and action items.
 ```
 
 **analyze.txt:**
+
 ```
 Analyze the provided content and identify:
 1. Main themes and patterns
@@ -173,6 +185,7 @@ wfw task review -cx script.py
 If non-empty, contents are wrapped in `<project>` tags and appended to the system prompt.
 
 **Example:**
+
 ```
 Research Manuscript: Neural Dynamics in Visual Cortex
 
@@ -195,6 +208,7 @@ When you run a workflow, the system prompt is built:
 2. **Project description** - Contents of `project.txt` (if non-empty)
 
 **Example result:**
+
 ```xml
 <base-prompt>
 You are Claude, an AI assistant for research.
@@ -212,6 +226,7 @@ This is a neuroscience project. All analysis uses Python and NumPy.
 ## Best Practices
 
 **Writing prompts:**
+
 - Be specific and concrete
 - Use clear section headings
 - Define expectations explicitly
@@ -219,6 +234,7 @@ This is a neuroscience project. All analysis uses Python and NumPy.
 - Use XML tags for structure
 
 **Organization:**
+
 ```
 prompts/
 ├── base.txt              # General instructions
@@ -229,6 +245,7 @@ prompts/
 ```
 
 **Combine as needed:**
+
 ```bash
 SYSTEM_PROMPTS=(base role-researcher format-academic domain-neuro)
 ```

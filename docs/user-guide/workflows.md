@@ -122,11 +122,13 @@ wfw list      # or: wfw ls
 ## Adding Context
 
 **In config:**
+
 ```bash
 CONTEXT=(README.md notes.txt data/*.csv)
 ```
 
 **At runtime:**
+
 ```bash
 wfw run analysis-01 -cx "data/*.csv" README.md
 ```
@@ -144,11 +146,13 @@ wfw run 02-analysis --depends-on 01-context
 This includes output from `01-context` as context for `02-analysis`.
 
 **Multiple dependencies:**
+
 ```bash
 wfw run 03-synthesis --depends-on 01-context 02-analysis
 ```
 
 **Dependency graph example:**
+
 ```
 00-data-import → 01-cleaning → 02-analysis → 03-report
                            └→ 02-tests ────┘
@@ -168,6 +172,7 @@ Outputs saved to `.workflow/run/<name>/output.<format>`:
 Hardlink also created at `.workflow/output/analysis-01.md` for convenience.
 
 **View output:**
+
 ```bash
 wfw cat analysis-01
 cat .workflow/run/analysis-01/output.md
@@ -177,17 +182,20 @@ cat .workflow/output/analysis-01.md
 ## Managing Workflows
 
 **Delete:**
+
 ```bash
 rm -r .workflow/run/old-workflow
 ```
 
 **Rename:**
+
 ```bash
 mv .workflow/run/old-name .workflow/run/new-name
 # Update DEPENDS_ON in dependent workflows
 ```
 
 **Copy:**
+
 ```bash
 cp -r .workflow/run/template .workflow/run/new-workflow
 ```
@@ -195,17 +203,20 @@ cp -r .workflow/run/template .workflow/run/new-workflow
 ## Best Practices
 
 **Do:**
+
 - Keep tasks focused and specific
 - Use descriptive workflow names
 - Set workflow-specific config only when needed
 - Use dependencies to chain related workflows
 
 **Don't:**
+
 - Create overly broad, multi-purpose workflows
 - Hardcode file paths (use context options)
 - Duplicate config across workflows (use project config)
 
 **Good task descriptions:**
+
 - Clear, specific instructions
 - Structured output requirements
 - Context about the domain

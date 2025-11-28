@@ -163,6 +163,7 @@ wfw config analysis     # Workflow configuration
 ```
 
 **Example output:**
+
 ```
 Configuration Paths:
   Global:     ~/.config/wireflow/config                    [✓]
@@ -218,6 +219,7 @@ wfw run analysis --temperature 0.5 --model claude-opus-4-5
 ## Best Practices
 
 **Do:**
+
 - Use global config for personal defaults
 - Use project config for project-wide settings
 - Use workflow config for context and task-specific settings
@@ -226,6 +228,7 @@ wfw run analysis --temperature 0.5 --model claude-opus-4-5
 - Use array append (`+=`) to build on parent values
 
 **Don't:**
+
 - Set the same value at multiple levels
 - Put sensitive data in project configs (use global or env)
 - Override everything at every level

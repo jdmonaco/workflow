@@ -14,6 +14,7 @@ WireFlow distinguishes between **input** (primary documents to process) and **co
 | **Citations** | Yes (with `--enable-citations`) | Yes |
 
 **Example:**
+
 ```bash
 # Summarize a report (input) using style guide (context)
 wfw run summarize -in report.pdf -cx style-guide.md
@@ -69,6 +70,7 @@ wfw run analyze-diagram -in flowchart.svg -cx photo.heic
 ```
 
 **Requirements:**
+
 - HEIC: `sips` (macOS) or ImageMagick
 - TIFF: `sips` (macOS) or ImageMagick
 - SVG: `rsvg-convert` (librsvg) or Inkscape
@@ -88,6 +90,7 @@ wfw run research \
 Content is assembled in this order:
 
 **Run mode:**
+
 1. System prompts (`SYSTEM_PROMPTS`)
 2. Project description (`project.txt`)
 3. Context files (config + CLI)
@@ -97,6 +100,7 @@ Content is assembled in this order:
 7. Task prompt (`task.txt`)
 
 **Task mode:**
+
 1. System prompts
 2. Project description (if in project)
 3. Context files (CLI)
@@ -185,16 +189,19 @@ ls -la .workflow/cache/images/
 ## Best Practices
 
 **Input vs Context:**
+
 - Use `-in` for documents you're actively processing
 - Use `-cx` for reference materials, prior outputs, style guides
 - Dependencies (`--depends-on`) automatically become context
 
 **File organization:**
+
 - Keep source documents in predictable locations
 - Use glob patterns for dynamic file sets: `CONTEXT=(data/*.csv)`
 - Use explicit paths for fixed sets: `INPUT=(report.pdf summary.md)`
 
 **Performance:**
+
 - First run with Office/image files is slower (conversion)
 - Subsequent runs use cache
 - Large images auto-resize to reduce API costs
