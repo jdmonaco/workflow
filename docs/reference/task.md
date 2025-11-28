@@ -20,13 +20,13 @@ wfw task <name>|--inline <text> [options] [-- <input>...]
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--input <path>` | `-in` | Add input file or directory (repeatable) |
+| `--input <path>...` | `-in` | Add input files/directories (multiple allowed) |
 
 ## Context Options
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--context <path>` | `-cx` | Add context file or directory (repeatable) |
+| `--context <path>...` | `-cx` | Add context files/directories (multiple allowed) |
 
 ## Model Options
 
@@ -84,10 +84,10 @@ wfw task <name>|--inline <text> [options] [-- <input>...]
 # Named task template
 wfw task summarize -cx paper.pdf
 
-# Inline task
-wfw task -i "Summarize these notes" -cx notes.md
+# Inline task with multiple context files
+wfw task -i "Summarize these notes" -cx notes.md references.md
 
-# With model options
+# With model options and multiple input files
 wfw task analyze -in data/*.csv --enable-thinking
 
 # Save to file

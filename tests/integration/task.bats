@@ -171,3 +171,62 @@ EOF
     # Test that it completes without hanging (output size should be bounded)
     assert [ "${#output}" -lt "5000" ]
 }
+
+# ============================================================================
+# Multi-argument option parsing tests
+# ============================================================================
+
+@test "task: -in accepts multiple arguments" {
+    # Create test input files
+    echo "input1" > input1.txt
+    echo "input2" > input2.txt
+    echo "input3" > input3.txt
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # Use -in with multiple arguments
+    run "${SCRIPT_DIR}/wireflow.sh" task -i "Analyze these files" -in input1.txt input2.txt input3.txt
+    assert_success
+    assert_output --partial "DRY RUN MODE"
+}
+
+@test "task: -cx accepts multiple arguments" {
+    # Create test context files
+    echo "context1" > ctx1.md
+    echo "context2" > ctx2.md
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # Use -cx with multiple arguments
+    run "${SCRIPT_DIR}/wireflow.sh" task -i "Summarize" -cx ctx1.md ctx2.md
+    assert_success
+    assert_output --partial "DRY RUN MODE"
+}
+
+@test "task: multi-arg parsing stops at next option" {
+    # Create test files
+    echo "input content" > input.txt
+    echo "context content" > context.md
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # Use -in followed by -cx - should correctly separate them
+    run "${SCRIPT_DIR}/wireflow.sh" task -i "Process" -in input.txt -cx context.md
+    assert_success
+    assert_output --partial "DRY RUN MODE"
+}
+
+@test "task: mixed single and multi-arg options" {
+    # Create test files
+    echo "file1" > a.txt
+    echo "file2" > b.txt
+    echo "ctx1" > c.md
+    echo "ctx2" > d.md
+
+    export WIREFLOW_DRY_RUN="true"
+
+    # Mix multi-arg with model options
+    run "${SCRIPT_DIR}/wireflow.sh" task -i "Analyze" -in a.txt b.txt --profile fast -cx c.md d.md
+    assert_success
+    assert_output --partial "DRY RUN MODE"
+}

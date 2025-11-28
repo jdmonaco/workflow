@@ -21,7 +21,7 @@ Primary documents to be analyzed or transformed.
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--input <path>` | `-in` | Add input file or directory (repeatable) |
+| `--input <path>...` | `-in` | Add input files/directories (multiple allowed) |
 
 ## Context Options
 
@@ -29,8 +29,8 @@ Background materials and references.
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--context <path>` | `-cx` | Add context file or directory (repeatable) |
-| `--depends-on <workflow>` | `-d` | Include output from another workflow |
+| `--context <path>...` | `-cx` | Add context files/directories (multiple allowed) |
+| `--depends-on <name>...` | `-dp` | Include outputs from other workflows |
 
 ## Model Options
 
@@ -98,11 +98,12 @@ wfw run 01-analysis --stream
 wfw run 01-analysis --profile deep --enable-thinking
 wfw run 01-analysis --model claude-opus-4-5 --effort medium
 
-# With input and context
-wfw run report -in data.csv -cx notes.md
+# With input and context (multiple files)
+wfw run report -in data.csv results.json -cx notes.md reference.pdf
 
 # With dependencies
-wfw run 02-synthesis --depends-on 01-analysis
+wfw run 02-synthesis -dp 01-analysis
+wfw run 03-final -dp 01-analysis 02-synthesis
 
 # Token estimation only
 wfw run analysis --count-tokens

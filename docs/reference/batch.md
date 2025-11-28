@@ -33,7 +33,7 @@ Each input file becomes a separate API request.
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--input <path>` | `-in` | Add input file or directory (repeatable) |
+| `--input <path>...` | `-in` | Add input files/directories (multiple allowed) |
 
 ## Context Options
 
@@ -41,8 +41,8 @@ Context is shared across all requests.
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--context <path>` | `-cx` | Add context file or directory (repeatable) |
-| `--depends-on <workflow>` | `-d` | Include output from another workflow |
+| `--context <path>...` | `-cx` | Add context files/directories (multiple allowed) |
+| `--depends-on <name>...` | `-dp` | Include outputs from other workflows |
 
 ## Model Options
 
@@ -74,7 +74,7 @@ Context is shared across all requests.
 
 ## Output Location
 
-Results are written to `.workflow/run/<name>/output/`:
+Results are written to the workflow's output directory:
 
 ```
 .workflow/run/<name>/output/
@@ -82,6 +82,8 @@ Results are written to `.workflow/run/<name>/output/`:
 ├── <input2-basename>.md
 └── ...
 ```
+
+Results are also copied to `.workflow/output/<name>/` for convenient access.
 
 ## Examples
 

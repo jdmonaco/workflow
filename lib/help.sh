@@ -218,11 +218,11 @@ Arguments:
     -- <input>...                 Input files/directories (after --)
 
 Input Options (primary documents):
-    --input, -in <path>           Add input file or directory (repeatable)
+    --input, -in <path>...        Add input files/directories (multiple allowed)
 
 Context Options (background and references):
-    --context, -cx <path>         Add context file or directory (repeatable)
-    --depends-on, -d <workflow>   Include output from another workflow
+    --context, -cx <path>...      Add context files/directories (multiple allowed)
+    --depends-on, -dp <name>...   Include outputs from other workflows
 
 Model Options:
     --profile <tier>              Model tier: fast, balanced, deep
@@ -281,10 +281,10 @@ Task Specification:
     -- <input>...                 Input files/directories (after --)
 
 Input Options (primary documents to analyze):
-    --input, -in <path>           Add input file or directory (repeatable)
+    --input, -in <path>...        Add input files/directories (multiple allowed)
 
 Context Options (supporting materials and references):
-    --context, -cx <path>         Add context file or directory (repeatable)
+    --context, -cx <path>...      Add context files/directories (multiple allowed)
 
 Model Options:
     --profile <tier>              Model tier: fast, balanced, deep
@@ -426,11 +426,11 @@ Arguments:
     -- <input>...                 Input files/directories (after --)
 
 Input Options (one request per file):
-    --input, -in <path>           Add input file or directory (repeatable)
+    --input, -in <path>...        Add input files/directories (multiple allowed)
 
 Context Options (shared across all requests):
-    --context, -cx <path>         Add context file or directory (repeatable)
-    --depends-on, -d <workflow>   Include output from another workflow
+    --context, -cx <path>...      Add context files/directories (multiple allowed)
+    --depends-on, -dp <name>...   Include outputs from other workflows
 
 Model Options:
     --profile <tier>              Model tier: fast, balanced, deep

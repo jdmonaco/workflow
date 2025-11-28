@@ -818,15 +818,19 @@ cmd_batch() {
         case "$1" in
             --input|-in)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --input requires argument" >&2; return 1; }
-                cli_input_paths+=("$1")
-                shift
+                [[ $# -eq 0 || "$1" =~ ^- ]] && { echo "Error: --input requires at least one argument" >&2; return 1; }
+                while [[ $# -gt 0 && ! "$1" =~ ^- ]]; do
+                    cli_input_paths+=("$1")
+                    shift
+                done
                 ;;
             --context|-cx)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --context requires argument" >&2; return 1; }
-                cli_context_paths+=("$1")
-                shift
+                [[ $# -eq 0 || "$1" =~ ^- ]] && { echo "Error: --context requires at least one argument" >&2; return 1; }
+                while [[ $# -gt 0 && ! "$1" =~ ^- ]]; do
+                    cli_context_paths+=("$1")
+                    shift
+                done
                 ;;
             --)
                 shift
@@ -835,12 +839,14 @@ cmd_batch() {
                     shift
                 done
                 ;;
-            --depends-on|-d)
+            --depends-on|-dp)
                 shift
-                [[ $# -eq 0 ]] && { echo "Error: --depends-on requires argument" >&2; return 1; }
-                DEPENDS_ON+=("$1")
+                [[ $# -eq 0 || "$1" =~ ^- ]] && { echo "Error: --depends-on requires at least one argument" >&2; return 1; }
+                while [[ $# -gt 0 && ! "$1" =~ ^- ]]; do
+                    DEPENDS_ON+=("$1")
+                    shift
+                done
                 WORKFLOW_SOURCE_MAP[DEPENDS_ON]="cli"
-                shift
                 ;;
             --export|-ex)
                 shift
