@@ -18,7 +18,7 @@ Version 0.5.0 (pre-release)
 
 - 🏗️ **Nested Projects:** Inherit settings from parent projects. Perfect for monorepos.
 
-- 🔗 **Workflow Chains:** Build pipelines with `--depends-on`. Outputs feed into dependent workflows.
+- 🔗 **Workflow Chains:** Build pipelines with `--depends-on`. Stale dependencies auto-execute before the target.
 
 - 📥 **Input vs Context:** Separate primary documents from supporting materials for cleaner prompts.
 
@@ -80,7 +80,7 @@ wfw task -i "Extract key points" -cx notes.md
 wfw task summarize -cx "*.md"
 ```
 
-**Workflow Chains:** Build dependent pipelines with automatic context passing:
+**Workflow Chains:** Build dependent pipelines with automatic context passing and stale dependency re-execution:
 
 ```bash
 wfw run 02-analysis --depends-on 01-context --stream

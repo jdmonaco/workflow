@@ -200,7 +200,7 @@ wfw edit prioritize-actions
 wfw run prioritize-actions --depends-on extract-actions --stream
 ```
 
-The `--depends-on` flag automatically includes the output of `extract-actions` as context!
+The `--depends-on` flag automatically includes the output of `extract-actions` as context. If `extract-actions` is stale (modified since last run), it will be re-executed automatically before `prioritize-actions` runs.
 
 ### Try Task Mode
 

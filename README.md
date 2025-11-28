@@ -12,7 +12,7 @@ Version 0.5.0 (pre-release) · [Documentation](https://docs.joemona.co/wireflow/
 - 📦 **Batch Processing:** Process hundreds of documents at 50% cost savings with the Message Batches API.
 - 🔧 **Config Cascade:** Global → project → workflow → CLI. Set once, override where needed.
 - 🏗️ **Nested Projects:** Inherit settings from parent projects. Perfect for monorepos.
-- 🔗 **Workflow Chains:** Build pipelines with `--depends-on`. Outputs feed into dependent workflows.
+- 🔗 **Workflow Chains:** Build pipelines with `--depends-on`. Stale dependencies auto-execute before the target.
 - 📥 **Input vs Context:** Separate primary documents from supporting materials for cleaner prompts.
 - 💰 **90% Cache Savings:** Smart prompt caching puts stable content first. Pay less for repeated runs.
 - 📚 **Citations:** Enable source attribution with `--enable-citations`. Get references you can verify.
@@ -130,7 +130,7 @@ wfw run analyze-data -cx data.csv --stream
 ```bash
 wfw run 00-context --stream
 wfw run 01-outline --depends-on 00-context --stream
-wfw run 02-draft --depends-on 00-context,01-outline --stream
+wfw run 02-draft --depends-on 00-context 01-outline --stream
 ```
 
 ### Quick Query

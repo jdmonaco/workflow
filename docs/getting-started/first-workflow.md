@@ -173,7 +173,7 @@ wfw run 02-generate-docs \
 ```
 
 !!! tip "Automatic Context Chaining"
-    The `--depends-on` flag automatically includes the output from `01-analyze-code` as context. No need to manually copy files!
+    The `--depends-on` flag automatically includes the output from `01-analyze-code` as context. If `01-analyze-code` is stale, it will be re-executed first. No need to manually track dependencies!
 
 ### Review the Generated Documentation
 
