@@ -155,7 +155,7 @@ get_batch_display_status() {
 #   $3 - workflow_dir: Workflow directory (for output)
 # Requires:
 #   SYSTEM_BLOCKS, CONTEXT_BLOCKS, CONTEXT_PDF_BLOCKS, etc. already populated
-#   INPUT_FILES, INPUT_PATTERN, CLI_INPUT_PATHS (paths can be files or directories)
+#   INPUT, CLI_INPUT_PATHS (paths can be files or directories)
 # Returns:
 #   0 - Success
 #   1 - Error (no input files)
@@ -172,19 +172,11 @@ build_batch_requests() {
     # Collect all input files into array
     local -a all_input_files=()
 
-    # Run mode: Add from config
+    # Run mode: Add from config INPUT array (already glob-expanded)
     if [[ "$mode" == "run" ]]; then
-        for file in "${INPUT_FILES[@]}"; do
-            [[ -n "$file" ]] && all_input_files+=("$project_root/$file")
+        for file in "${INPUT[@]}"; do
+            [[ -n "$file" && -f "$project_root/$file" ]] && all_input_files+=("$project_root/$file")
         done
-
-        if [[ -n "$INPUT_PATTERN" ]]; then
-            local -a pattern_files
-            pattern_files=($(cd "$project_root" && eval "echo $INPUT_PATTERN" 2>/dev/null))
-            for file in "${pattern_files[@]}"; do
-                [[ -f "$project_root/$file" ]] && all_input_files+=("$project_root/$file")
-            done
-        fi
     fi
 
     # Both modes: Add from CLI (paths can be files or directories)

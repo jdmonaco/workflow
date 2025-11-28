@@ -89,10 +89,8 @@ wfw run analysis --profile deep
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `INPUT_PATTERN` | (unset) | Glob pattern for input files |
-| `INPUT_FILES` | (unset) | Array of explicit input paths |
-| `CONTEXT_PATTERN` | (unset) | Glob pattern for context files |
-| `CONTEXT_FILES` | (unset) | Array of explicit context paths |
+| `INPUT` | (unset) | Array of input file paths (globs expand at source time) |
+| `CONTEXT` | (unset) | Array of context file paths (globs expand at source time) |
 | `DEPENDS_ON` | (unset) | Array of workflow dependencies |
 
 ### Output Options
@@ -196,25 +194,23 @@ Config paths are resolved relative to project root, CLI paths relative to PWD:
 
 | Source | Resolution |
 |--------|------------|
-| `CONTEXT_PATTERN` in config | Project-relative |
+| `CONTEXT` in config | Project-relative (globs expand at source time) |
 | `-cx` on CLI | PWD-relative |
-| `INPUT_FILES` in config | Project-relative |
+| `INPUT` in config | Project-relative (globs expand at source time) |
 | `-in` on CLI | PWD-relative |
 
 ### Processing Order
 
-Context and input are processed in order (config patterns → CLI files → config files → CLI files):
+Context and input are processed in order (config → CLI):
 
 ```
 Context:
-1. Config CONTEXT_PATTERN (project-relative)
-2. Config CONTEXT_FILES (project-relative)
-3. CLI -cx (PWD-relative)
+1. Config CONTEXT (project-relative, already glob-expanded)
+2. CLI -cx (PWD-relative)
 
 Input:
-1. Config INPUT_PATTERN (project-relative)
-2. Config INPUT_FILES (project-relative)
-3. CLI -in (PWD-relative)
+1. Config INPUT (project-relative, already glob-expanded)
+2. CLI -in (PWD-relative)
 ```
 
 ## Display Functions

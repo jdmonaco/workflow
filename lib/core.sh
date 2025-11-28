@@ -104,18 +104,21 @@ CONFIG_EOF
 #   Leave EMPTY to inherit:        MODEL=
 #   Set VALUE to override:         MODEL=claude-opus-4
 #
-# Array Variables (SYSTEM_PROMPTS, CONTEXT_FILES):
-# ┌──────────────────────────┬─────────────────────────────────────┐
-# │ Syntax                   │ Behavior                            │
-# ├──────────────────────────┼─────────────────────────────────────┤
-# │ CONTEXT_FILES=           │ Inherit from parent (pass-through)  │
-# │ CONTEXT_FILES=()         │ Clear (reset to empty)              │
-# │ CONTEXT_FILES=(file.pdf) │ Replace (override parent)           │
-# │ CONTEXT_FILES+=(add.pdf) │ Append (add to parent)              │
-# └──────────────────────────┴─────────────────────────────────────┘
+# Array Variables (SYSTEM_PROMPTS, CONTEXT):
+# ┌────────────────────────┬─────────────────────────────────────┐
+# │ Syntax                 │ Behavior                            │
+# ├────────────────────────┼─────────────────────────────────────┤
+# │ CONTEXT=               │ Inherit from parent (pass-through)  │
+# │ CONTEXT=()             │ Clear (reset to empty)              │
+# │ CONTEXT=(file.pdf)     │ Replace (override parent)           │
+# │ CONTEXT+=(add.pdf)     │ Append (add to project)             │
+# └────────────────────────┴─────────────────────────────────────┘
 #
-# Multi-line arrays (use quotes for filenames with spaces):
-#   CONTEXT_FILES=(
+# Glob patterns expand at config source time (from project root):
+#   CONTEXT=(data/*.csv notes.md docs/**/*.pdf)
+#
+# Filenames with spaces require quotes:
+#   CONTEXT=(
 #       "references/first paper.pdf"
 #       "data/experiment results.csv"
 #   )
@@ -128,9 +131,10 @@ CONFIG_EOF
 #   SYSTEM_PROMPTS=(base neuroai-research)
 #
 #   # Add project context files
-#   CONTEXT_FILES=(
-#       "project-background.md"
-#       "related-work.pdf"
+#   CONTEXT=(
+#       project-background.md
+#       related-work.pdf
+#       data/*.csv
 #   )
 CONFIG_EOF
 
@@ -294,20 +298,23 @@ WORKFLOW_CONFIG_EOF
 #   Leave EMPTY to inherit:        TEMPERATURE=
 #   Set VALUE to override:         TEMPERATURE=0.7
 #
-# Array Variables (SYSTEM_PROMPTS, CONTEXT_FILES, INPUT_FILES, DEPENDS_ON):
-# ┌──────────────────────────┬─────────────────────────────────────┐
-# │ Syntax                   │ Behavior                            │
-# ├──────────────────────────┼─────────────────────────────────────┤
-# │ CONTEXT_FILES=           │ Inherit from project (pass-through) │
-# │ CONTEXT_FILES=()         │ Clear (reset to empty)              │
-# │ CONTEXT_FILES=(file.pdf) │ Replace (override project)          │
-# │ CONTEXT_FILES+=(add.pdf) │ Append (add to project)             │
-# └──────────────────────────┴─────────────────────────────────────┘
+# Array Variables (SYSTEM_PROMPTS, CONTEXT, INPUT, DEPENDS_ON):
+# ┌────────────────────────┬─────────────────────────────────────┐
+# │ Syntax                 │ Behavior                            │
+# ├────────────────────────┼─────────────────────────────────────┤
+# │ CONTEXT=               │ Inherit from project (pass-through) │
+# │ CONTEXT=()             │ Clear (reset to empty)              │
+# │ CONTEXT=(file.pdf)     │ Replace (override project)          │
+# │ CONTEXT+=(add.pdf)     │ Append (add to project)             │
+# └────────────────────────┴─────────────────────────────────────┘
 #
-# Multi-line arrays (use quotes for filenames with spaces):
-#   INPUT_FILES=(
-#       "data/input1.txt"
-#       "data/input2.txt"
+# Glob patterns expand at config source time (from project root):
+#   INPUT=(reports/*.pdf data/*.csv)
+#
+# Filenames with spaces require quotes:
+#   INPUT=(
+#       "data/input file 1.txt"
+#       "data/input file 2.txt"
 #   )
 #
 # Common Patterns:
@@ -315,13 +322,13 @@ WORKFLOW_CONFIG_EOF
 #   SYSTEM_PROMPTS+=(grant-writing)
 #
 #   # Add workflow-specific context to project's files
-#   CONTEXT_FILES+=(NSF\ requirements.pdf)
+#   CONTEXT+=("NSF requirements.pdf")
 #
 #   # Use completely different files for this workflow
-#   CONTEXT_FILES=(workflow-specific.md)
+#   CONTEXT=(workflow-specific.md)
 #
 #   # Clear inherited context, start fresh
-#   CONTEXT_FILES=()
+#   CONTEXT=()
 WORKFLOW_CONFIG_EOF
 
     # Show summary report

@@ -108,14 +108,12 @@ Content is assembled in this order:
 
 ### Config File Paths
 
-Paths in config files are **relative to project root**:
+Paths in config files are **relative to project root**. Glob patterns expand when the config is sourced:
 
 ```bash
 # In .workflow/config or .workflow/run/<name>/config
-CONTEXT_PATTERN=data/*.csv
-CONTEXT_FILES=(notes/analysis.md refs/paper.pdf)
-INPUT_PATTERN=reports/*.pdf
-INPUT_FILES=(main-report.pdf)
+CONTEXT=(notes/analysis.md refs/paper.pdf data/*.csv)
+INPUT=(main-report.pdf reports/*.pdf)
 ```
 
 ### CLI Paths
@@ -140,9 +138,9 @@ wfw run analysis -cx local-notes.md
 # Multiple directories
 -cx "data/{exp1,exp2}/*"
 
-# In config
-CONTEXT_PATTERN=data/*.csv
-INPUT_PATTERN=reports/**/*.pdf
+# In config (globs expand at source time from project root)
+CONTEXT=(data/*.csv notes/**/*.md)
+INPUT=(reports/**/*.pdf)
 ```
 
 ## Caching
@@ -180,10 +178,8 @@ ls -la .workflow/cache/images/
 
 | Variable | Description | Scope |
 |----------|-------------|-------|
-| `CONTEXT_PATTERN` | Glob for context files | Project, Workflow |
-| `CONTEXT_FILES` | Explicit context file paths | Project, Workflow |
-| `INPUT_PATTERN` | Glob for input files | Workflow |
-| `INPUT_FILES` | Explicit input file paths | Workflow |
+| `CONTEXT` | Context file paths (globs expand at source time) | Project, Workflow |
+| `INPUT` | Input file paths (globs expand at source time) | Workflow |
 | `ENABLE_CITATIONS` | Enable source citations | All |
 
 ## Best Practices
@@ -195,8 +191,8 @@ ls -la .workflow/cache/images/
 
 **File organization:**
 - Keep source documents in predictable locations
-- Use glob patterns in config for dynamic file sets
-- Use explicit `INPUT_FILES`/`CONTEXT_FILES` for fixed sets
+- Use glob patterns for dynamic file sets: `CONTEXT=(data/*.csv)`
+- Use explicit paths for fixed sets: `INPUT=(report.pdf summary.md)`
 
 **Performance:**
 - First run with Office/image files is slower (conversion)

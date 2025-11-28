@@ -424,7 +424,7 @@ bash -n ~/.config/wireflow/config
 # Example correct syntax:
 MODEL="claude-opus-4-5-20251101"
 SYSTEM_PROMPTS=(base research)
-CONTEXT_FILES=("file1.md" "file2.txt")
+CONTEXT=("file1.md" "file2.txt" data/*.csv)
 ```
 
 ## Nested Project Issues
@@ -458,7 +458,7 @@ Nested projects are **independent**:
 
 ```bash
 # In nested project workflow config
-CONTEXT_FILES=("../../parent-file.md")  # Explicit path to parent
+CONTEXT=("../../parent-file.md")  # Explicit path to parent
 ```
 
 ## Task Mode Issues

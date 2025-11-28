@@ -257,33 +257,30 @@ Prevents parent config from affecting current shell.
 
 ### Path Resolution Implementation
 
-**Config patterns:**
+**Config arrays (source-time expansion):**
 
 ```bash
-# Expansion in project root context
-local files
-files=$(cd "$PROJECT_ROOT" && eval echo "$CONTEXT_PATTERN")
+# CONTEXT and INPUT arrays expand when config is sourced from project root
+# extract_config() sources the config file from PROJECT_ROOT
+# This allows CONTEXT=(data/*.csv) to expand correctly
 ```
 
 **CLI paths:**
 
 ```bash
-# Stored separately, used as-is
-CLI_CONTEXT_FILES+=("$file")  # Relative to PWD
+# Stored separately, used as-is (PWD-relative)
+CLI_CONTEXT_PATHS+=("$file")  # Relative to PWD
 ```
 
-**Why:** Ensures patterns resolve relative to project root regardless of PWD.
+**Why:** Config paths expand at source time from project root; CLI paths resolve at use time from PWD.
 
 ### Glob Expansion Timing
 
-Patterns must expand in correct directory:
+Config files are sourced from PROJECT_ROOT, so globs expand correctly:
 
 ```bash
-# Good - explicit context
-(cd "$PROJECT_ROOT" && echo $PATTERN)
-
-# Bad - expands in current directory
-echo $PATTERN
+# extract_config() does: cd "$source_dir" && source "$config_file"
+# This makes CONTEXT=(data/*.csv) expand in project root context
 ```
 
 ### Hardlink Behavior
@@ -512,26 +509,24 @@ source "$config_file"  # Bad - affects current shell
 
 ```bash
 SYSTEM_PROMPTS=(base custom)
-CONTEXT_FILES=("file1.md" "file2.txt")
+CONTEXT=("file1.md" "file2.txt")
+INPUT=(data/*.csv)  # Globs expand at source time
 ```
 
 **Incorrect:**
 
 ```bash
 SYSTEM_PROMPTS="base,custom"  # String, not array
-CONTEXT_FILES=["file1.md", "file2.txt"]  # JSON syntax, not bash
+CONTEXT=["file1.md", "file2.txt"]  # JSON syntax, not bash
 ```
 
 ### Glob Expansion Context
 
-Patterns must expand in correct directory:
+Config files are sourced from PROJECT_ROOT, so globs expand correctly:
 
 ```bash
-# Good - explicit context
-(cd "$PROJECT_ROOT" && echo $PATTERN)
-
-# Bad - expands in current directory
-echo $PATTERN
+# extract_config() does: cd "$source_dir" && source "$config_file"
+# This makes CONTEXT=(data/*.csv) expand in project root context
 ```
 
 ### Hardlink Filesystem Limitations

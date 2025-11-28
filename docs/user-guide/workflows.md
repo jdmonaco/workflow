@@ -72,7 +72,7 @@ Override project defaults in `config`:
 MODEL=claude-opus-4-5-20251101
 TEMPERATURE=0.5
 MAX_TOKENS=8192
-CONTEXT_PATTERN=data/*.csv
+CONTEXT=(data/*.csv notes.md)
 OUTPUT_FORMAT=md
 ```
 
@@ -115,18 +115,15 @@ wfw list      # or: wfw ls
 | `MAX_TOKENS` | Max response tokens | `8192` |
 | `SYSTEM_PROMPTS` | System prompts (array) | `(base research)` |
 | `OUTPUT_FORMAT` | Output extension | `md`, `json` |
-| `INPUT_FILES` | Primary inputs (array) | `(report.pdf data.csv)` |
-| `INPUT_PATTERN` | Input glob pattern | `docs/*.md` |
-| `CONTEXT_FILES` | Context files (array) | `(intro.md methods.md)` |
-| `CONTEXT_PATTERN` | Context glob pattern | `data/*.csv` |
+| `INPUT` | Input files (array, globs expand) | `(report.pdf data/*.csv)` |
+| `CONTEXT` | Context files (array, globs expand) | `(intro.md methods.md)` |
 | `DEPENDS_ON` | Dependencies (array) | `(00-context 01-analysis)` |
 
 ## Adding Context
 
 **In config:**
 ```bash
-CONTEXT_PATTERN=data/*.csv
-CONTEXT_FILES=(README.md notes.txt)
+CONTEXT=(README.md notes.txt data/*.csv)
 ```
 
 **At runtime:**

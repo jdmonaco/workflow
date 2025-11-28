@@ -976,11 +976,9 @@ build_and_track_document_block() {
 #   $2 - project_root: Project root (for run mode, empty for task standalone)
 #   $3 - workflow_dir: Workflow directory (for cache), or temp dir for task mode
 # Requires (run mode):
-#   INPUT_PATTERN: Config input pattern
-#   INPUT_FILES: Array of config input files
+#   INPUT: Array of input file paths (project-relative, already glob-expanded)
 #   DEPENDS_ON: Array of workflow dependencies
-#   CONTEXT_PATTERN: Config context pattern
-#   CONTEXT_FILES: Array of config context files
+#   CONTEXT: Array of context file paths (project-relative, already glob-expanded)
 # Requires (both modes):
 #   CLI_INPUT_PATHS: Array of CLI input paths (files or directories)
 #   CLI_CONTEXT_PATHS: Array of CLI context paths (files or directories)
@@ -1030,36 +1028,21 @@ aggregate_context() {
 
     # =============================================================================
     # CONTEXT FILES AGGREGATION (most stable)
-    # Order: CONTEXT_FILES → CONTEXT_PATTERN → CLI_CONTEXT_PATHS
+    # Order: Config CONTEXT → CLI_CONTEXT_PATHS
     # =============================================================================
 
-    # Run mode: Add explicit files from config CONTEXT_FILES (project-relative, most stable)
-    if [[ "$mode" == "run" && ${#CONTEXT_FILES[@]} -gt 0 ]]; then
-        echo "  Adding explicit context files from config..."
-        for file in "${CONTEXT_FILES[@]}"; do
+    # Run mode: Add files from config CONTEXT array (project-relative, already glob-expanded)
+    if [[ "$mode" == "run" && ${#CONTEXT[@]} -gt 0 ]]; then
+        echo "  Adding context files from config..."
+        for file in "${CONTEXT[@]}"; do
             local resolved_file="$project_root/$file"
             if [[ ! -f "$resolved_file" ]]; then
-                echo "Error: Context file not found: $file (resolved: $resolved_file)"
-                exit 1
+                echo "Warning: Context file not found: $file (resolved: $resolved_file)" >&2
+                continue
             fi
 
             # Build and track document block
             build_and_track_document_block "$resolved_file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
-        done
-    fi
-
-    # Run mode: Add files from config CONTEXT_PATTERN (project-relative)
-    if [[ "$mode" == "run" && -n "$CONTEXT_PATTERN" ]]; then
-        echo "  Adding context from config pattern: $CONTEXT_PATTERN"
-        local pattern_files
-        pattern_files=($(cd "$project_root" && eval "echo $CONTEXT_PATTERN"))
-
-        for file in "${pattern_files[@]}"; do
-            local abs_file="$project_root/$file"
-            if [[ -f "$abs_file" ]]; then
-                # Build and track document block
-                build_and_track_document_block "$abs_file" "context" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
-            fi
         done
     fi
 
@@ -1099,37 +1082,22 @@ aggregate_context() {
 
     # =============================================================================
     # INPUT DOCUMENTS AGGREGATION (most volatile)
-    # Order: INPUT_FILES → INPUT_PATTERN → CLI_INPUT_PATHS
+    # Order: Config INPUT → CLI_INPUT_PATHS
     # Note: CLI_INPUT_PATHS processed first to establish precedence over context
     # =============================================================================
 
-    # Run mode: Add explicit files from config INPUT_FILES (project-relative, most stable)
-    if [[ "$mode" == "run" && ${#INPUT_FILES[@]} -gt 0 ]]; then
-        echo "  Adding explicit input files from config..."
-        for file in "${INPUT_FILES[@]}"; do
+    # Run mode: Add files from config INPUT array (project-relative, already glob-expanded)
+    if [[ "$mode" == "run" && ${#INPUT[@]} -gt 0 ]]; then
+        echo "  Adding input files from config..."
+        for file in "${INPUT[@]}"; do
             local resolved_file="$project_root/$file"
             if [[ ! -f "$resolved_file" ]]; then
-                echo "Error: Input file not found: $file (resolved: $resolved_file)"
-                exit 1
+                echo "Warning: Input file not found: $file (resolved: $resolved_file)" >&2
+                continue
             fi
 
             # Build and track document block
             build_and_track_document_block "$resolved_file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
-        done
-    fi
-
-    # Run mode: Add files from config INPUT_PATTERN (project-relative)
-    if [[ "$mode" == "run" && -n "$INPUT_PATTERN" ]]; then
-        echo "  Adding input documents from config pattern: $INPUT_PATTERN"
-        local pattern_files
-        pattern_files=($(cd "$project_root" && eval "echo $INPUT_PATTERN"))
-
-        for file in "${pattern_files[@]}"; do
-            local abs_file="$project_root/$file"
-            if [[ -f "$abs_file" ]]; then
-                # Build and track document block
-                build_and_track_document_block "$abs_file" "input" "$ENABLE_CITATIONS" "doc_index" "" "" "$project_root" "$workflow_dir"
-            fi
         done
     fi
 

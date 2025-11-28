@@ -137,26 +137,21 @@ ensure_global_config || true
 load_global_config
 
 # =============================================================================  
-# Project-Level Configuration Setup  
-# =============================================================================  
+# Project-Level Configuration Setup
+# =============================================================================
 
 # Initialize project-level variables
-declare -a CONTEXT_FILES=()
-declare -a CONTEXT_FILES_CLI=()
-declare CONTEXT_PATTERN=""
-declare CONTEXT_PATTERN_CLI=""
+# CONTEXT: Array of context file paths (globs expand at config source time)
+declare -a CONTEXT=()
 
-# Initialize project-level source tracking:  
-#   project → workflow → CLI  
-declare -A PROJECT_SOURCE_MAP  
-PROJECT_KEYS=(  
-    "CONTEXT_PATTERN"
-    "CONTEXT_PATTERN_CLI"
-    "CONTEXT_FILES"
-    "CONTEXT_FILES_CLI"
-)  
-for key in "${PROJECT_KEYS[@]}"; do  
-    PROJECT_SOURCE_MAP[$key]="unset"  
+# Initialize project-level source tracking:
+#   project → workflow → CLI
+declare -A PROJECT_SOURCE_MAP
+PROJECT_KEYS=(
+    "CONTEXT"
+)
+for key in "${PROJECT_KEYS[@]}"; do
+    PROJECT_SOURCE_MAP[$key]="unset"
 done  
 
 # =============================================================================  
@@ -165,11 +160,7 @@ done
 
 # Initialize workflow-specific variables
 declare -a DEPENDS_ON=()
-declare -a DEPENDS_ON_CLI=()
-declare -a INPUT_FILES=()
-declare -a INPUT_FILES_CLI=()
-declare INPUT_PATTERN=""
-declare INPUT_PATTERN_CLI=""
+declare -a INPUT=()
 declare EXPORT_PATH=""
 declare BATCH_MODE="false"
 
@@ -178,11 +169,7 @@ declare BATCH_MODE="false"
 declare -A WORKFLOW_SOURCE_MAP
 WORKFLOW_KEYS=(
     "DEPENDS_ON"
-    "DEPENDS_ON_CLI"
-    "INPUT_PATTERN"
-    "INPUT_PATTERN_CLI"
-    "INPUT_FILES"
-    "INPUT_FILES_CLI"
+    "INPUT"
     "EXPORT_PATH"
     "BATCH_MODE"
 )

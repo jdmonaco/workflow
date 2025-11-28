@@ -127,33 +127,30 @@ WireFlow distinguishes two content types:
 
 | Type | Config Variables | Purpose |
 |------|------------------|---------|
-| **Input** | `INPUT_PATTERN`, `INPUT_FILES` | Primary documents to analyze |
-| **Context** | `CONTEXT_PATTERN`, `CONTEXT_FILES`, `DEPENDS_ON` | Supporting references |
+| **Input** | `INPUT` | Primary documents to analyze |
+| **Context** | `CONTEXT`, `DEPENDS_ON` | Supporting references |
 
 ### Aggregation Methods
 
-Three methods can be combined:
+Two methods can be combined:
 
-1. **Glob patterns** - `INPUT_PATTERN="data/*.csv"`
-2. **Explicit files** - `INPUT_FILES=("report.pdf" "data.json")`
-3. **Dependencies** - `DEPENDS_ON=(preprocessing)` (context only)
+1. **Config arrays** - `INPUT=(data/*.csv report.pdf)` (globs expand at source time)
+2. **Dependencies** - `DEPENDS_ON=(preprocessing)` (context only)
 
 ### Aggregation Order
 
 Content is aggregated stable → volatile:
 
 **Context Materials:**
-1. Config `CONTEXT_FILES` (project-relative)
-2. Config `CONTEXT_PATTERN` (project-relative)
-3. CLI `-cx/--context` (PWD-relative)
+1. Config `CONTEXT` (project-relative, already glob-expanded)
+2. CLI `-cx/--context` (PWD-relative)
 
 **Dependencies:**
 1. `DEPENDS_ON` outputs from `.workflow/output/`
 
 **Input Documents:**
-1. Config `INPUT_FILES` (project-relative)
-2. Config `INPUT_PATTERN` (project-relative)
-3. CLI `-in/--input` or `-- <files>` (PWD-relative)
+1. Config `INPUT` (project-relative, already glob-expanded)
+2. CLI `-in/--input` or `-- <files>` (PWD-relative)
 
 ### Document Ordering
 

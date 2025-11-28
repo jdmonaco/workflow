@@ -52,7 +52,7 @@ MAX_TOKENS=        # Inherit from global
 **Location:** `.workflow/run/<name>/config`
 
 ```bash
-CONTEXT_FILES=(data.csv notes.md)
+INPUT=(data.csv notes.md)
 DEPENDS_ON=(preprocessing)
 TEMPERATURE=0.3
 SYSTEM_PROMPTS+=(statistics)  # Append to project's prompts
@@ -77,13 +77,16 @@ MODEL=                  # Inherit from parent (pass-through)
 ### Array Variables
 
 ```bash
-CONTEXT_FILES=           # Inherit from parent
-CONTEXT_FILES=()         # Clear (reset to empty)
-CONTEXT_FILES=(file.pdf) # Replace (override parent)
-CONTEXT_FILES+=(add.pdf) # Append (add to parent)
+CONTEXT=           # Inherit from parent
+CONTEXT=()         # Clear (reset to empty)
+CONTEXT=(file.pdf) # Replace (override parent)
+CONTEXT+=(add.pdf) # Append (add to parent)
 
-# Multi-line arrays
-CONTEXT_FILES=(
+# Glob patterns expand at config source time (from project root)
+CONTEXT=(data/*.csv notes.md docs/**/*.pdf)
+
+# Multi-line arrays (use quotes for filenames with spaces)
+CONTEXT=(
     "notes/background.md"
     "data/results.csv"
 )
@@ -130,10 +133,8 @@ CONTEXT_FILES=(
 
 | Variable | Description | Scope |
 |----------|-------------|-------|
-| `CONTEXT_PATTERN` | Glob for context files | Project, Workflow |
-| `CONTEXT_FILES` | Context file paths | Project, Workflow |
-| `INPUT_PATTERN` | Glob for input files | Workflow |
-| `INPUT_FILES` | Input file paths | Workflow |
+| `CONTEXT` | Context file paths (globs expand at source time) | Project, Workflow |
+| `INPUT` | Input file paths (globs expand at source time) | Workflow |
 | `DEPENDS_ON` | Workflow dependencies | Workflow |
 
 ## CLI Flags
@@ -149,8 +150,8 @@ CONTEXT_FILES=(
 | `--max-tokens` | `MAX_TOKENS` | `--max-tokens 8192` |
 | `--system` | `SYSTEM_PROMPTS` | `--system base,research` |
 | `--format` | `OUTPUT_FORMAT` | `--format json` |
-| `-in/--input` | `INPUT_FILES` | `-in data.csv` |
-| `-cx/--context` | `CONTEXT_FILES` | `-cx notes.md` |
+| `-in/--input` | `INPUT` | `-in data.csv` |
+| `-cx/--context` | `CONTEXT` | `-cx notes.md` |
 | `--depends-on` | `DEPENDS_ON` | `--depends-on preprocessing` |
 | `--export-file` | `EXPORT_FILE` | `--export-file reports/out.md` |
 

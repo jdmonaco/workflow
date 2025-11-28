@@ -207,8 +207,7 @@ EOF
 
     # Empty input arrays
     CLI_INPUT_PATHS=()
-    INPUT_FILES=()
-    INPUT_PATTERN=""
+    INPUT=()
     SYSTEM_BLOCKS=('{"type":"text","text":"system"}')
     TASK_BLOCK='{"type":"text","text":"task"}'
 
@@ -227,8 +226,7 @@ EOF
     echo "Content 2" > "$TEST_TEMP_DIR/inputs/file2.txt"
 
     CLI_INPUT_PATHS=("$TEST_TEMP_DIR/inputs/file1.txt" "$TEST_TEMP_DIR/inputs/file2.txt")
-    INPUT_FILES=()
-    INPUT_PATTERN=""
+    INPUT=()
     SYSTEM_BLOCKS=('{"type":"text","text":"system prompt"}')
     CONTEXT_BLOCKS=()
     CONTEXT_PDF_BLOCKS=()
@@ -262,8 +260,7 @@ EOF
     echo "Content 2" > "$TEST_TEMP_DIR/inputs/file2.txt"
 
     CLI_INPUT_PATHS=("$TEST_TEMP_DIR/inputs/file1.txt" "$TEST_TEMP_DIR/inputs/file2.txt")
-    INPUT_FILES=()
-    INPUT_PATTERN=""
+    INPUT=()
     SYSTEM_BLOCKS=('{"type":"text","text":"system"}')
     CONTEXT_BLOCKS=()
     CONTEXT_PDF_BLOCKS=()
@@ -298,8 +295,7 @@ EOF
     echo "Input content" > "$TEST_TEMP_DIR/inputs/input.txt"
 
     CLI_INPUT_PATHS=("$TEST_TEMP_DIR/inputs/input.txt")
-    INPUT_FILES=()
-    INPUT_PATTERN=""
+    INPUT=()
     SYSTEM_BLOCKS=('{"type":"text","text":"system prompt"}')
     CONTEXT_BLOCKS=('{"type":"text","text":"context block"}')
     CONTEXT_PDF_BLOCKS=()

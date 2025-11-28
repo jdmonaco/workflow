@@ -71,11 +71,17 @@ cat_default_workflow_config() {
 #   Empty/unset values output as "KEY="
 extract_config() {
     local config_file="$1"
+    local source_dir="${2:-}"  # Optional: directory context for glob expansion
 
     # Source config in subshell and extract all config values
     # Output key=value pairs for all config variables
-    # Handle arrays - output quoted, escapeds, and space-separated
+    # Handle arrays - output quoted, escaped, and space-separated
     (
+        # Change to source directory for glob expansion (if provided)
+        if [[ -n "$source_dir" ]]; then
+            cd "$source_dir" || exit 1
+        fi
+
         source "$config_file" 2>/dev/null || true
 
         # Model profile system
@@ -109,24 +115,21 @@ extract_config() {
         echo "WIREFLOW_TASK_PREFIX=${WIREFLOW_TASK_PREFIX:-}"
         echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}"
 
-        # Workflow parameters
-        echo "CONTEXT_PATTERN=${CONTEXT_PATTERN:-}"
-
-        printf 'CONTEXT_FILES='
+        # Project-level arrays (globs expanded at source time)
+        printf 'CONTEXT='
         printf '('
-        printf '%q ' "${CONTEXT_FILES[@]}"
+        printf '%q ' "${CONTEXT[@]}"
         printf ')\n'
 
+        # Workflow-level arrays
         printf 'DEPENDS_ON='
         printf '('
         printf '%q ' "${DEPENDS_ON[@]}"
         printf ')\n'
 
-        echo "INPUT_PATTERN=${INPUT_PATTERN:-}"
-
-        printf 'INPUT_FILES='
+        printf 'INPUT='
         printf '('
-        printf '%q ' "${INPUT_FILES[@]}"
+        printf '%q ' "${INPUT[@]}"
         printf ')\n'
 
         echo "EXPORT_PATH=${EXPORT_PATH:-}"
@@ -757,11 +760,13 @@ declare -A LOADED_CONFIGS=()
 # Arguments:
 #   $1 - Config file path
 #   $2 - Source level name (e.g., "global", "project", "workflow", or ancestor path)
+#   $3 - Optional: Source directory for glob expansion (defaults to config file's directory)
 # Returns:
 #   0 on success, 1 if config file not found
 load_config_level() {
     local config_file="$1"
     local source_level="$2"
+    local source_dir="${3:-}"
 
     [[ -z "$config_file" || ! -f "$config_file" ]] && return 1
 
@@ -833,7 +838,7 @@ load_config_level() {
             printf -v "$key" '%s' "$value"
             WORKFLOW_SOURCE_MAP[$key]="$source_level"
         fi
-    done < <(extract_config "$config_file" 2>/dev/null || true)
+    done < <(extract_config "$config_file" "$source_dir" 2>/dev/null || true)
 }
 
 # Load global configuration from ~/.config/wireflow/config
@@ -851,13 +856,15 @@ load_ancestor_configs() {
     # Load each ancestor config in order
     while IFS= read -r ancestor; do
         local config_file="$ancestor/.workflow/config"
-        load_config_level "$config_file" "$ancestor"
+        # Pass ancestor directory for glob expansion
+        load_config_level "$config_file" "$ancestor" "$ancestor"
     done <<< "$ancestors"
 }
 
 # Load config from current project
 load_project_config() {
-    load_config_level "${1:-$PROJECT_CONFIG}" "project"
+    # Pass PROJECT_ROOT for glob expansion in CONTEXT/INPUT arrays
+    load_config_level "${1:-$PROJECT_CONFIG}" "project" "$PROJECT_ROOT"
 }
 
 # Load config for a given workflow in the current project
@@ -870,7 +877,8 @@ load_workflow_config() {
         return 1
     fi
 
-    load_config_level "$config_file" "workflow"
+    # Pass PROJECT_ROOT for glob expansion in INPUT array
+    load_config_level "$config_file" "workflow" "$PROJECT_ROOT"
 }
 
 # =============================================================================
