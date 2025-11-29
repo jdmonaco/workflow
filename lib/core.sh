@@ -947,6 +947,20 @@ shell_install() {
         echo "Installed: $comp_target -> $comp_source"
     fi
 
+    # Install prompt helper
+    local share_dir="$data_dir/wireflow"
+    mkdir -p "$share_dir"
+
+    local prompt_source="$wireflow_root/share/wireflow/wfw-prompt.sh"
+    local prompt_target="$share_dir/wfw-prompt.sh"
+
+    if [[ -e "$prompt_target" && ! -L "$prompt_target" ]]; then
+        echo "Warning: $prompt_target exists and is not a symlink, skipping"
+    else
+        ln -sf "$prompt_source" "$prompt_target"
+        echo "Installed: $prompt_target -> $prompt_source"
+    fi
+
     # Hint about PATH
     if ! command -v wfw &>/dev/null; then
         echo ""
@@ -958,4 +972,10 @@ shell_install() {
     echo ""
     echo "Completions will load automatically in new shells."
     echo "To enable now: source $comp_target"
+
+    # Hint about prompt integration
+    echo ""
+    echo "Optional: Add project indicator to your prompt:"
+    echo "  source $prompt_target"
+    echo "  export PS1='\\w\$(__wfw_ps1 \" (%s)\")\\$ '"
 }

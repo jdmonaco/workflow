@@ -499,21 +499,26 @@ Usage: $SCRIPT_NAME shell <action>
 Install WireFlow into user-local paths for easy access.
 
 Actions:
-    install            Install wfw symlink and bash completions
+    install            Install wfw symlink, completions, and prompt helper
 
 Installation paths:
     Binary:            \${XDG_BIN_HOME:-~/.local/bin}/wfw
     Completions:       \${XDG_DATA_HOME:-~/.local/share}/bash-completion/completions/wfw
+    Prompt:            \${XDG_DATA_HOME:-~/.local/share}/wireflow/wfw-prompt.sh
 
 Options:
     -h, --help         Quick help
 
 Notes:
-    Both binary and completions are installed as symlinks to the source
-    repository, so updates to the repo are automatically reflected.
+    All files are installed as symlinks to the source repository,
+    so updates to the repo are automatically reflected.
 
     Completions will load automatically in new shells that use bash-completion.
     To enable immediately: source ~/.local/share/bash-completion/completions/wfw
+
+    The prompt helper provides __wfw_ps1() for PS1 integration (like __git_ps1):
+        source ~/.local/share/wireflow/wfw-prompt.sh
+        export PS1='\w\$(__wfw_ps1 " (%s)")\$ '
 
 Examples:
     $SCRIPT_NAME shell install
