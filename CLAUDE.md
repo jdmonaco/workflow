@@ -97,7 +97,7 @@ docs/developer-guide/   → Architecture, implementation, layer docs
 
 ## Version Management
 
-**Current version:** 0.5.0 (pre-release)
+**Current version:** 0.6.0 (pre-release)
 
 **Location:** `WIREFLOW_VERSION` in `wireflow.sh` (line 14)
 

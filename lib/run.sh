@@ -21,6 +21,14 @@ execute_run_mode() {
     
     # Parse execution options
     while [[ $# -gt 0 ]]; do
+        # Try shared parser first (handles model, thinking, API options)
+        parse_common_option "$1" "${@:2}"
+        if [[ $PARSE_CONSUMED -gt 0 ]]; then
+            shift $PARSE_CONSUMED
+            continue
+        fi
+
+        # Handle run-mode specific options
         case "$1" in
             --stream|-s)
                 stream_mode=true
@@ -72,82 +80,6 @@ execute_run_mode() {
                 [[ $# -eq 0 ]] && { echo "Error: --export requires argument" >&2; return 1; }
                 EXPORT_PATH="$1"
                 WORKFLOW_SOURCE_MAP[EXPORT_PATH]="cli"
-                shift
-                ;;
-            --profile)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --profile requires argument" >&2; return 1; }
-                PROFILE="$1"
-                CONFIG_SOURCE_MAP[PROFILE]="cli"
-                shift
-                ;;
-            --model|-m)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --model requires argument" >&2; return 1; }
-                MODEL="$1"
-                CONFIG_SOURCE_MAP[MODEL]="cli"
-                shift
-                ;;
-            --enable-thinking)
-                ENABLE_THINKING=true
-                CONFIG_SOURCE_MAP[ENABLE_THINKING]="cli"
-                shift
-                ;;
-            --disable-thinking)
-                ENABLE_THINKING=false
-                CONFIG_SOURCE_MAP[ENABLE_THINKING]="cli"
-                shift
-                ;;
-            --thinking-budget)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --thinking-budget requires argument" >&2; return 1; }
-                THINKING_BUDGET="$1"
-                CONFIG_SOURCE_MAP[THINKING_BUDGET]="cli"
-                shift
-                ;;
-            --effort)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --effort requires argument" >&2; return 1; }
-                EFFORT="$1"
-                CONFIG_SOURCE_MAP[EFFORT]="cli"
-                shift
-                ;;
-            --temperature|-t)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --temperature requires argument" >&2; return 1; }
-                TEMPERATURE="$1"
-                CONFIG_SOURCE_MAP[TEMPERATURE]="cli"
-                shift
-                ;;
-            --max-tokens)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --max-tokens requires argument" >&2; return 1; }
-                MAX_TOKENS="$1"
-                CONFIG_SOURCE_MAP[MAX_TOKENS]="cli"
-                shift
-                ;;
-            --system|-p)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --system requires argument" >&2; return 1; }
-                IFS=',' read -ra SYSTEM_PROMPTS <<< "$1"
-                CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="cli"
-                shift
-                ;;
-            --format|-f)
-                shift
-                [[ $# -eq 0 ]] && { echo "Error: --format requires argument" >&2; return 1; }
-                OUTPUT_FORMAT="$1"
-                CONFIG_SOURCE_MAP[OUTPUT_FORMAT]="cli"
-                shift
-                ;;
-            --enable-citations)
-                ENABLE_CITATIONS=true
-                CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
-                shift
-                ;;
-            --disable-citations)
-                ENABLE_CITATIONS=false
-                CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
                 shift
                 ;;
             --no-auto-deps)

@@ -58,6 +58,28 @@ fi
 - Git-style format: usage line, options, description, examples
 - Sourced early, integrated via `help` subcommand and `-h` flags
 
+### lib/pipeline.sh
+
+**Dependency resolution and execution caching:**
+
+- `write_execution_log()` - Write execution.json after successful workflow completion
+- `read_execution_log()` - Parse execution log for staleness checks
+- `compute_execution_hash()` - Generate 16-character hash of execution state
+- `is_execution_stale()` - Check if workflow needs re-run (mtime + hash validation)
+- `get_staleness_reason()` - Return human-readable reason for staleness
+- `extract_depends_on()` - Parse DEPENDS_ON from workflow config
+- `resolve_dependency_order()` - Topological sort for dependency chain
+- `execute_dependency()` - Run dependency workflow in isolated subprocess
+- `reset_workflow_config()` - Restore project-level config from cache
+- `get_execution_status()` - Format status for workflow listing
+- `get_execution_timestamp()` - Format last execution time
+
+**Key concepts:**
+
+- Execution hash combines: config state, file hashes, dependency hashes, task file hash
+- Fast path uses mtime checks, slow path uses full hash comparison
+- Subshell isolation prevents dependency config from polluting parent
+
 ### lib/task.sh
 
 **Task mode execution:**

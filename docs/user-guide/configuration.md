@@ -125,7 +125,7 @@ CONTEXT=(
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OUTPUT_FORMAT` | File extension (`md`, `txt`, `json`) | `md` |
-| `EXPORT_FILE` | Additional output path | (empty) |
+| `EXPORT_PATH` | Additional output path | (empty) |
 | `SYSTEM_PROMPTS` | Prompt names | `(base)` |
 | `WIREFLOW_PROMPT_PREFIX` | Prompts directory | `~/.config/wireflow/prompts` |
 
@@ -153,7 +153,7 @@ CONTEXT=(
 | `-in/--input` | `INPUT` | `-in data.csv` |
 | `-cx/--context` | `CONTEXT` | `-cx notes.md` |
 | `--depends-on` | `DEPENDS_ON` | `--depends-on preprocessing` |
-| `--export-file` | `EXPORT_FILE` | `--export-file reports/out.md` |
+| `--export` | `EXPORT_PATH` | `--export reports/out.md` |
 
 ## Viewing Configuration
 

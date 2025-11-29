@@ -764,8 +764,6 @@ needs_format_conversion() {
 
 # Get target dimensions for SVG rasterization
 # SVG has no inherent pixel dimensions, so we target 1568px on long edge
-# Arguments:
-#   $1 - SVG file path (unused, for API consistency)
 # Returns:
 #   "width height" - target dimensions (stdout)
 get_svg_target_dimensions() {
@@ -1031,7 +1029,7 @@ cache_image() {
 
     if [[ "$source_extension" == "svg" ]]; then
         # SVG: use target dimensions directly (no source pixel dimensions)
-        dimensions=$(get_svg_target_dimensions "$source_file")
+        dimensions=$(get_svg_target_dimensions)
         read -r width height <<< "$dimensions"
         needs_resize=true
         target_width=$width

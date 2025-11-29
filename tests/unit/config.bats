@@ -6,7 +6,7 @@
 load ../test_helper/bats-support/load
 load ../test_helper/bats-assert/load
 load ../test_helper/bats-file/load
-load ../test_helper/common
+load ../test_helper/common.bash
 
 setup() {
     setup_test_env

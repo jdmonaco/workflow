@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-11-29
+
+### Added
+- Shell integration with `wfw shell` subcommand: install, doctor, uninstall (32759ba, c0a49d6)
+- PS1 prompt integration via `__wfw_ps1()` function (1801cd7)
+- Obsidian markdown embed preprocessing: `![[file]]` syntax support (d3d1ccb)
+- Automatic dependency execution with execution caching (a51eeb1)
+- Multi-argument support for `--input`/`-in` and `--context`/`-cx` options (ee9e146)
+- Shell integration commands in installation guide (25dfa1a)
+- Pipeline module for dependency resolution and execution caching (a51eeb1)
+
+### Changed
+- Consolidated CONTEXT/INPUT config into single arrays for cleaner handling (e179184)
+- Reorganized reference and developer-guide documentation (ec75d6d, 8cab58f)
+- Updated user-guide for accuracy and formatting (c769c3c)
+- Documentation list separators enforced for mkdocs compatibility (e0702f6, e6031d7, f12aebc)
+- Pipeline and syntax documentation updates (b5d35ae)
+
+### Fixed
+- XML completion for builtin task templates (7d6950e)
+- Added doctor and uninstall to shell completions (e072ef6)
+
 ## [0.5.0] - 2025-11-28
 
 ### Added

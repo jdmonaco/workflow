@@ -1,5 +1,70 @@
 # Release Notes
 
+## Version 0.6.0 (2025-11-29)
+
+**Shell Integration, Obsidian Embeds & Automatic Dependencies**
+
+This release adds seamless shell integration for prompt customization, Obsidian markdown embed support, and intelligent workflow caching with automatic dependency execution.
+
+### 🐚 Shell Integration
+
+Install WireFlow into your shell environment with a single command:
+
+```bash
+wfw shell install    # Install wfw command, completions, and prompt helper
+wfw shell doctor     # Check installation status and fix issues
+wfw shell uninstall  # Remove shell integration
+```
+
+Customize your PS1 prompt with workflow-aware status:
+
+```bash
+source ~/.local/share/wireflow/wfw-prompt.sh
+PS1='$(__wfw_ps1) \$ '  # Shows current workflow context
+```
+
+### 📎 Obsidian Embed Support
+
+Use Obsidian's `![[file]]` syntax directly in task files:
+
+- `![[document.pdf]]` - Embeds PDF as content block
+- `![[image.png]]` - Embeds image via Vision API
+- `![[notes.md]]` - Inlines markdown content
+- Recursive embed resolution with cycle detection
+
+Perfect for researchers using Obsidian as a knowledge base.
+
+### 🔗 Automatic Dependency Execution
+
+Workflows with `DEPENDS_ON` now auto-execute stale dependencies:
+
+```bash
+wfw run analysis  # Automatically runs prerequisite workflows first
+```
+
+Features:
+
+- Execution caching with hash-based staleness detection
+- Config/context/task changes trigger re-execution
+- Topological ordering ensures correct execution sequence
+
+### 📥 Multi-Argument Options
+
+Simplified file specification with multiple arguments per option:
+
+```bash
+# Multiple inputs in one flag
+wfw run analysis -in file1.txt file2.txt file3.txt
+
+# Multiple context files
+wfw run summary -cx ref1.pdf ref2.pdf
+
+# Mix with other options
+wfw run report -in data.csv -cx guide.md --profile deep
+```
+
+---
+
 ## Version 0.5.0 (2025-11-28)
 
 **Batch Processing, Model Profiles & Image Format Conversion**

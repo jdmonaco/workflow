@@ -8,6 +8,106 @@
 # =============================================================================
 
 # =============================================================================
+# Shared Option Parsing
+# =============================================================================
+
+# Parse common execution options shared between run and task modes
+# Arguments:
+#   $1 - option: The option flag being parsed
+#   $2+ - remaining arguments
+# Returns:
+#   Sets PARSE_CONSUMED to number of args consumed (0 = unknown option)
+#   Sets global config variables (MODEL, TEMPERATURE, etc.)
+# Usage:
+#   parse_common_option "$1" "${@:2}"
+#   if [[ $PARSE_CONSUMED -gt 0 ]]; then
+#       shift $PARSE_CONSUMED
+#   fi
+PARSE_CONSUMED=0
+
+parse_common_option() {
+    local opt="$1"
+    shift
+    PARSE_CONSUMED=0
+
+    case "$opt" in
+        --profile)
+            [[ $# -eq 0 ]] && { echo "Error: --profile requires argument" >&2; return 1; }
+            PROFILE="$1"
+            CONFIG_SOURCE_MAP[PROFILE]="cli"
+            PARSE_CONSUMED=2
+            ;;
+        --model|-m)
+            [[ $# -eq 0 ]] && { echo "Error: --model requires argument" >&2; return 1; }
+            MODEL="$1"
+            CONFIG_SOURCE_MAP[MODEL]="cli"
+            PARSE_CONSUMED=2
+            ;;
+        --enable-thinking)
+            ENABLE_THINKING=true
+            CONFIG_SOURCE_MAP[ENABLE_THINKING]="cli"
+            PARSE_CONSUMED=1
+            ;;
+        --disable-thinking)
+            ENABLE_THINKING=false
+            CONFIG_SOURCE_MAP[ENABLE_THINKING]="cli"
+            PARSE_CONSUMED=1
+            ;;
+        --thinking-budget)
+            [[ $# -eq 0 ]] && { echo "Error: --thinking-budget requires argument" >&2; return 1; }
+            THINKING_BUDGET="$1"
+            CONFIG_SOURCE_MAP[THINKING_BUDGET]="cli"
+            PARSE_CONSUMED=2
+            ;;
+        --effort)
+            [[ $# -eq 0 ]] && { echo "Error: --effort requires argument" >&2; return 1; }
+            EFFORT="$1"
+            CONFIG_SOURCE_MAP[EFFORT]="cli"
+            PARSE_CONSUMED=2
+            ;;
+        --temperature|-t)
+            [[ $# -eq 0 ]] && { echo "Error: --temperature requires argument" >&2; return 1; }
+            TEMPERATURE="$1"
+            CONFIG_SOURCE_MAP[TEMPERATURE]="cli"
+            PARSE_CONSUMED=2
+            ;;
+        --max-tokens)
+            [[ $# -eq 0 ]] && { echo "Error: --max-tokens requires argument" >&2; return 1; }
+            MAX_TOKENS="$1"
+            CONFIG_SOURCE_MAP[MAX_TOKENS]="cli"
+            PARSE_CONSUMED=2
+            ;;
+        --system|-p)
+            [[ $# -eq 0 ]] && { echo "Error: --system requires argument" >&2; return 1; }
+            IFS=',' read -ra SYSTEM_PROMPTS <<< "$1"
+            CONFIG_SOURCE_MAP[SYSTEM_PROMPTS]="cli"
+            PARSE_CONSUMED=2
+            ;;
+        --format|-f)
+            [[ $# -eq 0 ]] && { echo "Error: --format requires argument" >&2; return 1; }
+            OUTPUT_FORMAT="$1"
+            CONFIG_SOURCE_MAP[OUTPUT_FORMAT]="cli"
+            PARSE_CONSUMED=2
+            ;;
+        --enable-citations)
+            ENABLE_CITATIONS=true
+            CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
+            PARSE_CONSUMED=1
+            ;;
+        --disable-citations)
+            ENABLE_CITATIONS=false
+            CONFIG_SOURCE_MAP[ENABLE_CITATIONS]="cli"
+            PARSE_CONSUMED=1
+            ;;
+        *)
+            # Unknown option - caller handles
+            PARSE_CONSUMED=0
+            ;;
+    esac
+    return 0
+}
+
+# =============================================================================
 # System Prompt Building
 # =============================================================================
 

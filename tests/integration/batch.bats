@@ -299,125 +299,35 @@ EOF
 }
 
 # ============================================================================
-# Multi-argument option parsing tests
+# Multi-argument option parsing tests (using shared helpers from common.bash)
 # ============================================================================
 
 @test "integration: batch -in accepts multiple arguments" {
-    # Initialize project
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    # Create workflow
-    run "${SCRIPT_DIR}/wireflow.sh" new multi-input-batch
-    assert_success
-
-    # Create test input files
-    mkdir -p inputs
-    echo "doc1 content" > inputs/doc1.txt
-    echo "doc2 content" > inputs/doc2.txt
-    echo "doc3 content" > inputs/doc3.txt
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Use -in with multiple arguments
-    run "${SCRIPT_DIR}/wireflow.sh" batch multi-input-batch -in inputs/doc1.txt inputs/doc2.txt inputs/doc3.txt
+    run test_multi_arg_input "batch"
     assert_success
     assert_output --partial "DRY RUN MODE"
 }
 
 @test "integration: batch -cx accepts multiple arguments" {
-    # Initialize project
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    # Create workflow
-    run "${SCRIPT_DIR}/wireflow.sh" new multi-context-batch
-    assert_success
-
-    # Create test files
-    echo "input" > input.txt
-    echo "context1" > ctx1.md
-    echo "context2" > ctx2.md
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Use -cx with multiple arguments
-    run "${SCRIPT_DIR}/wireflow.sh" batch multi-context-batch -in input.txt -cx ctx1.md ctx2.md
+    run test_multi_arg_context "batch"
     assert_success
     assert_output --partial "DRY RUN MODE"
 }
 
 @test "integration: batch -dp accepts multiple arguments" {
-    # Initialize project
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    # Create dependency workflows with outputs
-    run "${SCRIPT_DIR}/wireflow.sh" new dep1
-    assert_success
-    mkdir -p ".workflow/output"
-    echo "dep1 output" > ".workflow/output/dep1.md"
-
-    run "${SCRIPT_DIR}/wireflow.sh" new dep2
-    assert_success
-    echo "dep2 output" > ".workflow/output/dep2.md"
-
-    # Create batch workflow
-    run "${SCRIPT_DIR}/wireflow.sh" new batch-with-deps
-    assert_success
-
-    # Create input file
-    echo "input" > input.txt
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Use -dp with multiple arguments
-    run "${SCRIPT_DIR}/wireflow.sh" batch batch-with-deps -in input.txt -dp dep1 dep2
+    run test_multi_arg_depends "batch"
     assert_success
     assert_output --partial "DRY RUN MODE"
 }
 
 @test "integration: batch multi-arg parsing stops at next option" {
-    # Initialize project
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    # Create workflow
-    run "${SCRIPT_DIR}/wireflow.sh" new batch-option-boundary
-    assert_success
-
-    # Create test files
-    echo "input1" > input1.txt
-    echo "input2" > input2.txt
-    echo "context" > context.md
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Use -in followed by -cx - should correctly separate them
-    run "${SCRIPT_DIR}/wireflow.sh" batch batch-option-boundary -in input1.txt input2.txt -cx context.md
+    run test_multi_arg_option_boundary "batch"
     assert_success
     assert_output --partial "DRY RUN MODE"
 }
 
 @test "integration: batch mixed single and multi-arg options" {
-    # Initialize project
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    # Create workflow
-    run "${SCRIPT_DIR}/wireflow.sh" new batch-mixed-args
-    assert_success
-
-    # Create test files
-    echo "file1" > a.txt
-    echo "file2" > b.txt
-    echo "ctx1" > c.md
-    echo "ctx2" > d.md
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Mix multi-arg with model options
-    run "${SCRIPT_DIR}/wireflow.sh" batch batch-mixed-args -in a.txt b.txt --profile fast -cx c.md d.md
+    run test_multi_arg_mixed "batch"
     assert_success
     assert_output --partial "DRY RUN MODE"
 }

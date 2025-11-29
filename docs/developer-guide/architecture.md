@@ -19,6 +19,7 @@ lib/
 ├── core.sh             # Subcommand implementations (init, new, edit, list, config)
 ├── config.sh           # Configuration loading and cascade logic
 ├── help.sh             # Help text for all subcommands
+├── pipeline.sh         # Dependency resolution and execution caching
 ├── run.sh              # Run mode (workflow execution with full context)
 ├── task.sh             # Task mode (lightweight execution without workflow dirs)
 ├── batch.sh            # Batch mode (Message Batches API)

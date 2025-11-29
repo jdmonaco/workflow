@@ -436,7 +436,6 @@ create_builtin_task_templates() {
 </user-task>
 TASK_EOF
 
-    #TODO fix builtin task templates with incomplete XML structure
     # summarize.txt
     cat > "$task_dir/summarize.txt" <<'TASK_EOF'
 <user-task>

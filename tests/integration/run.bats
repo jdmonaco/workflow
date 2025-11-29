@@ -513,149 +513,37 @@ EOF
 }
 
 # ============================================================================
-# Multi-argument option parsing tests
+# Multi-argument option parsing tests (using shared helpers from common.bash)
 # ============================================================================
 
 @test "integration: -in accepts multiple arguments" {
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    run "${SCRIPT_DIR}/wireflow.sh" new multi-input-test
-    assert_success
-
-    # Create test files
-    echo "content1" > file1.txt
-    echo "content2" > file2.txt
-    echo "content3" > file3.txt
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Use -in with multiple arguments in a single invocation
-    run "${SCRIPT_DIR}/wireflow.sh" run multi-input-test -in file1.txt file2.txt file3.txt
+    run test_multi_arg_input "run"
     assert_success
     assert_output --partial "DRY RUN MODE"
-
-    # Verify all files appear in the request
-    local json_file=".workflow/run/multi-input-test/dry-run-request.json"
-    assert_file_exists "$json_file"
-    run cat "$json_file"
-    assert_output --partial "file1.txt"
-    assert_output --partial "file2.txt"
-    assert_output --partial "file3.txt"
 }
 
 @test "integration: -cx accepts multiple arguments" {
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    run "${SCRIPT_DIR}/wireflow.sh" new multi-context-test
-    assert_success
-
-    # Create test files
-    echo "context1" > ctx1.md
-    echo "context2" > ctx2.md
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Use -cx with multiple arguments
-    run "${SCRIPT_DIR}/wireflow.sh" run multi-context-test -cx ctx1.md ctx2.md
+    run test_multi_arg_context "run"
     assert_success
     assert_output --partial "DRY RUN MODE"
-
-    # Verify context files appear in the request
-    local json_file=".workflow/run/multi-context-test/dry-run-request.json"
-    assert_file_exists "$json_file"
-    run cat "$json_file"
-    assert_output --partial "ctx1.md"
-    assert_output --partial "ctx2.md"
 }
 
 @test "integration: -dp accepts multiple arguments" {
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    # Create two workflows to depend on
-    run "${SCRIPT_DIR}/wireflow.sh" new dep1
-    assert_success
-    mkdir -p ".workflow/output"
-    echo "dep1 output" > ".workflow/output/dep1.md"
-
-    run "${SCRIPT_DIR}/wireflow.sh" new dep2
-    assert_success
-    echo "dep2 output" > ".workflow/output/dep2.md"
-
-    # Create dependent workflow
-    run "${SCRIPT_DIR}/wireflow.sh" new dependent-test
-    assert_success
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Use -dp with multiple arguments
-    run "${SCRIPT_DIR}/wireflow.sh" run dependent-test -dp dep1 dep2
+    run test_multi_arg_depends "run"
     assert_success
     assert_output --partial "DRY RUN MODE"
-
-    # Verify dependency outputs are included
-    local json_file=".workflow/run/dependent-test/dry-run-request.json"
-    assert_file_exists "$json_file"
-    run cat "$json_file"
-    assert_output --partial "dep1 output"
-    assert_output --partial "dep2 output"
 }
 
 @test "integration: multi-arg parsing stops at next option" {
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    run "${SCRIPT_DIR}/wireflow.sh" new option-boundary-test
-    assert_success
-
-    # Create test files
-    echo "input content" > input.txt
-    echo "context content" > context.md
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Use -in followed by -cx - should correctly separate them
-    run "${SCRIPT_DIR}/wireflow.sh" run option-boundary-test -in input.txt -cx context.md
+    run test_multi_arg_option_boundary "run"
     assert_success
     assert_output --partial "DRY RUN MODE"
-
-    # Verify files are categorized correctly
-    local json_file=".workflow/run/option-boundary-test/dry-run-request.json"
-    assert_file_exists "$json_file"
-    run cat "$json_file"
-    assert_output --partial "input content"
-    assert_output --partial "context content"
 }
 
 @test "integration: mixed single and multi-arg options" {
-    run "${SCRIPT_DIR}/wireflow.sh" init
-    assert_success
-
-    run "${SCRIPT_DIR}/wireflow.sh" new mixed-args-test
-    assert_success
-
-    # Create test files
-    echo "file1" > a.txt
-    echo "file2" > b.txt
-    echo "ctx1" > c.md
-    echo "ctx2" > d.md
-
-    export WIREFLOW_DRY_RUN="true"
-
-    # Mix multi-arg and model options
-    run "${SCRIPT_DIR}/wireflow.sh" run mixed-args-test -in a.txt b.txt --profile fast -cx c.md d.md
+    run test_multi_arg_mixed "run"
     assert_success
     assert_output --partial "DRY RUN MODE"
-
-    local json_file=".workflow/run/mixed-args-test/dry-run-request.json"
-    assert_file_exists "$json_file"
-    run cat "$json_file"
-    assert_output --partial "file1"
-    assert_output --partial "file2"
-    assert_output --partial "ctx1"
-    assert_output --partial "ctx2"
 }
 
 # =============================================================================

@@ -69,7 +69,7 @@ show_quick_help_init() {
 }
 
 show_quick_help_new() {
-    echo "Usage: $SCRIPT_NAME new NAME [--task TEMPLATE]"
+    echo "Usage: $SCRIPT_NAME new NAME [--from-task TEMPLATE]"
     echo "See '$SCRIPT_NAME help new' for complete usage details."
 }
 
@@ -252,7 +252,7 @@ Output Options:
     --export, -ex <path>          Copy output to external path
 
 Execution Options:
-    --stream, -s                  Stream output in real-time (default)
+    --stream, -s                  Stream output in real-time
     --count-tokens                Show token estimation only
     --dry-run, -n                 Save request JSON, open in editor
     --no-auto-deps                Skip automatic execution of stale dependencies

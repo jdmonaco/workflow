@@ -199,3 +199,177 @@ unmock_command() {
         rm -f "$mock_path/$cmd_name"
     fi
 }
+
+# ============================================================================
+# Multi-argument option parsing test helpers
+# ============================================================================
+
+# Setup test fixtures for multi-arg tests
+# Arguments:
+#   $1 - mode: "run", "batch", or "task"
+#   $2 - workflow_name: Name of workflow (ignored for task mode)
+# Returns: 0 on success, sets SCRIPT_DIR
+setup_multi_arg_test() {
+    local mode="$1"
+    local workflow_name="${2:-multi-arg-test}"
+
+    # Ensure SCRIPT_DIR is set
+    if [[ -z "${SCRIPT_DIR:-}" ]]; then
+        SCRIPT_DIR="$(cd "${BATS_TEST_DIRNAME:-$(dirname "$0")}/../.."; pwd)"
+    fi
+
+    if [[ "$mode" == "run" || "$mode" == "batch" ]]; then
+        # Initialize project and create workflow
+        "${SCRIPT_DIR}/wireflow.sh" init >/dev/null 2>&1 || return 1
+        "${SCRIPT_DIR}/wireflow.sh" new "$workflow_name" >/dev/null 2>&1 || return 1
+    fi
+
+    export WIREFLOW_DRY_RUN="true"
+    return 0
+}
+
+# Test that -in accepts multiple arguments
+# Arguments:
+#   $1 - mode: "run", "batch", or "task"
+#   $2 - workflow_name: Name of workflow (optional, default: multi-input-test)
+test_multi_arg_input() {
+    local mode="$1"
+    local workflow_name="${2:-multi-input-test}"
+
+    setup_multi_arg_test "$mode" "$workflow_name" || return 1
+
+    # Create test files
+    echo "content1" > file1.txt
+    echo "content2" > file2.txt
+    echo "content3" > file3.txt
+
+    # Build and execute command based on mode
+    case "$mode" in
+        run)
+            "${SCRIPT_DIR}/wireflow.sh" run "$workflow_name" -in file1.txt file2.txt file3.txt
+            ;;
+        batch)
+            "${SCRIPT_DIR}/wireflow.sh" batch "$workflow_name" -in file1.txt file2.txt file3.txt
+            ;;
+        task)
+            "${SCRIPT_DIR}/wireflow.sh" task -i "Analyze files" -in file1.txt file2.txt file3.txt
+            ;;
+    esac
+}
+
+# Test that -cx accepts multiple arguments
+# Arguments:
+#   $1 - mode: "run", "batch", or "task"
+#   $2 - workflow_name: Name of workflow (optional)
+test_multi_arg_context() {
+    local mode="$1"
+    local workflow_name="${2:-multi-context-test}"
+
+    setup_multi_arg_test "$mode" "$workflow_name" || return 1
+
+    # Create test files
+    echo "context1" > ctx1.md
+    echo "context2" > ctx2.md
+
+    case "$mode" in
+        run)
+            "${SCRIPT_DIR}/wireflow.sh" run "$workflow_name" -cx ctx1.md ctx2.md
+            ;;
+        batch)
+            echo "input" > input.txt
+            "${SCRIPT_DIR}/wireflow.sh" batch "$workflow_name" -in input.txt -cx ctx1.md ctx2.md
+            ;;
+        task)
+            "${SCRIPT_DIR}/wireflow.sh" task -i "Summarize" -cx ctx1.md ctx2.md
+            ;;
+    esac
+}
+
+# Test that -dp accepts multiple arguments (run/batch only)
+# Arguments:
+#   $1 - mode: "run" or "batch"
+#   $2 - workflow_name: Name of workflow (optional)
+test_multi_arg_depends() {
+    local mode="$1"
+    local workflow_name="${2:-dependent-test}"
+
+    # Task mode doesn't support -dp
+    [[ "$mode" == "task" ]] && return 0
+
+    setup_multi_arg_test "$mode" "$workflow_name" || return 1
+
+    # Create dependency workflows with outputs
+    "${SCRIPT_DIR}/wireflow.sh" new dep1 >/dev/null 2>&1 || return 1
+    mkdir -p ".workflow/output"
+    echo "dep1 output" > ".workflow/output/dep1.md"
+
+    "${SCRIPT_DIR}/wireflow.sh" new dep2 >/dev/null 2>&1 || return 1
+    echo "dep2 output" > ".workflow/output/dep2.md"
+
+    case "$mode" in
+        run)
+            "${SCRIPT_DIR}/wireflow.sh" run "$workflow_name" -dp dep1 dep2
+            ;;
+        batch)
+            echo "input" > input.txt
+            "${SCRIPT_DIR}/wireflow.sh" batch "$workflow_name" -in input.txt -dp dep1 dep2
+            ;;
+    esac
+}
+
+# Test that multi-arg parsing stops at next option
+# Arguments:
+#   $1 - mode: "run", "batch", or "task"
+#   $2 - workflow_name: Name of workflow (optional)
+test_multi_arg_option_boundary() {
+    local mode="$1"
+    local workflow_name="${2:-option-boundary-test}"
+
+    setup_multi_arg_test "$mode" "$workflow_name" || return 1
+
+    # Create test files
+    echo "input content" > input.txt
+    echo "context content" > context.md
+
+    case "$mode" in
+        run)
+            "${SCRIPT_DIR}/wireflow.sh" run "$workflow_name" -in input.txt -cx context.md
+            ;;
+        batch)
+            echo "input2" > input2.txt
+            "${SCRIPT_DIR}/wireflow.sh" batch "$workflow_name" -in input.txt input2.txt -cx context.md
+            ;;
+        task)
+            "${SCRIPT_DIR}/wireflow.sh" task -i "Process" -in input.txt -cx context.md
+            ;;
+    esac
+}
+
+# Test mixed single and multi-arg options
+# Arguments:
+#   $1 - mode: "run", "batch", or "task"
+#   $2 - workflow_name: Name of workflow (optional)
+test_multi_arg_mixed() {
+    local mode="$1"
+    local workflow_name="${2:-mixed-args-test}"
+
+    setup_multi_arg_test "$mode" "$workflow_name" || return 1
+
+    # Create test files
+    echo "file1" > a.txt
+    echo "file2" > b.txt
+    echo "ctx1" > c.md
+    echo "ctx2" > d.md
+
+    case "$mode" in
+        run)
+            "${SCRIPT_DIR}/wireflow.sh" run "$workflow_name" -in a.txt b.txt --profile fast -cx c.md d.md
+            ;;
+        batch)
+            "${SCRIPT_DIR}/wireflow.sh" batch "$workflow_name" -in a.txt b.txt --profile fast -cx c.md d.md
+            ;;
+        task)
+            "${SCRIPT_DIR}/wireflow.sh" task -i "Analyze" -in a.txt b.txt --profile fast -cx c.md d.md
+            ;;
+    esac
+}
