@@ -10,6 +10,8 @@ Version 0.5.0 (pre-release)
 
 - 📄 **Native Documents:** PDFs, Office files, images (including HEIC, TIFF, SVG) handled natively with automatic conversion.
 
+- 📎 **Obsidian Embeds:** `![[file]]` syntax auto-resolves. Embedded images and PDFs become content blocks.
+
 - 🧠 **Model Profiles:** Switch between `fast`, `balanced`, and `deep` reasoning. Enable extended thinking for complex tasks.
 
 - 📦 **Batch Processing:** Process hundreds of documents at 50% cost savings with the Message Batches API.
