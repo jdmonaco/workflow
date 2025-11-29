@@ -125,12 +125,25 @@ The `shell install` command creates symlinks to:
 
 - `~/.local/bin/wfw` - Binary symlink
 - `~/.local/share/bash-completion/completions/wfw` - Tab completion
+- `~/.local/share/wireflow/wfw-prompt.sh` - Prompt helper (optional)
 
 !!! tip "Add to PATH"
     If `~/.local/bin` is not in your PATH, add to `~/.bashrc` or `~/.zshrc`:
     ```bash
     export PATH="$HOME/.local/bin:$PATH"
     ```
+
+#### Shell Integration Commands
+
+The `wfw shell` subcommand provides three actions:
+
+| Action | Description |
+|--------|-------------|
+| `install` | Create symlinks (skips if already installed) |
+| `doctor` | Force reinstall symlinks + diagnose setup issues |
+| `uninstall` | Remove symlinks and check for config references |
+
+Use `wfw shell doctor` after moving the repository or to diagnose bash-completion issues.
 
 #### Manual Installation (Alternative)
 
@@ -192,6 +205,31 @@ Tab completion works for:
 - Task templates: `wfw task <tab>`, `wfw new myflow --from-task <tab>`
 - Options: `wfw run myworkflow --<tab>`
 - File paths: `wfw run myworkflow -cx <tab>`
+
+!!! tip "Troubleshooting Completions"
+    If completions aren't working, run `wfw shell doctor` to diagnose. It checks whether the bash-completion package is installed and provides OS-specific setup instructions.
+
+## Prompt Integration (Optional)
+
+WireFlow provides a `__wfw_ps1()` function for including the current project name in your shell prompt, similar to `__git_ps1()` from git.
+
+To enable, add to your `~/.bashrc`:
+
+```bash
+# Source the prompt helper
+source ~/.local/share/wireflow/wfw-prompt.sh
+
+# Add project indicator to your prompt
+export PS1='\w$(__wfw_ps1 " (%s)")\$ '
+```
+
+When inside a WireFlow project, your prompt will show the project name:
+
+```
+~/projects/my-app (my-app)$
+```
+
+The function accepts an optional format string (default: `" (%s)"`). Outside a project, it outputs nothing.
 
 ## Environment Setup
 
@@ -307,6 +345,19 @@ If you get `wfw: command not found`, ensure:
 - The script is executable: `chmod +x ~/bin/wfw`
 - `~/bin` is in your PATH: `echo $PATH`
 - You've reloaded your shell: `source ~/.bashrc`
+
+If you moved the WireFlow repository after installation, run `wfw shell doctor` to fix broken symlinks.
+
+### Completions Not Working
+
+If tab completion isn't working:
+
+1. Run `wfw shell doctor` to diagnose the issue
+2. Ensure bash-completion package is installed:
+    - **macOS:** `brew install bash-completion@2`
+    - **Linux:** `sudo apt install bash-completion`
+3. Verify bash-completion is sourced in your `~/.bashrc`
+4. Start a new shell or run `source ~/.bashrc`
 
 ### jq Not Found
 
