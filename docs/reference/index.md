@@ -23,6 +23,7 @@ wfw <subcommand> [options]
 | [`open`](open.md) | Open workflow output in default app (macOS) |
 | [`tasks`](tasks.md) | Manage task templates |
 | [`list`](list.md) | List workflows in project |
+| [`shell`](shell.md) | Install shell integration |
 | [`help`](help.md) | Show help for subcommands |
 
 ### Global Options

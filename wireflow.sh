@@ -386,6 +386,11 @@ case "$cmd" in
         fi
         exit 0
         ;;
+    shell)
+        # Shell integration (install wfw + completions)
+        cmd_shell "$@"
+        exit $?
+        ;;
     find-project-root)
         find_project_root
         exit $?
@@ -408,6 +413,7 @@ case "$cmd" in
             cat) show_help_cat ;;
             open) show_help_open ;;
             list) show_help_list ;;
+            shell) show_help_shell ;;
             help) show_help ;;
             *)
                 echo "Error: Unknown subcommand: $1"

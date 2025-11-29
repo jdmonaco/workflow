@@ -887,3 +887,75 @@ open_workflow() {
     echo "Opening: $output_file"
     open "$output_file"
 }
+
+# =============================================================================
+# Shell Subcommand - Install shell integration
+# =============================================================================
+
+cmd_shell() {
+    local action="${1:-}"
+
+    case "$action" in
+        install)
+            shell_install
+            ;;
+        -h|--help)
+            show_quick_help_shell
+            ;;
+        "")
+            show_help_shell
+            ;;
+        *)
+            echo "Error: Unknown shell action: $action" >&2
+            show_quick_help_shell
+            return 1
+            ;;
+    esac
+}
+
+shell_install() {
+    # Determine wireflow root from this script's location
+    local wireflow_root
+    wireflow_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
+    local bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local completions_dir="$data_dir/bash-completion/completions"
+
+    # Create directories
+    mkdir -p "$bin_dir" "$completions_dir"
+
+    # Install wfw symlink
+    local wfw_source="$wireflow_root/wireflow.sh"
+    local wfw_target="$bin_dir/wfw"
+
+    if [[ -e "$wfw_target" && ! -L "$wfw_target" ]]; then
+        echo "Warning: $wfw_target exists and is not a symlink, skipping"
+    else
+        ln -sf "$wfw_source" "$wfw_target"
+        echo "Installed: $wfw_target -> $wfw_source"
+    fi
+
+    # Install completions
+    local comp_source="$wireflow_root/share/bash-completion/completions/wireflow.sh"
+    local comp_target="$completions_dir/wfw"
+
+    if [[ -e "$comp_target" && ! -L "$comp_target" ]]; then
+        echo "Warning: $comp_target exists and is not a symlink, skipping"
+    else
+        ln -sf "$comp_source" "$comp_target"
+        echo "Installed: $comp_target -> $comp_source"
+    fi
+
+    # Hint about PATH
+    if ! command -v wfw &>/dev/null; then
+        echo ""
+        echo "Note: Ensure $bin_dir is in your PATH:"
+        echo "  export PATH=\"$bin_dir:\$PATH\""
+    fi
+
+    # Hint about completions
+    echo ""
+    echo "Completions will load automatically in new shells."
+    echo "To enable now: source $comp_target"
+}

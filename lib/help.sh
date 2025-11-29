@@ -28,6 +28,7 @@ Subcommands:
     open NAME        Open output in app (macOS)
     tasks            Manage task templates
     list             Show project workflows
+    shell            Install shell integration
     help [CMD]       Show help
 
 Use '$SCRIPT_NAME help <subcommand>' for detailed help on a specific command.
@@ -120,6 +121,11 @@ Usage: $SCRIPT_NAME batch <name> [options]
        $SCRIPT_NAME batch cancel <name>
 See '$SCRIPT_NAME help batch' for complete usage details.
 EOF
+}
+
+show_quick_help_shell() {
+    echo "Usage: $SCRIPT_NAME shell install"
+    echo "See '$SCRIPT_NAME help shell' for complete usage details."
 }
 
 # =============================================================================
@@ -483,5 +489,33 @@ Examples:
 
 See Also:
     $SCRIPT_NAME run <name>     # Single-request execution (non-batch)
+EOF
+}
+
+show_help_shell() {
+    cat <<EOF
+Usage: $SCRIPT_NAME shell <action>
+
+Install WireFlow into user-local paths for easy access.
+
+Actions:
+    install            Install wfw symlink and bash completions
+
+Installation paths:
+    Binary:            \${XDG_BIN_HOME:-~/.local/bin}/wfw
+    Completions:       \${XDG_DATA_HOME:-~/.local/share}/bash-completion/completions/wfw
+
+Options:
+    -h, --help         Quick help
+
+Notes:
+    Both binary and completions are installed as symlinks to the source
+    repository, so updates to the repo are automatically reflected.
+
+    Completions will load automatically in new shells that use bash-completion.
+    To enable immediately: source ~/.local/share/bash-completion/completions/wfw
+
+Examples:
+    $SCRIPT_NAME shell install
 EOF
 }

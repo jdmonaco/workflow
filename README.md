@@ -24,22 +24,22 @@ Version 0.5.0 (pre-release) · [Documentation](https://docs.joemona.co/wireflow/
 
 ### Install
 
-First, clone the [repo](https://github.com/jdmonaco/wireflow) and then link the script into your `PATH`. For example:
+Clone the [repo](https://github.com/jdmonaco/wireflow) and run the installer:
 
 ```bash
 # Clone repository
 git clone https://github.com/jdmonaco/wireflow.git
 cd wireflow
 
-# Add to PATH (example using ~/.local/bin)
-ln -s "$(pwd)/wireflow.sh" ~/.local/bin/wfw
+# Install (creates symlinks to ~/.local/bin and bash completions)
+./wireflow.sh shell install
 ```
 
 ### Setup
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"  # if not already in PATH
 ```
 
 ### Create Your First Workflow

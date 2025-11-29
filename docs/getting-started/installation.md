@@ -107,7 +107,34 @@ sudo dnf install imagemagick      # Fedora/RHEL
 
 ### Method 1: Clone Repository (Recommended)
 
-Clone the repository and add to your PATH:
+Clone the repository and use the built-in installer:
+
+```bash
+# Clone the repository
+git clone https://github.com/jdmonaco/wireflow.git
+cd wireflow
+
+# Install using shell integration (creates symlinks automatically)
+./wireflow.sh shell install
+
+# Verify installation
+wfw help
+```
+
+The `shell install` command creates symlinks to:
+
+- `~/.local/bin/wfw` - Binary symlink
+- `~/.local/share/bash-completion/completions/wfw` - Tab completion
+
+!!! tip "Add to PATH"
+    If `~/.local/bin` is not in your PATH, add to `~/.bashrc` or `~/.zshrc`:
+    ```bash
+    export PATH="$HOME/.local/bin:$PATH"
+    ```
+
+#### Manual Installation (Alternative)
+
+If you prefer manual control over symlink locations:
 
 ```bash
 # Clone the repository
@@ -124,16 +151,6 @@ ln -s "$(pwd)/wireflow.sh" ~/bin/wfw
 # Verify installation
 wfw help
 ```
-
-!!! tip "Add to PATH"
-    Ensure your chosen directory is in your PATH. Add to `~/.bashrc` or `~/.zshrc`:
-    ```bash
-    # For ~/.local/bin
-    export PATH="$HOME/.local/bin:$PATH"
-
-    # For ~/bin
-    export PATH="$HOME/bin:$PATH"
-    ```
 
 ### Method 2: System-Wide Installation
 
@@ -157,6 +174,24 @@ WireFlow is a modular tool that includes:
 - `tests/` - Test suite
 
 All components are needed for the tool to function properly.
+
+## Bash Completions
+
+If you used `wfw shell install`, bash completions are installed automatically. They load in new shells that use bash-completion.
+
+To enable completions in your current shell:
+
+```bash
+source ~/.local/share/bash-completion/completions/wfw
+```
+
+Tab completion works for:
+
+- Subcommands: `wfw <tab>`
+- Workflow names: `wfw run <tab>`, `wfw edit <tab>`
+- Task templates: `wfw task <tab>`, `wfw new myflow --from-task <tab>`
+- Options: `wfw run myworkflow --<tab>`
+- File paths: `wfw run myworkflow -cx <tab>`
 
 ## Environment Setup
 

@@ -31,8 +31,8 @@ These provide comprehensive context for understanding how WireFlow is built and 
 git clone https://github.com/jdmonaco/wireflow.git
 cd wireflow
 
-# Install for local development
-ln -s "$(pwd)/wireflow.sh" ~/bin/workflow
+# Install for local development (symlinks to ~/.local/bin and bash completions)
+./wireflow.sh shell install
 
 # Install test framework
 git submodule update --init --recursive

@@ -34,15 +34,15 @@ Version 0.5.0 (pre-release)
 
 ## Quick Start
 
-To install `wireflow`, clone the [repo](https://github.com/jdmonaco/wireflow) and link the script into your `PATH`. For example:
+To install `wireflow`, clone the [repo](https://github.com/jdmonaco/wireflow) and run the installer:
 
 ```bash
 # Clone repository
 git clone https://github.com/jdmonaco/wireflow.git
 cd wireflow
 
-# Add to PATH (example using ~/.local/bin)
-ln -s "$(pwd)/wireflow.sh" ~/.local/bin/wfw
+# Install (creates symlinks to ~/.local/bin and bash completions)
+./wireflow.sh shell install
 ```
 
 For Anthropic requests, ensure your API key is set in your shell environment:
@@ -50,6 +50,7 @@ For Anthropic requests, ensure your API key is set in your shell environment:
 ```bash
 # Set up environment
 export ANTHROPIC_API_KEY="your-key"
+export PATH="$HOME/.local/bin:$PATH"  # if not already in PATH
 ```
 
 Try out initializing `wireflow` in any folder containing a project or files you want to process:
