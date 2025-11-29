@@ -28,7 +28,10 @@ save_batch_state() {
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     # Build input files array from BATCH_INPUT_MAP
-    local input_map_json="${BATCH_INPUT_MAP:-[]}"
+    local input_map_json="$BATCH_INPUT_MAP"
+    if [[ -z "input_map_json" ]]; then
+        input_map_json="[]"
+    fi
 
     jq -n \
         --arg batch_id "$batch_id" \

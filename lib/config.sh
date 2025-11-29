@@ -439,225 +439,268 @@ TASK_EOF
     #TODO fix builtin task templates with incomplete XML structure
     # summarize.txt
     cat > "$task_dir/summarize.txt" <<'TASK_EOF'
-<description>
-  Create concise summary with key points and action items
-</description>
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Create concise summary with key points and action items
+    </description>
+    <guidance>
+      Extract and synthesize the most important information from the provided content
+    </guidance>
+    <instructions>
+      Analyze the provided content and create a comprehensive summary that includes:
 
-<guidance>
-  Extract and synthesize the most important information from the provided content
-</guidance>
-
-<instructions>
-  Analyze the provided content and create a comprehensive summary that includes:
-
-  1. **Main Topics:** What are the primary subjects discussed?
-  2. **Key Findings:** What are the most important conclusions or discoveries?
-  3. **Significant Points:** What details or arguments support the main ideas?
-  4. **Action Items:** What tasks, next steps, or follow-ups are mentioned or implied?
-  5. **Open Questions:** What issues remain unresolved or require further investigation?
-</instructions>
-
-<output-format>
-  Use clear markdown structure with headers and bullet points.
-  Keep the summary concise but comprehensive - aim for 1-2 pages of content.
-</output-format>
+      1. **Main Topics:** What are the primary subjects discussed?
+      2. **Key Findings:** What are the most important conclusions or discoveries?
+      3. **Significant Points:** What details or arguments support the main ideas?
+      4. **Action Items:** What tasks, next steps, or follow-ups are mentioned or implied?
+      5. **Open Questions:** What issues remain unresolved or require further investigation?
+    </instructions>
+    <output-format>
+      Use clear markdown structure with headers and bullet points.
+      Keep the summary concise but comprehensive - aim for 1-2 pages of content.
+    </output-format>
+  </content>
+</user-task>
 TASK_EOF
 
     # extract.txt
     cat > "$task_dir/extract.txt" <<'TASK_EOF'
-<description>
-  Extract specific information, quotes, data points, or references
-</description>
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Extract specific information, quotes, data points, or references
+    </description>
+    <guidance>
+      Identify and organize targeted information from the source material
+    </guidance>
+    <instructions>
+      Extract and organize specific information from the provided content:
 
-<guidance>
-  Identify and organize targeted information from the source material
-</guidance>
-
-<instructions>
-  Extract and organize specific information from the provided content:
-
-  1. **Key Facts and Data:** Numerical data, statistics, measurements, dates
-  2. **Important Quotes:** Significant statements or claims (with context)
-  3. **Names and Entities:** People, organizations, locations mentioned
-  4. **References:** Citations, sources, external materials referenced
-  5. **Technical Terms:** Specialized vocabulary or jargon with definitions
-</instructions>
-
-<output-format>
-  Format as structured lists with clear categories.
-  Include page numbers or section references where available.
-  Preserve exact wording for quotes and maintain proper citation format.
-</output-format>
+      1. **Key Facts and Data:** Numerical data, statistics, measurements, dates
+      2. **Important Quotes:** Significant statements or claims (with context)
+      3. **Names and Entities:** People, organizations, locations mentioned
+      4. **References:** Citations, sources, external materials referenced
+      5. **Technical Terms:** Specialized vocabulary or jargon with definitions
+    </instructions>
+    <output-format>
+      Format as structured lists with clear categories.
+      Include page numbers or section references where available.
+      Preserve exact wording for quotes and maintain proper citation format.
+    </output-format>
+  </content>
+</user-task>
 TASK_EOF
 
     # analyze.txt
     cat > "$task_dir/analyze.txt" <<'TASK_EOF'
-<description>
-  Perform deep analysis identifying patterns, insights, and implications
-</description>
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Perform deep analysis identifying patterns, insights, and implications
+    </description>
+    <guidance>
+      Go beyond surface-level observations to uncover deeper meanings and connections
+    </guidance>
+    <instructions>
+      Conduct a thorough analysis of the provided content focusing on:
 
-<guidance>
-  Go beyond surface-level observations to uncover deeper meanings and connections
-</guidance>
-
-<instructions>
-  Conduct a thorough analysis of the provided content focusing on:
-
-  1. **Patterns and Trends:** What recurring themes, patterns, or trends appear?
-  2. **Key Insights:** What important insights or discoveries emerge from the content?
-  3. **Relationships:** How do different concepts, data points, or arguments connect?
-  4. **Implications:** What are the broader implications or consequences?
-  5. **Context:** How does this fit within the larger field or domain?
-  6. **Recommendations:** Based on the analysis, what actions or directions are suggested?
-</instructions>
-
-<output-format>
-  Provide detailed explanations for each observation.
-  Support your analysis with specific evidence from the content.
-  Use clear structure with headers and subsections for readability.
-</output-format>
+      1. **Patterns and Trends:** What recurring themes, patterns, or trends appear?
+      2. **Key Insights:** What important insights or discoveries emerge from the content?
+      3. **Relationships:** How do different concepts, data points, or arguments connect?
+      4. **Implications:** What are the broader implications or consequences?
+      5. **Context:** How does this fit within the larger field or domain?
+      6. **Recommendations:** Based on the analysis, what actions or directions are suggested?
+    </instructions>
+    <output-format>
+      Provide detailed explanations for each observation.
+      Support your analysis with specific evidence from the content.
+      Use clear structure with headers and subsections for readability.
+    </output-format>
+  </content>
+</user-task>
 TASK_EOF
 
     # review.txt
     cat > "$task_dir/review.txt" <<'TASK_EOF'
-<description>
-  Critical evaluation with strengths, weaknesses, and improvement suggestions
-</description>
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Critical evaluation with strengths, weaknesses, and improvement suggestions
+    </description>
+    <guidance>
+      Provide balanced, constructive assessment of the content quality and effectiveness
+    </guidance>
+    <instructions>
+      Provide a balanced critical review of the provided content covering:
 
-<guidance>
-  Provide balanced, constructive assessment of the content quality and effectiveness
-</guidance>
-
-<instructions>
-  Provide a balanced critical review of the provided content covering:
-
-  1. **Strengths:** What aspects are well-executed, clear, or effective?
-  2. **Weaknesses:** What issues, gaps, or problems are present?
-  3. **Clarity:** Is the content well-organized and easy to understand?
-  4. **Completeness:** Are important topics adequately covered?
-  5. **Quality Assessment:** How does the work compare to standards or expectations?
-  6. **Suggestions for Improvement:** Specific, actionable recommendations
-</instructions>
-
-<output-format>
-  Be constructive and specific in your feedback.
-  Support critiques with examples from the content.
-  Balance critical observations with recognition of strengths.
-</output-format>
+      1. **Strengths:** What aspects are well-executed, clear, or effective?
+      2. **Weaknesses:** What issues, gaps, or problems are present?
+      3. **Clarity:** Is the content well-organized and easy to understand?
+      4. **Completeness:** Are important topics adequately covered?
+      5. **Quality Assessment:** How does the work compare to standards or expectations?
+      6. **Suggestions for Improvement:** Specific, actionable recommendations
+    </instructions>
+    <output-format>
+      Be constructive and specific in your feedback.
+      Support critiques with examples from the content.
+      Balance critical observations with recognition of strengths.
+    </output-format>
+  </content>
+</user-task>
 TASK_EOF
 
     # compare.txt
     cat > "$task_dir/compare.txt" <<'TASK_EOF'
-<description>
-  Compare and contrast multiple items, approaches, or perspectives
-</description>
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Compare and contrast multiple items, approaches, or perspectives
+    </description>
+    <guidance>
+      Perform systematic comparison highlighting similarities, differences, and trade-offs
+    </guidance>
+    <instructions>
+      Perform a systematic comparison of the provided items, documents, or perspectives:
 
-<guidance>
-  Perform systematic comparison highlighting similarities, differences, and trade-offs
-</guidance>
-
-<instructions>
-  Perform a systematic comparison of the provided items, documents, or perspectives:
-
-  1. **Overview:** Brief summary of each item being compared
-  2. **Key Similarities:** What common features, themes, or approaches exist?
-  3. **Key Differences:** How do the items differ in approach, content, or conclusions?
-  4. **Strengths and Weaknesses:** What are the relative advantages and disadvantages?
-  5. **Trade-offs:** What compromises or trade-offs does each option present?
-  6. **Recommendations:** Based on the comparison, which option is preferable and why?
-</instructions>
-
-<output-format>
-  Use clear parallel structure when discussing similarities and differences.
-  Create comparison tables if helpful for structured data.
-  Provide objective analysis before offering recommendations.
-</output-format>
+      1. **Overview:** Brief summary of each item being compared
+      2. **Key Similarities:** What common features, themes, or approaches exist?
+      3. **Key Differences:** How do the items differ in approach, content, or conclusions?
+      4. **Strengths and Weaknesses:** What are the relative advantages and disadvantages?
+      5. **Trade-offs:** What compromises or trade-offs does each option present?
+      6. **Recommendations:** Based on the comparison, which option is preferable and why?
+    </instructions>
+    <output-format>
+      Use clear parallel structure when discussing similarities and differences.
+      Create comparison tables if helpful for structured data.
+      Provide objective analysis before offering recommendations.
+    </output-format>
+  </content>
+</user-task>
 TASK_EOF
 
     # outline.txt
     cat > "$task_dir/outline.txt" <<'TASK_EOF'
-<description>
-  Generate structured outline with hierarchical organization
-</description>
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Generate structured outline with hierarchical organization
+    </description>
+    <guidance>
+      Create logical organization and flow for the content or topic
+    </guidance>
+    <instructions>
+      Create a detailed outline for the provided content or topic:
 
-<guidance>
-  Create logical organization and flow for the content or topic
-</guidance>
-
-<instructions>
-  Create a detailed outline for the provided content or topic:
-
-  1. **Main Sections:** Identify the major sections or chapters needed
-  2. **Subsections:** Break down each main section into logical subsections
-  3. **Key Points:** List the primary points to cover in each subsection
-  4. **Logical Flow:** Ensure smooth transitions and progression of ideas
-  5. **Supporting Elements:** Note where examples, data, or references are needed
-</instructions>
-
-<output-format>
-  Use hierarchical numbering (1, 1.1, 1.1.1) or nested bullets.
-  Aim for 3-4 levels of depth where appropriate.
-  Include brief notes on the purpose or content of each section.
-  Ensure the outline is comprehensive but not overly detailed.
-</output-format>
+      1. **Main Sections:** Identify the major sections or chapters needed
+      2. **Subsections:** Break down each main section into logical subsections
+      3. **Key Points:** List the primary points to cover in each subsection
+      4. **Logical Flow:** Ensure smooth transitions and progression of ideas
+      5. **Supporting Elements:** Note where examples, data, or references are needed
+    </instructions>
+    <output-format>
+      Use hierarchical numbering (1, 1.1, 1.1.1) or nested bullets.
+      Aim for 3-4 levels of depth where appropriate.
+      Include brief notes on the purpose or content of each section.
+      Ensure the outline is comprehensive but not overly detailed.
+    </output-format>
+  </content>
+</user-task>
 TASK_EOF
 
     # explain.txt
     cat > "$task_dir/explain.txt" <<'TASK_EOF'
-<description>
-  Explain complex topics in clear, accessible language with examples
-</description>
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Explain complex topics in clear, accessible language with examples
+    </description>
 
-<guidance>
-  Make complex or technical content accessible to a general audience
-</guidance>
+    <guidance>
+      Make complex or technical content accessible to a general audience
+    </guidance>
 
-<instructions>
-  Provide a clear explanation of the content or concept for a general audience:
+    <instructions>
+      Provide a clear explanation of the content or concept for a general audience:
 
-  1. **Overview:** What is the topic and why is it important?
-  2. **Core Concepts:** Break down the fundamental ideas or components
-  3. **Plain Language:** Explain technical terms and jargon in accessible ways
-  4. **Analogies:** Use relevant comparisons to familiar concepts
-  5. **Examples:** Provide concrete examples that illustrate key points
-  6. **Step-by-Step:** If applicable, break processes into clear sequential steps
-  7. **Common Misconceptions:** Address frequent misunderstandings
-</instructions>
+      1. **Overview:** What is the topic and why is it important?
+      2. **Core Concepts:** Break down the fundamental ideas or components
+      3. **Plain Language:** Explain technical terms and jargon in accessible ways
+      4. **Analogies:** Use relevant comparisons to familiar concepts
+      5. **Examples:** Provide concrete examples that illustrate key points
+      6. **Step-by-Step:** If applicable, break processes into clear sequential steps
+      7. **Common Misconceptions:** Address frequent misunderstandings
+    </instructions>
 
-<output-format>
-  Aim for clarity over precision when necessary for understanding.
-  Use short paragraphs and clear transitions between ideas.
-  Build from simple to complex concepts progressively.
-</output-format>
+    <output-format>
+      Aim for clarity over precision when necessary for understanding.
+      Use short paragraphs and clear transitions between ideas.
+      Build from simple to complex concepts progressively.
+    </output-format>
+  </content>
+</user-task>
 TASK_EOF
 
     # critique.txt
     cat > "$task_dir/critique.txt" <<'TASK_EOF'
-<description>
-  Identify problems, gaps, inconsistencies, and suggest improvements
-</description>
+<user-task>
+  <metadata>
+    <name>default</name>
+    <version>1.0</version>
+  </metadata>
+  <content>
+    <description>
+      Identify problems, gaps, inconsistencies, and suggest improvements
+    </description>
+    <guidance>
+      Provide thorough critical analysis focused on identifying issues and solutions
+    </guidance>
+    <instructions>
+      Provide a detailed critique identifying issues and opportunities for improvement:
 
-<guidance>
-  Provide thorough critical analysis focused on identifying issues and solutions
-</guidance>
-
-<instructions>
-  Provide a detailed critique identifying issues and opportunities for improvement:
-
-  1. **Logical Problems:** Are there flaws in reasoning or argumentation?
-  2. **Factual Issues:** Are there errors, unsupported claims, or questionable statements?
-  3. **Structural Problems:** Are there organizational issues or unclear flow?
-  4. **Gaps and Omissions:** What important topics or perspectives are missing?
-  5. **Inconsistencies:** Where does the content contradict itself or lack coherence?
-  6. **Methodological Issues:** If applicable, are there problems with approach or methods?
-  7. **Actionable Improvements:** What specific changes would address these issues?
-</instructions>
-
-<output-format>
-  Be thorough and specific. Point to exact locations when identifying issues.
-  Prioritize problems by severity or impact.
-  For each criticism, suggest a constructive path forward.
-</output-format>
+      1. **Logical Problems:** Are there flaws in reasoning or argumentation?
+      2. **Factual Issues:** Are there errors, unsupported claims, or questionable statements?
+      3. **Structural Problems:** Are there organizational issues or unclear flow?
+      4. **Gaps and Omissions:** What important topics or perspectives are missing?
+      5. **Inconsistencies:** Where does the content contradict itself or lack coherence?
+      6. **Methodological Issues:** If applicable, are there problems with approach or methods?
+      7. **Actionable Improvements:** What specific changes would address these issues?
+    </instructions>
+    <output-format>
+      Be thorough and specific. Point to exact locations when identifying issues.
+      Prioritize problems by severity or impact.
+      For each criticism, suggest a constructive path forward.
+    </output-format>
+  </content>
+</user-task>
 TASK_EOF
 
     return 0
