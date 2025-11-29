@@ -239,6 +239,141 @@ teardown() {
     assert_equal "$result" "numbers123"
 }
 
+@test "sanitize: converts path separators to underscores" {
+    result=$(sanitize "images/photo.png")
+    assert_equal "$result" "images_photo.png"
+
+    result=$(sanitize "deep/nested/path/file.txt")
+    assert_equal "$result" "deep_nested_path_file.txt"
+}
+
+@test "sanitize: handles absolute paths" {
+    # Leading slash becomes underscore, then trimmed
+    result=$(sanitize "/absolute/path/file.txt")
+    assert_equal "$result" "absolute_path_file.txt"
+}
+
+# ============================================================================
+# Obsidian preprocessing functions
+# ============================================================================
+
+@test "resolve_obsidian_embed: finds file in same directory" {
+    local test_dir
+    test_dir=$(realpath "$(mktemp -d)")
+
+    # Create test file
+    touch "$test_dir/image.png"
+
+    result=$(resolve_obsidian_embed "image.png" "$test_dir")
+    assert_equal "$result" "$test_dir/image.png"
+
+    rm -rf "$test_dir"
+}
+
+@test "resolve_obsidian_embed: finds file in Attachments subdirectory" {
+    local test_dir
+    test_dir=$(realpath "$(mktemp -d)")
+
+    # Create Attachments subdirectory with file
+    mkdir -p "$test_dir/Attachments"
+    touch "$test_dir/Attachments/document.pdf"
+
+    result=$(resolve_obsidian_embed "document.pdf" "$test_dir")
+    assert_equal "$result" "$test_dir/Attachments/document.pdf"
+
+    rm -rf "$test_dir"
+}
+
+@test "resolve_obsidian_embed: strips modifiers from reference" {
+    local test_dir
+    test_dir=$(realpath "$(mktemp -d)")
+
+    touch "$test_dir/image.png"
+
+    # Test with dimension modifier
+    result=$(resolve_obsidian_embed "image.png|640x480" "$test_dir")
+    assert_equal "$result" "$test_dir/image.png"
+
+    # Test with page modifier
+    touch "$test_dir/doc.pdf"
+    result=$(resolve_obsidian_embed "doc.pdf#page=3" "$test_dir")
+    assert_equal "$result" "$test_dir/doc.pdf"
+
+    rm -rf "$test_dir"
+}
+
+@test "resolve_obsidian_embed: returns empty for missing file" {
+    local test_dir
+    test_dir=$(realpath "$(mktemp -d)")
+
+    run resolve_obsidian_embed "nonexistent.png" "$test_dir"
+    assert_failure
+    assert_output ""
+
+    rm -rf "$test_dir"
+}
+
+@test "preprocess_obsidian_markdown: replaces embed with XML tag" {
+    local test_dir
+    test_dir=$(realpath "$(mktemp -d)")
+
+    # Create test image
+    touch "$test_dir/photo.png"
+
+    # Test content with embed
+    local content="Here is an image:
+
+![[photo.png]]
+
+End of document."
+
+    run preprocess_obsidian_markdown "$content" "$test_dir/notes.md" "context" "$test_dir"
+
+    # Should contain XML tag instead of embed syntax
+    assert_output --partial "<photo.png/>"
+    refute_output --partial "![[photo.png]]"
+
+    rm -rf "$test_dir"
+}
+
+@test "preprocess_obsidian_markdown: populates embed arrays" {
+    local test_dir
+    test_dir=$(realpath "$(mktemp -d)")
+
+    # Create test files
+    touch "$test_dir/image.png"
+    touch "$test_dir/doc.pdf"
+
+    local content="![[image.png]]
+Some text
+![[doc.pdf]]"
+
+    # Run preprocessing
+    preprocess_obsidian_markdown "$content" "$test_dir/notes.md" "context" "$test_dir" > /dev/null
+
+    # Check arrays are populated
+    assert_equal "${#OBSIDIAN_EMBED_FILES[@]}" "2"
+    assert_equal "${OBSIDIAN_EMBED_FILES[0]}" "$test_dir/image.png"
+    assert_equal "${OBSIDIAN_EMBED_FILES[1]}" "$test_dir/doc.pdf"
+
+    rm -rf "$test_dir"
+}
+
+@test "preprocess_obsidian_markdown: warns on missing file and keeps syntax" {
+    local test_dir
+    test_dir=$(realpath "$(mktemp -d)")
+
+    local content="![[missing.png]]"
+
+    run preprocess_obsidian_markdown "$content" "$test_dir/notes.md" "context" "$test_dir"
+
+    # Should keep original syntax
+    assert_output --partial "![[missing.png]]"
+    # Warning should go to stderr (captured in run output)
+
+    rm -rf "$test_dir"
+}
+
 @test "escape_json: escapes JSON special characters" {
     result=$(escape_json 'String with "quotes" and \backslash')
     assert_equal "$result" 'String with \"quotes\" and \\backslash'

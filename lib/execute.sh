@@ -936,7 +936,7 @@ build_and_track_document_block() {
         return 0
     fi
 
-    # Handle text files (existing logic)
+    # Handle text files
     local block
     if [[ -n "$meta_key" && -n "$meta_value" ]]; then
         block=$(build_content_block "$file" "$category" "$enable_citations" "$meta_key" "$meta_value")
@@ -949,6 +949,23 @@ build_and_track_document_block() {
         CONTEXT_BLOCKS+=("$block")
     elif [[ "$category" == "input" ]]; then
         INPUT_BLOCKS+=("$block")
+    fi
+
+    # Process any Obsidian embed files discovered during markdown preprocessing
+    if [[ ${#OBSIDIAN_EMBED_FILES[@]} -gt 0 ]]; then
+        for i in "${!OBSIDIAN_EMBED_FILES[@]}"; do
+            local embed_file="${OBSIDIAN_EMBED_FILES[$i]}"
+            local embed_role="${OBSIDIAN_EMBED_ROLES[$i]}"
+
+            echo "    Processing embedded file: $(basename "$embed_file")" >&2
+
+            # Recursively process embed file (handles images, PDFs, etc.)
+            build_and_track_document_block "$embed_file" "$embed_role" "$enable_citations" "$doc_index_var" "" "" "$project_root" "$workflow_dir"
+        done
+
+        # Clear arrays after processing
+        OBSIDIAN_EMBED_FILES=()
+        OBSIDIAN_EMBED_ROLES=()
     fi
 
     # Track document index (get current value via indirect reference)

@@ -205,11 +205,11 @@ prompt_to_continue_or_exit() {
 
 # Filename sanitization -- create XML-like identifiers for files
 sanitize() {
-    local filename="$1"
-    local sanitized
+    local input="$1"
+    local sanitized="$input"
 
-    # Strip any parent path elements first
-    sanitized="$(basename "$filename")"
+    # Replace path separators with underscores (preserves path structure)
+    sanitized="${sanitized//\//_}"
 
     # Replace spaces with underscores
     sanitized="${sanitized// /_}"
@@ -235,6 +235,116 @@ sanitize() {
     sanitized="${sanitized%_}"
 
     echo "$sanitized"
+}
+
+# =============================================================================
+# Obsidian Markdown Preprocessing
+# =============================================================================
+
+# Resolve Obsidian embed reference to actual file path
+# Arguments:
+#   $1 - embed reference (e.g., "image.png" or "Attachments/doc.pdf")
+#   $2 - source directory (directory containing the markdown file)
+# Returns:
+#   Absolute path to stdout if found, empty if not found
+#   Exit code 0 if found, 1 if not found
+resolve_obsidian_embed() {
+    local embed_ref="$1"
+    local source_dir="$2"
+
+    # Strip page/dimension modifiers
+    embed_ref="${embed_ref%%#*}"  # Remove #page=N
+    embed_ref="${embed_ref%%|*}"  # Remove |dimensions
+
+    # Search directories in order of priority
+    local search_dirs=(
+        "$source_dir"
+        "$source_dir/Attachments"
+        "$source_dir/attachments"
+        "$source_dir/assets"
+        "$source_dir/images"
+        "$source_dir/media"
+    )
+
+    for dir in "${search_dirs[@]}"; do
+        local candidate="$dir/$embed_ref"
+        if [[ -f "$candidate" ]]; then
+            # Return absolute path
+            realpath "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+# Global arrays for tracking discovered embed files during preprocessing
+# Populated by preprocess_obsidian_markdown(), consumed by caller
+declare -a OBSIDIAN_EMBED_FILES=()
+declare -a OBSIDIAN_EMBED_ROLES=()
+
+# Preprocess Obsidian markdown, resolving ![[...]] embeds
+# Arguments:
+#   $1 - markdown content
+#   $2 - source file path (for relative resolution)
+#   $3 - role ("context" or "input")
+#   $4 - project root (for relative path calculation)
+# Outputs:
+#   - Modified markdown to stdout
+#   - Populates OBSIDIAN_EMBED_FILES array with resolved absolute paths
+#   - Populates OBSIDIAN_EMBED_ROLES array with corresponding roles
+# Returns:
+#   0 on success, warnings to stderr for missing files
+preprocess_obsidian_markdown() {
+    local content="$1"
+    local source_file="$2"
+    local role="$3"
+    local project_root="$4"
+    local source_dir
+    source_dir=$(dirname "$source_file")
+
+    # Clear global arrays for this file
+    OBSIDIAN_EMBED_FILES=()
+    OBSIDIAN_EMBED_ROLES=()
+
+    # Process content line by line
+    local output=""
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Check for Obsidian embed pattern: ![[filename]] or ![[filename|dims]] or ![[filename#page]]
+        if [[ "$line" =~ !\[\[([^\]|#]+)([\|#][^\]]+)?\]\] ]]; then
+            local embed_ref="${BASH_REMATCH[1]}"
+            local modifiers="${BASH_REMATCH[2]:-}"
+            local full_match="![[${embed_ref}${modifiers}]]"
+            local resolved_path
+
+            # Try to find the file
+            resolved_path=$(resolve_obsidian_embed "$embed_ref" "$source_dir")
+
+            if [[ -n "$resolved_path" ]]; then
+                # Generate XML tag from project-relative path
+                local rel_path xml_tag
+                rel_path=$(relative_path "$resolved_path" "$project_root")
+                xml_tag=$(sanitize "$rel_path")
+
+                # Replace embed with XML reference tag
+                # Escape brackets for bash glob pattern substitution
+                local escaped_match="${full_match//\[/\\[}"
+                escaped_match="${escaped_match//\]/\\]}"
+                line="${line//$escaped_match/<${xml_tag}\/>}"
+
+                # Track file for inclusion (deduplication handled by caller)
+                OBSIDIAN_EMBED_FILES+=("$resolved_path")
+                OBSIDIAN_EMBED_ROLES+=("$role")
+            else
+                # Warning to stderr, keep original syntax
+                echo "Warning: Obsidian embed not found: $embed_ref (in $source_file)" >&2
+            fi
+        fi
+        output+="$line"$'\n'
+    done <<< "$content"
+
+    # Remove trailing newline added by loop
+    printf '%s' "${output%$'\n'}"
 }
 
 # =============================================================================
@@ -1362,6 +1472,13 @@ build_content_block() {
     # Read file content
     local content
     content=$(cat "$file")
+
+    # Preprocess Obsidian markdown files to resolve embeds
+    if [[ "$file" == *.md || "$file" == *.markdown ]]; then
+        if [[ -n "${PROJECT_ROOT:-}" ]]; then
+            content=$(preprocess_obsidian_markdown "$content" "$abs_path" "$block_category" "$PROJECT_ROOT")
+        fi
+    fi
 
     # Extract title for document blocks
     local title
