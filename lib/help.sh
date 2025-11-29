@@ -124,7 +124,7 @@ EOF
 }
 
 show_quick_help_shell() {
-    echo "Usage: $SCRIPT_NAME shell install"
+    echo "Usage: $SCRIPT_NAME shell <install|doctor|uninstall>"
     echo "See '$SCRIPT_NAME help shell' for complete usage details."
 }
 
@@ -496,10 +496,12 @@ show_help_shell() {
     cat <<EOF
 Usage: $SCRIPT_NAME shell <action>
 
-Install WireFlow into user-local paths for easy access.
+Manage WireFlow shell integration.
 
 Actions:
-    install            Install wfw symlink, completions, and prompt helper
+    install            Install symlinks (skip if already installed)
+    doctor             Force reinstall symlinks + diagnose completions/prompt
+    uninstall          Remove symlinks and check for config references
 
 Installation paths:
     Binary:            \${XDG_BIN_HOME:-~/.local/bin}/wfw
@@ -513,14 +515,16 @@ Notes:
     All files are installed as symlinks to the source repository,
     so updates to the repo are automatically reflected.
 
-    Completions will load automatically in new shells that use bash-completion.
-    To enable immediately: source ~/.local/share/bash-completion/completions/wfw
+    Use 'doctor' to fix broken symlinks (e.g., after moving the repo) and
+    to diagnose bash-completion and prompt integration issues.
 
     The prompt helper provides __wfw_ps1() for PS1 integration (like __git_ps1):
         source ~/.local/share/wireflow/wfw-prompt.sh
         export PS1='\w\$(__wfw_ps1 " (%s)")\$ '
 
 Examples:
-    $SCRIPT_NAME shell install
+    $SCRIPT_NAME shell install      # First-time installation
+    $SCRIPT_NAME shell doctor       # Fix symlinks + check setup
+    $SCRIPT_NAME shell uninstall    # Remove symlinks
 EOF
 }

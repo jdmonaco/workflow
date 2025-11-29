@@ -899,6 +899,12 @@ cmd_shell() {
         install)
             shell_install
             ;;
+        doctor)
+            shell_doctor
+            ;;
+        uninstall)
+            shell_uninstall
+            ;;
         -h|--help)
             show_quick_help_shell
             ;;
@@ -929,10 +935,12 @@ shell_install() {
     local wfw_source="$wireflow_root/wireflow.sh"
     local wfw_target="$bin_dir/wfw"
 
-    if [[ -e "$wfw_target" && ! -L "$wfw_target" ]]; then
+    if [[ -L "$wfw_target" ]]; then
+        echo "Already installed: $wfw_target"
+    elif [[ -e "$wfw_target" ]]; then
         echo "Warning: $wfw_target exists and is not a symlink, skipping"
     else
-        ln -sf "$wfw_source" "$wfw_target"
+        ln -s "$wfw_source" "$wfw_target"
         echo "Installed: $wfw_target -> $wfw_source"
     fi
 
@@ -940,10 +948,12 @@ shell_install() {
     local comp_source="$wireflow_root/share/bash-completion/completions/wireflow.sh"
     local comp_target="$completions_dir/wfw"
 
-    if [[ -e "$comp_target" && ! -L "$comp_target" ]]; then
+    if [[ -L "$comp_target" ]]; then
+        echo "Already installed: $comp_target"
+    elif [[ -e "$comp_target" ]]; then
         echo "Warning: $comp_target exists and is not a symlink, skipping"
     else
-        ln -sf "$comp_source" "$comp_target"
+        ln -s "$comp_source" "$comp_target"
         echo "Installed: $comp_target -> $comp_source"
     fi
 
@@ -954,10 +964,12 @@ shell_install() {
     local prompt_source="$wireflow_root/share/wireflow/wfw-prompt.sh"
     local prompt_target="$share_dir/wfw-prompt.sh"
 
-    if [[ -e "$prompt_target" && ! -L "$prompt_target" ]]; then
+    if [[ -L "$prompt_target" ]]; then
+        echo "Already installed: $prompt_target"
+    elif [[ -e "$prompt_target" ]]; then
         echo "Warning: $prompt_target exists and is not a symlink, skipping"
     else
-        ln -sf "$prompt_source" "$prompt_target"
+        ln -s "$prompt_source" "$prompt_target"
         echo "Installed: $prompt_target -> $prompt_source"
     fi
 
@@ -978,4 +990,139 @@ shell_install() {
     echo "Optional: Add project indicator to your prompt:"
     echo "  source $prompt_target"
     echo "  export PS1='\\w\$(__wfw_ps1 \" (%s)\")\\$ '"
+}
+
+shell_doctor() {
+    # Determine wireflow root from this script's location
+    local wireflow_root
+    wireflow_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
+    local bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local completions_dir="$data_dir/bash-completion/completions"
+    local share_dir="$data_dir/wireflow"
+
+    # Create directories
+    mkdir -p "$bin_dir" "$completions_dir" "$share_dir"
+
+    # Force install wfw symlink
+    local wfw_source="$wireflow_root/wireflow.sh"
+    local wfw_target="$bin_dir/wfw"
+
+    if [[ -e "$wfw_target" && ! -L "$wfw_target" ]]; then
+        echo "Warning: $wfw_target exists and is not a symlink, skipping"
+    else
+        ln -sf "$wfw_source" "$wfw_target"
+        echo "Installed: $wfw_target -> $wfw_source"
+    fi
+
+    # Force install completions
+    local comp_source="$wireflow_root/share/bash-completion/completions/wireflow.sh"
+    local comp_target="$completions_dir/wfw"
+
+    if [[ -e "$comp_target" && ! -L "$comp_target" ]]; then
+        echo "Warning: $comp_target exists and is not a symlink, skipping"
+    else
+        ln -sf "$comp_source" "$comp_target"
+        echo "Installed: $comp_target -> $comp_source"
+    fi
+
+    # Force install prompt helper
+    local prompt_source="$wireflow_root/share/wireflow/wfw-prompt.sh"
+    local prompt_target="$share_dir/wfw-prompt.sh"
+
+    if [[ -e "$prompt_target" && ! -L "$prompt_target" ]]; then
+        echo "Warning: $prompt_target exists and is not a symlink, skipping"
+    else
+        ln -sf "$prompt_source" "$prompt_target"
+        echo "Installed: $prompt_target -> $prompt_source"
+    fi
+
+    # Check bash-completion loading
+    echo ""
+    if type -t _wireflow &>/dev/null; then
+        echo "Completions: loaded"
+    else
+        echo "Warning: Completions not loaded in current shell"
+        if [[ "$OSTYPE" == darwin* ]]; then
+            cat <<'EOF'
+  Ensure bash-completion is installed and sourced:
+    brew install bash-completion@2
+
+  Add to ~/.bashrc:
+    if [[ -s $HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh ]]; then
+      . "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh"
+    fi
+EOF
+        else
+            cat <<'EOF'
+  Ensure bash-completion is installed:
+    sudo apt install bash-completion  # Debian/Ubuntu
+    sudo dnf install bash-completion  # Fedora/RHEL
+
+  Add to ~/.bashrc if not auto-sourced:
+    [[ -f /usr/share/bash-completion/bash_completion ]] &&
+      . /usr/share/bash-completion/bash_completion
+EOF
+        fi
+    fi
+
+    # Check PS1/__wfw_ps1 status
+    echo ""
+    if [[ "$PS1" == *'__wfw_ps1'* ]]; then
+        echo "Prompt: __wfw_ps1 is in PS1"
+        if type -t __wfw_ps1 &>/dev/null; then
+            echo "  Function: defined"
+        else
+            echo "  Warning: __wfw_ps1 not defined in current shell"
+            echo "  Add to ~/.bashrc: source $prompt_target"
+        fi
+    else
+        echo "Prompt: __wfw_ps1 not in PS1 (optional)"
+        echo "  To enable: source $prompt_target"
+        echo "  Then: export PS1='\\w\$(__wfw_ps1 \" (%s)\")\\$ '"
+    fi
+}
+
+shell_uninstall() {
+    local bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local completions_dir="$data_dir/bash-completion/completions"
+    local share_dir="$data_dir/wireflow"
+
+    local wfw_target="$bin_dir/wfw"
+    local comp_target="$completions_dir/wfw"
+    local prompt_target="$share_dir/wfw-prompt.sh"
+
+    # Remove symlinks
+    for target in "$wfw_target" "$comp_target" "$prompt_target"; do
+        if [[ -L "$target" ]]; then
+            rm "$target"
+            echo "Removed: $target"
+        elif [[ -e "$target" ]]; then
+            echo "Warning: $target is not a symlink, skipping"
+        else
+            echo "Not installed: $target"
+        fi
+    done
+
+    # Warn about shell config entries
+    echo ""
+    echo "Checking shell config files for wireflow references..."
+
+    local found=0
+    for rc in ~/.bashrc ~/.bash_profile ~/.profile; do
+        if [[ -f "$rc" ]] && grep -qE '(wfw|wireflow|__wfw_ps1)' "$rc" 2>/dev/null; then
+            echo "  Found references in: $rc"
+            grep -nE '(wfw|wireflow|__wfw_ps1)' "$rc" | head -5
+            ((found++))
+        fi
+    done
+
+    if [[ $found -gt 0 ]]; then
+        echo ""
+        echo "To complete uninstallation, manually remove or comment these lines."
+    else
+        echo "  No wireflow references found in shell config files."
+    fi
 }
