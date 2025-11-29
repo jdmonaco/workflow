@@ -568,7 +568,7 @@ _wireflow_list() {
 _wireflow_shell() {
     case "$prev" in
         shell)
-            COMPREPLY=($(compgen -W "install" -- "$cur"))
+            COMPREPLY=($(compgen -W "install doctor uninstall" -- "$cur"))
             ;;
         *)
             if [[ "$cur" == -* ]]; then
